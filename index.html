@@ -221,6 +221,12 @@
   .pk-ok{background:var(--accent);color:#fff;}.pk-ok:hover{background:#2563eb;}
   .pk-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
 
+  /* ── TOOL DROPDOWN ── */
+  .tool-dropdown{position:relative;display:inline-flex;}
+  .tool-submenu{display:none;position:absolute;top:100%;left:0;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;box-shadow:0 6px 20px rgba(0,0,0,.5);min-width:160px;margin-top:2px;}
+  .tool-submenu.open{display:block;}
+  .tool-submenu button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 12px;background:none;border:none;border-radius:5px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;}
+  .tool-submenu button:hover{background:var(--surface2);}
   #calib-hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(59,130,246,.18);border:1px solid var(--accent);color:var(--accent);font-size:12px;padding:6px 14px;border-radius:var(--radius);z-index:20;pointer-events:none;display:none;white-space:nowrap;}
 
   /* ── DELETE BTN OVERLAY ── */
@@ -390,8 +396,24 @@
     <div class="hgroup">
       <div class="hgroup-label">Éléments</div>
       <div class="hgroup-body">
-        <button class="tool-btn" id="btn-soufflage"       style="--tool-color:var(--soufflage)"      onclick="setTool('soufflage')"      ><span class="tool-icon" id="ti-soufflage"></span>Soufflage</button>
-        <button class="tool-btn" id="btn-extraction"      style="--tool-color:var(--extraction)"     onclick="setTool('extraction')"     ><span class="tool-icon" id="ti-extraction"></span>Extraction</button>
+        <!-- Soufflage avec variantes -->
+        <div class="tool-dropdown" id="dd-soufflage">
+          <button class="tool-btn" id="btn-soufflage" style="--tool-color:var(--soufflage)" onclick="toggleDropdown('dd-soufflage',event)"><span class="tool-icon" id="ti-soufflage"></span>Soufflage ▾</button>
+          <div class="tool-submenu" id="sub-soufflage">
+            <button onclick="setTool('soufflage');closeDropdowns()">⊙ Rond</button>
+            <button onclick="setTool('soufflage-rect');closeDropdowns()">▭ Rectangulaire</button>
+          </div>
+        </div>
+        <!-- Extraction avec variantes -->
+        <div class="tool-dropdown" id="dd-extraction">
+          <button class="tool-btn" id="btn-extraction" style="--tool-color:var(--extraction)" onclick="toggleDropdown('dd-extraction',event)"><span class="tool-icon" id="ti-extraction"></span>Extraction ▾</button>
+          <div class="tool-submenu" id="sub-extraction">
+            <button onclick="setTool('extraction');closeDropdowns()">⊙ Ronde</button>
+            <button onclick="setTool('extraction-rect');closeDropdowns()">▭ Rectangulaire</button>
+          </div>
+        </div>
+        <button class="tool-btn" id="btn-soufflage-rect"  style="--tool-color:var(--soufflage);display:none" onclick="setTool('soufflage-rect')"></button>
+        <button class="tool-btn" id="btn-extraction-rect" style="--tool-color:var(--extraction);display:none" onclick="setTool('extraction-rect')"></button>
         <button class="tool-btn" id="btn-prise-air-neuf"  style="--tool-color:var(--prise-air-neuf)" onclick="setTool('prise-air-neuf')" ><span class="tool-icon" id="ti-prise-air-neuf"></span>Prise AN</button>
         <button class="tool-btn" id="btn-rejet-air-vicie" style="--tool-color:#ff8c00"               onclick="setTool('rejet-air-vicie')"><span class="tool-icon" id="ti-rejet-air-vicie"></span>Rejet AV</button>
         <button class="tool-btn" id="btn-vmc"             style="--tool-color:var(--vmc)"            onclick="setTool('vmc')"            ><span class="tool-icon" id="ti-vmc"></span>VMC</button>
@@ -418,6 +440,16 @@
       <div class="hgroup-label">Liaisons</div>
       <div class="hgroup-body">
         <button class="tool-btn" id="btn-liaison" onclick="setTool('liaison')">🔗 Liaison</button>
+        <select id="quick-tension" onchange="updateActiveTension()" title="Type de tracé" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
+          <option value="0.35">〜 Courbe</option>
+          <option value="0">╌ Linéaire</option>
+        </select>
+        <!-- Contrainte angulaire — actif seulement en mode linéaire -->
+        <select id="quick-angle" onchange="updateActiveAngle()" title="Contrainte angulaire" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
+          <option value="0">∠ Libre</option>
+          <option value="90">↔ 90° ortho</option>
+          <option value="45">⤢ 45°/90°</option>
+        </select>
         <select id="quick-mat" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:90px;">
           <option value="">— Mat. —</option>
         </select>
@@ -758,7 +790,9 @@ const SVG_ICONS = {
   'vmc': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="8" width="36" height="24" rx="3" fill="#1a2a1a" stroke="#29b000" stroke-width="2"/><circle cx="20" cy="20" r="7" fill="none" stroke="#29b000" stroke-width="1.5"/><line x1="20" y1="13" x2="20" y2="27" stroke="#29b000" stroke-width="1.2"/><line x1="13" y1="20" x2="27" y2="20" stroke="#29b000" stroke-width="1.2"/><line x1="15" y1="15" x2="25" y2="25" stroke="#29b000" stroke-width="1.2"/><line x1="25" y1="15" x2="15" y2="25" stroke="#29b000" stroke-width="1.2"/><circle cx="20" cy="20" r="2.5" fill="#29b000"/><rect x="5" y="11" width="4" height="4" rx="1" fill="#29b000" opacity=".5"/><rect x="31" y="11" width="4" height="4" rx="1" fill="#29b000" opacity=".5"/><text x="20" y="37" text-anchor="middle" font-size="5" fill="#29b000" font-family="monospace">VMC</text></svg>`,
   'caisson': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#2a1e00" stroke="#f59e0b" stroke-width="2"/><line x1="4" y1="20" x2="36" y2="20" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity=".6"/><circle cx="12" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="12" y1="12.5" x2="12" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="8.5" y1="16" x2="15.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="20" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="20" y1="12.5" x2="20" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="16.5" y1="16" x2="23.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="28" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="28" y1="12.5" x2="28" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="24.5" y1="16" x2="31.5" y2="16" stroke="#f59e0b" stroke-width="1"/><text x="20" y="29" text-anchor="middle" font-size="4.5" fill="#f59e0b" font-family="monospace">RÉPARTITEUR</text></svg>`,
   'soufflage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff0101" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="10" x2="20" y2="18" stroke="#ff0101" stroke-width="1.5"/><line x1="20" y1="30" x2="20" y2="22" stroke="#ff0101" stroke-width="1.5"/><line x1="10" y1="20" x2="18" y2="20" stroke="#ff0101" stroke-width="1.5"/><line x1="30" y1="20" x2="22" y2="20" stroke="#ff0101" stroke-width="1.5"/><circle cx="20" cy="20" r="3" fill="#ff0101"/></svg>`,
+  'soufflage-rect': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><line x1="20" y1="14" x2="20" y2="26" stroke="#ff0101" stroke-width="1.5"/><line x1="8" y1="20" x2="32" y2="20" stroke="#ff0101" stroke-width="1.5"/><circle cx="20" cy="20" r="2.5" fill="#ff0101"/><rect x="4" y="10" width="32" height="20" rx="2" fill="none" stroke="#ff0101" stroke-width="2" stroke-dasharray="3,2" opacity=".4"/></svg>`,
   'extraction': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#00001a" stroke="#0008fa" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#0008fa" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="18" x2="20" y2="10" stroke="#0008fa" stroke-width="1.5"/><line x1="20" y1="22" x2="20" y2="30" stroke="#0008fa" stroke-width="1.5"/><line x1="18" y1="20" x2="10" y2="20" stroke="#0008fa" stroke-width="1.5"/><line x1="22" y1="20" x2="30" y2="20" stroke="#0008fa" stroke-width="1.5"/><circle cx="20" cy="20" r="3" fill="#0008fa"/></svg>`,
+  'extraction-rect': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#00001a" stroke="#0008fa" stroke-width="2"/><line x1="20" y1="14" x2="20" y2="26" stroke="#0008fa" stroke-width="1.5"/><line x1="8" y1="20" x2="32" y2="20" stroke="#0008fa" stroke-width="1.5"/><circle cx="20" cy="20" r="2.5" fill="#0008fa"/><rect x="4" y="10" width="32" height="20" rx="2" fill="none" stroke="#0008fa" stroke-width="2" stroke-dasharray="3,2" opacity=".4"/></svg>`,
   'prise-air-neuf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="10" width="34" height="22" rx="2" fill="#001a1a" stroke="#00e1ff" stroke-width="2"/><line x1="8" y1="14" x2="8" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="13" y1="14" x2="13" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="18" y1="14" x2="18" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="23" y1="14" x2="23" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="28" y1="14" x2="28" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="33" y1="14" x2="33" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="3" y1="14" x2="37" y2="14" stroke="#00e1ff" stroke-width="1.5"/><line x1="3" y1="28" x2="37" y2="28" stroke="#00e1ff" stroke-width="1.5"/><polygon points="20,4 17,10 23,10" fill="#00e1ff"/></svg>`,
   'coude': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M8,32 L8,16 Q8,8 16,8 L32,8" fill="none" stroke="#a855f7" stroke-width="5" stroke-linecap="round"/><path d="M8,32 L8,16 Q8,8 16,8 L32,8" fill="none" stroke="#2a1a3a" stroke-width="2.5" stroke-linecap="round"/><circle cx="8" cy="32" r="3" fill="#a855f7"/><circle cx="32" cy="8" r="3" fill="#a855f7"/></svg>`,
   'piquage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><line x1="4" y1="20" x2="36" y2="20" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/><line x1="4" y1="20" x2="36" y2="20" stroke="#001a2a" stroke-width="1.5" stroke-linecap="round"/><line x1="20" y1="20" x2="20" y2="6" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="20" r="4.5" fill="#001a2a" stroke="#06b6d4" stroke-width="2"/><circle cx="20" cy="6" r="3" fill="#06b6d4"/><circle cx="4" cy="20" r="3" fill="#06b6d4"/><circle cx="36" cy="20" r="3" fill="#06b6d4"/></svg>`,
@@ -785,15 +819,17 @@ const TAP_MAX_DURATION=300,TAP_MAX_MOVE=10,LONG_PRESS_DELAY=500;
 const ICON_BASE_PX=28;
 
 const TOOLS={
-  'soufflage':       {label:'Soufflage',     color:'#ff0101',shape:'circle'},
-  'extraction':      {label:'Extraction',    color:'#0008fa',shape:'circle'},
-  'prise-air-neuf':  {label:'PriseAN',       color:'#00e1ff',shape:'rect'},
-  'rejet-air-vicie': {label:'RejetAirVicié', color:'#ff8c00',shape:'rect'},
-  'vmc':             {label:'VMC',           color:'#29b000',shape:'rect'},
-  'caisson':         {label:'Répartiteur',   color:'#f59e0b',shape:'diamond'},
-  'coude':           {label:'Coude 90°',     color:'#a855f7',shape:'triangle'},
-  'piquage':         {label:'Piquage',       color:'#06b6d4',shape:'cross'},
-  'liaison':         {label:'Liaison',       color:'#94a3b8',shape:null},
+  'soufflage':         {label:'Soufflage ⊙',   color:'#ff0101',shape:'circle'},
+  'soufflage-rect':    {label:'Soufflage ▭',   color:'#ff0101',shape:'rect'},
+  'extraction':        {label:'Extraction ⊙',  color:'#0008fa',shape:'circle'},
+  'extraction-rect':   {label:'Extraction ▭',  color:'#0008fa',shape:'rect'},
+  'prise-air-neuf':    {label:'PriseAN',        color:'#00e1ff',shape:'rect'},
+  'rejet-air-vicie':   {label:'RejetAirVicié',  color:'#ff8c00',shape:'rect'},
+  'vmc':               {label:'VMC',            color:'#29b000',shape:'rect'},
+  'caisson':           {label:'Répartiteur',    color:'#f59e0b',shape:'diamond'},
+  'coude':             {label:'Coude 90°',      color:'#a855f7',shape:'triangle'},
+  'piquage':           {label:'Piquage',        color:'#06b6d4',shape:'cross'},
+  'liaison':           {label:'Liaison',        color:'#94a3b8',shape:null},
 };
 
 let customIcons={};
@@ -841,6 +877,42 @@ let calibrationPoints=[], measurePoints=[], scaleRatio=null, tempMarkers=[];
 let conduitConfig={materiaux:['Galva','PVC','Flex','ComfoPipe','ComfoTube'],diametres:['Ø80','Ø90','Ø125','Ø160','Ø200']};
 let activeConduit={mat:'',dia:'',locked:false};
 let activeReseau={label:'',color:'',locked:false};
+let activeTension=0.35;
+let activeAngle=0; // 0=libre, 90=ortho, 45=45°/90°
+
+function updateActiveTension(){
+  activeTension=parseFloat(document.getElementById('quick-tension').value);
+}
+function updateActiveAngle(){
+  activeAngle=parseInt(document.getElementById('quick-angle').value);
+}
+
+// Snap angulaire — uniquement en mode linéaire
+function snapToAngle(from,to){
+  if(!activeAngle||activeTension!==0)return to;
+  const dx=to.x-from.x,dy=to.y-from.y;
+  const len=Math.sqrt(dx*dx+dy*dy);if(len<1)return to;
+  const angleDeg=Math.atan2(dy,dx)*180/Math.PI;
+  const snapped=Math.round(angleDeg/activeAngle)*activeAngle;
+  const rad=snapped*Math.PI/180;
+  return{x:from.x+len*Math.cos(rad),y:from.y+len*Math.sin(rad)};
+}
+
+// Compte les coudes dans une liaison (changements de direction)
+function countBendsInLink(waypoints,a,b){
+  if(activeTension!==0)return{bends90:0,bends45:0};
+  const pts=[{x:a.x(),y:a.y()},...waypoints.map(w=>({x:w._x,y:w._y})),{x:b.x(),y:b.y()}];
+  let bends90=0,bends45=0;
+  for(let i=1;i<pts.length-1;i++){
+    const v1={x:pts[i].x-pts[i-1].x,y:pts[i].y-pts[i-1].y};
+    const v2={x:pts[i+1].x-pts[i].x,y:pts[i+1].y-pts[i].y};
+    let diff=Math.abs(Math.atan2(v2.y,v2.x)-Math.atan2(v1.y,v1.x))*180/Math.PI;
+    if(diff>180)diff=360-diff;
+    if(diff>80&&diff<100)bends90++;
+    else if(diff>40&&diff<50)bends45++;
+  }
+  return{bends90,bends45};
+}
 let pendingLink=null, globalSize=7;
 let history=[], MAX_HISTORY=20;
 let _selectedLinkObj=null;
@@ -1938,7 +2010,11 @@ function addItem(key){const id=key==='materiaux'?'input-materiau':'input-diametr
 function removeItem(key,idx){conduitConfig[key].splice(idx,1);renderTags(key);}
 function updateActiveConduit(){activeConduit.mat=document.getElementById('quick-mat').value;activeConduit.dia=document.getElementById('quick-dia').value;}
 function toggleLock(){activeConduit.locked=!activeConduit.locked;const btn=document.getElementById('btn-lock');btn.textContent=activeConduit.locked?'🔒':'🔓';btn.style.borderColor=activeConduit.locked?'var(--accent)':'var(--border)';btn.style.color=activeConduit.locked?'var(--accent)':'var(--text2)';}
-function openPicker(a,b){pendingLink={a,b};syncReseauSelect();document.getElementById('pk-reseau').innerHTML='<option value="">— Type —</option>'+reseauTypes.map(r=>`<option value="${r.label}" ${(activeReseau.locked&&r.label===activeReseau.label)?'selected':''}>${r.label}</option>`).join('');if(activeReseau.locked&&activeReseau.label){document.getElementById('pk-reseau').value=activeReseau.label;onPkReseauChange();}else onPkReseauChange();document.getElementById('pk-materiau').innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${(activeConduit.locked&&m===activeConduit.mat)?'selected':''}>${m}</option>`).join('');document.getElementById('pk-diametre').innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${(activeConduit.locked&&d===activeConduit.dia)?'selected':''}>${d}</option>`).join('');const pkDiaRow=document.getElementById('pk-dia-mm-row');if(pkDiaRow)pkDiaRow.style.display=scaleRatio?'flex':'none';const pkDiaInp=document.getElementById('pk-dia-mm');if(pkDiaInp){const auto=extractDiaMm(activeConduit.locked?activeConduit.dia:'');pkDiaInp.value=auto||'';}const p=document.getElementById('link-picker');p.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%)';p.classList.add('open');}
+function openPicker(a,b){pendingLink={a,b};syncReseauSelect();document.getElementById('pk-reseau').innerHTML='<option value="">— Type —</option>'+reseauTypes.map(r=>`<option value="${r.label}" ${(activeReseau.locked&&r.label===activeReseau.label)?'selected':''}>${r.label}</option>`).join('');if(activeReseau.locked&&activeReseau.label){document.getElementById('pk-reseau').value=activeReseau.label;onPkReseauChange();}else onPkReseauChange();document.getElementById('pk-materiau').innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${(activeConduit.locked&&m===activeConduit.mat)?'selected':''}>${m}</option>`).join('');document.getElementById('pk-diametre').innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${(activeConduit.locked&&d===activeConduit.dia)?'selected':''}>${d}</option>`).join('');const pkDiaRow=document.getElementById('pk-dia-mm-row');if(pkDiaRow)pkDiaRow.style.display=scaleRatio?'flex':'none';const pkDiaInp=document.getElementById('pk-dia-mm');if(pkDiaInp){const auto=extractDiaMm(activeConduit.locked?activeConduit.dia:'');pkDiaInp.value=auto||'';}
+  // Pré-remplir le type de tracé depuis la barre
+  const pkTension=document.getElementById('pk-tension');if(pkTension)pkTension.value=String(activeTension);
+  const p=document.getElementById('link-picker');p.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%)';p.classList.add('open');
+}
 function cancelPicker(){document.getElementById('link-picker').classList.remove('open');pendingLink=null;cancelLinkDrawing();}
 function confirmPicker(){if(!pendingLink)return;const mat=document.getElementById('pk-materiau').value,dia=document.getElementById('pk-diametre').value;const reseauLabel=document.getElementById('pk-reseau').value,reseauColor=reseauLabel?getReseauColor(reseauLabel):'';const tension=parseFloat(document.getElementById('pk-tension').value);const diaMmInp=parseFloat(document.getElementById('pk-dia-mm').value);const diaMm=isNaN(diaMmInp)?extractDiaMm(dia):diaMmInp;document.getElementById('link-picker').classList.remove('open');pushHistory();const wps=_linkWaypoints.slice();cancelLinkDrawing();createLink(pendingLink.a,pendingLink.b,mat,dia,null,reseauLabel,reseauColor,wps,tension,diaMm);pendingLink=null;}
 
@@ -1954,12 +2030,28 @@ function clearMeasurePreview(){if(window._measurePreview){window._measurePreview
 // ══════════════════════════════════════════════════════════════
 // SET TOOL
 // ══════════════════════════════════════════════════════════════
+function toggleDropdown(id,evt){
+  evt&&evt.stopPropagation();
+  const sub=document.getElementById(id).querySelector('.tool-submenu');
+  const wasOpen=sub.classList.contains('open');
+  closeDropdowns();
+  if(!wasOpen)sub.classList.add('open');
+}
+function closeDropdowns(){
+  document.querySelectorAll('.tool-submenu').forEach(s=>s.classList.remove('open'));
+}
+// Fermer les dropdowns au clic ailleurs
+document.addEventListener('click',()=>closeDropdowns());
+
 function setTool(tool){
+  closeDropdowns();
   cancelLinkDrawing();cancelZoneDrawing();
   _arrowDrawing=false;_arrowStart=null;
   currentTool=tool;
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
-  const btn=document.getElementById('btn-'+tool);if(btn)btn.classList.add('active');
+  // Pour les variantes rect, activer le bouton parent dropdown
+  const btnId=tool==='soufflage-rect'?'btn-soufflage':tool==='extraction-rect'?'btn-extraction':'btn-'+tool;
+  const btn=document.getElementById(btnId);if(btn)btn.classList.add('active');
   const cw=document.getElementById('canvas-wrap');
   cw.className='';
   if(tool==='none')cw.classList.add('pan');
@@ -1983,9 +2075,31 @@ function setTool(tool){
 // ══════════════════════════════════════════════════════════════
 function cancelLinkDrawing(){_linkDrawing=false;_linkWaypoints=[];linkStart=null;if(_linkPreviewLine){_linkPreviewLine.destroy();_linkPreviewLine=null;}if(_linkPreviewDot){_linkPreviewDot.destroy();_linkPreviewDot=null;}tempMarkers.forEach(m=>m.destroy());tempMarkers=[];drawLayer&&drawLayer.batchDraw();}
 function startLinkDrawing(startEl){linkStart=startEl;_linkDrawing=true;_linkWaypoints=[];_linkPreviewLine=new Konva.Line({points:[startEl.x(),startEl.y(),startEl.x(),startEl.y()],stroke:'#94a3b8',strokeWidth:2,dash:[6,3],opacity:.7,tension:.4,listening:false});_linkPreviewDot=new Konva.Circle({radius:4,fill:'#94a3b8',opacity:.7,listening:false});drawLayer.add(_linkPreviewLine);drawLayer.add(_linkPreviewDot);drawLayer.batchDraw();showHint('Liaison en cours — cliquez dans le vide pour poser un point — arrivée sur un élément — Échap pour annuler');}
-function updateLinkPreview(pos){if(!_linkDrawing||!_linkPreviewLine)return;const base=[linkStart.x(),linkStart.y()];_linkWaypoints.forEach(wp=>{base.push(wp.x,wp.y);});base.push(pos.x,pos.y);_linkPreviewLine.points(base);_linkPreviewDot.x(pos.x);_linkPreviewDot.y(pos.y);drawLayer.batchDraw();}
-function addWaypointToDrawing(pos){const m=new Konva.Circle({x:pos.x,y:pos.y,radius:4,fill:'#94a3b8',stroke:'#fff',strokeWidth:1,opacity:.8,listening:false});drawLayer.add(m);tempMarkers.push(m);_linkWaypoints.push({x:pos.x,y:pos.y});drawLayer.batchDraw();}
-function finishLinkDrawing(endEl){if(!_linkDrawing)return;const wps=_linkWaypoints.slice();const a=linkStart,b=endEl;cancelLinkDrawing();if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){pushHistory();createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps);}else{pendingLink={a,b};_linkWaypoints=wps;openPicker(a,b);}}
+function updateLinkPreview(pos){
+  if(!_linkDrawing||!_linkPreviewLine)return;
+  const base=[linkStart.x(),linkStart.y()];
+  _linkWaypoints.forEach(wp=>{base.push(wp.x,wp.y);});
+  // Snap angulaire depuis le dernier point
+  const lastPt=_linkWaypoints.length?{x:_linkWaypoints[_linkWaypoints.length-1].x,y:_linkWaypoints[_linkWaypoints.length-1].y}:{x:linkStart.x(),y:linkStart.y()};
+  const snapped=snapToAngle(lastPt,pos);
+  base.push(snapped.x,snapped.y);
+  _linkPreviewLine.points(base);_linkPreviewDot.x(snapped.x);_linkPreviewDot.y(snapped.y);
+  drawLayer.batchDraw();
+}
+function addWaypointToDrawing(pos){
+  // Snap depuis le dernier point posé
+  const lastPt=_linkWaypoints.length?{x:_linkWaypoints[_linkWaypoints.length-1].x,y:_linkWaypoints[_linkWaypoints.length-1].y}:{x:linkStart.x(),y:linkStart.y()};
+  const snapped=snapToAngle(lastPt,pos);
+  const m=new Konva.Circle({x:snapped.x,y:snapped.y,radius:4,fill:'#94a3b8',stroke:'#fff',strokeWidth:1,opacity:.8,listening:false});
+  drawLayer.add(m);tempMarkers.push(m);_linkWaypoints.push({x:snapped.x,y:snapped.y});drawLayer.batchDraw();
+}
+function finishLinkDrawing(endEl){
+  if(!_linkDrawing)return;
+  const wps=_linkWaypoints.slice();const a=linkStart,b=endEl;cancelLinkDrawing();
+  if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){
+    pushHistory();createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps,activeTension);
+  }else{pendingLink={a,b};_linkWaypoints=wps;openPicker(a,b);}
+}
 
 // ══════════════════════════════════════════════════════════════
 // FOND DE PLAN — état global
@@ -2574,6 +2688,8 @@ function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',
     label.setAttr('customType','linkLabel');labelBg.setAttr('customType','linkLabel');
     drawLayer.add(line);drawLayer.add(labelBg);drawLayer.add(label);line.moveToBottom();
     const linkObj={a,b,line,label,labelBg,waypoints,waypointDots:[],lengthM,mat:mat||'',dia:dia||'',diaMm:resolvedDiaMm,reseau:reseau||'',reseauColor:lineColor,lineColor,tension};
+    const bends=countBendsInLink(waypoints,a,b);
+    linkObj.bends90=bends.bends90;linkObj.bends45=bends.bends45;
     waypointData.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));
     links.push(linkObj);drawLayer.batchDraw();updateListe();
   };
@@ -2600,8 +2716,8 @@ function updateListe(){
   const total=entries.reduce((s,[,v])=>s+v,0);
   const colorMap=Object.fromEntries(Object.values(TOOLS).map(v=>[v.label,v.color]));
   const byReseau={};
-  links.forEach(l=>{const key=l.reseau||'—';if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{}};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};byReseau[key].subnets[sk].count++;if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}});
-  const liaisonRows=Object.entries(byReseau).map(([reseau,v])=>`<div class="mat-item" style="border-left:3px solid ${v.color};flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;align-items:center;gap:8px;width:100%;"><span class="mat-dot" style="background:${v.color}"></span><span class="mat-name" style="font-size:12px;font-weight:600;">${reseau}</span><span class="mat-count" style="font-size:11px;">×${v.count}${v.hasLen?' — '+v.metres.toFixed(1)+' m':''}</span></div>${Object.entries(v.subnets).map(([sk,sv])=>`<div style="display:flex;width:100%;padding-left:18px;font-size:11px;color:var(--text2);"><span style="flex:1;">${sk}</span><span>×${sv.count}${sv.hasLen?' ('+sv.metres.toFixed(1)+' m)':''}</span></div>`).join('')}</div>`).join('');
+  links.forEach(l=>{const key=l.reseau||'—';if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{},bends90:0,bends45:0};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}byReseau[key].bends90+=(l.bends90||0);byReseau[key].bends45+=(l.bends45||0);const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};byReseau[key].subnets[sk].count++;if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}});
+  const liaisonRows=Object.entries(byReseau).map(([reseau,v])=>`<div class="mat-item" style="border-left:3px solid ${v.color};flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;align-items:center;gap:8px;width:100%;"><span class="mat-dot" style="background:${v.color}"></span><span class="mat-name" style="font-size:12px;font-weight:600;">${reseau}</span><span class="mat-count" style="font-size:11px;">×${v.count}${v.hasLen?' — '+v.metres.toFixed(1)+' m':''}</span></div>${Object.entries(v.subnets).map(([sk,sv])=>`<div style="display:flex;width:100%;padding-left:18px;font-size:11px;color:var(--text2);"><span style="flex:1;">${sk}</span><span>×${sv.count}${sv.hasLen?' ('+sv.metres.toFixed(1)+' m)':''}</span></div>`).join('')}${v.bends90>0?`<div style="padding-left:18px;font-size:11px;color:#a855f7;">↩ Coudes 90° : ${v.bends90}</div>`:''}${v.bends45>0?`<div style="padding-left:18px;font-size:11px;color:#a78bfa;">⤢ Coudes 45° : ${v.bends45}</div>`:''}</div>`).join('');
   document.getElementById('material-list').innerHTML=entries.length===0&&links.length===0?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div>':entries.map(([l,q])=>`<div class="mat-item"><span class="mat-dot" style="background:${colorMap[l]||'#888'}"></span><span class="mat-name">${l}</span><span class="mat-count">×${q}</span></div>`).join('')+liaisonRows;
 }
 
