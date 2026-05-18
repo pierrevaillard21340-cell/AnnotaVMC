@@ -34,7 +34,14 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
-  #header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;z-index:10;}
+  #header{display:flex;flex-direction:column;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;}
+  .hrow{display:flex;align-items:center;gap:6px;padding:4px 10px;flex-wrap:nowrap;overflow-x:auto;}
+  .hrow:first-child{border-bottom:1px solid var(--border);}
+  .hrow::-webkit-scrollbar{height:3px;}
+  .hrow::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .hgroup{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+  .hgroup-label{font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;padding:0 2px;opacity:.7;}
+  .hgroup-body{display:flex;align-items:center;gap:3px;}
   #logo{font-weight:700;font-size:15px;color:var(--accent);white-space:nowrap;}
   .sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
   .tool-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius);border:1.5px solid transparent;background:var(--surface2);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
@@ -304,76 +311,140 @@
 <body>
 
 <div id="header">
-  <div id="logo">⊕ AnnotaVMC</div>
-  <label id="btn-import" for="upload">📷 Importer</label>
-  <input type="file" id="upload" accept="image/*,.pdf,application/pdf">
+  <input type="file" id="upload" accept="image/*,.pdf,application/pdf,.annotavmc">
   <input type="file" id="upload-save" accept=".annotavmc">
-  <!-- Orientation fond de plan — visible après import -->
-  <div id="bg-orient" style="display:none;align-items:center;gap:3px;">
+
+  <!-- ══ LIGNE 1 : Documents · Annotations · Cotation · Actions ══ -->
+  <div class="hrow" id="hrow1">
+
+    <!-- DOCUMENTS -->
+    <div class="hgroup">
+      <div class="hgroup-label">Documents</div>
+      <div class="hgroup-body">
+        <label class="action-btn" for="upload" title="Importer image / PDF / projet">📥 Importer</label>
+        <label class="action-btn save" for="upload-save" title="Ouvrir un projet .annotavmc" style="cursor:pointer;">📂 Ouvrir</label>
+        <button class="action-btn save" onclick="saveProject()" title="Sauvegarder le projet">💾 Sauver</button>
+        <div id="bg-orient" style="display:none;align-items:center;gap:3px;">
+          <div class="sep"></div>
+          <span style="font-size:10px;color:var(--text2);font-weight:600;">Plan</span>
+          <button class="action-btn" onclick="rotateBg(-90)" title="Rotation −90°">↺</button>
+          <button class="action-btn" onclick="rotateBg(90)"  title="Rotation +90°">↻</button>
+          <button class="action-btn" onclick="flipBg('h')"   title="Miroir H">⇔</button>
+          <button class="action-btn" onclick="flipBg('v')"   title="Miroir V">⇕</button>
+          <button class="action-btn" onclick="resetBg()"     title="Reset">↺</button>
+        </div>
+      </div>
+    </div>
+
     <div class="sep"></div>
-    <span style="font-size:10px;color:var(--text2);font-weight:600;white-space:nowrap;">Plan</span>
-    <button class="action-btn" onclick="rotateBg(-90)" title="Rotation −90°">↺</button>
-    <button class="action-btn" onclick="rotateBg(90)"  title="Rotation +90°">↻</button>
-    <button class="action-btn" onclick="flipBg('h')"   title="Miroir horizontal">⇔</button>
-    <button class="action-btn" onclick="flipBg('v')"   title="Miroir vertical">⇕</button>
-    <button class="action-btn" onclick="resetBg()"     title="Réinitialiser">↺ Reset</button>
-  </div>
-  <div class="sep"></div>
-  <button class="tool-btn active" id="btn-none" style="--tool-color:#8891aa" onclick="setTool('none')">✥ Navigation</button>
-  <div class="sep"></div>
-  <!-- VMC Tools -->
-  <button class="tool-btn" id="btn-soufflage"      style="--tool-color:var(--soufflage)"      onclick="setTool('soufflage')">     <span class="tool-icon" id="ti-soufflage"></span>Soufflage</button>
-  <button class="tool-btn" id="btn-extraction"     style="--tool-color:var(--extraction)"     onclick="setTool('extraction')">    <span class="tool-icon" id="ti-extraction"></span>Extraction</button>
-  <button class="tool-btn" id="btn-prise-air-neuf" style="--tool-color:var(--prise-air-neuf)" onclick="setTool('prise-air-neuf')"><span class="tool-icon" id="ti-prise-air-neuf"></span>Prise AN</button>
-  <button class="tool-btn" id="btn-rejet-air-vicie" style="--tool-color:#ff8c00" onclick="setTool('rejet-air-vicie')"><span class="tool-icon" id="ti-rejet-air-vicie"></span>Rejet AV</button>
-  <div class="sep"></div>
-  <button class="tool-btn" id="btn-vmc"     style="--tool-color:var(--vmc)"     onclick="setTool('vmc')">    <span class="tool-icon" id="ti-vmc"></span>VMC</button>
-  <button class="tool-btn" id="btn-caisson" style="--tool-color:var(--caisson)" onclick="setTool('caisson')"><span class="tool-icon" id="ti-caisson"></span>Caisson</button>
-  <button class="tool-btn" id="btn-liaison" onclick="setTool('liaison')">🔗 Liaison</button>
-  <select id="quick-mat" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
-    <option value="">— Matériau —</option>
-  </select>
-  <select id="quick-dia" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
-    <option value="">— Diamètre —</option>
-  </select>
-  <div id="reseau-wrap">
-    <span>Réseau</span>
-    <span id="reseau-dot"></span>
-    <select id="quick-reseau" onchange="updateActiveReseau()"><option value="">— Type —</option></select>
-    <button id="btn-lock-reseau" onclick="toggleLockReseau()" title="Verrouiller réseau">🔓</button>
-  </div>
-  <button id="btn-lock" onclick="toggleLock()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:4px 8px;cursor:pointer;">🔓</button>
-  <button class="tool-btn" id="btn-coude"   style="--tool-color:var(--coude)"   onclick="setTool('coude')">  <span class="tool-icon" id="ti-coude"></span>Coude</button>
-  <button class="tool-btn" id="btn-piquage" style="--tool-color:var(--piquage)" onclick="setTool('piquage')"><span class="tool-icon" id="ti-piquage"></span>Piquage</button>
-  <div class="sep"></div>
-  <!-- ANNOTATION TOOLS -->
-  <button class="tool-btn" id="btn-annot-zone"  style="--tool-color:#6366f1" onclick="setTool('annot-zone')">⬡ Zone</button>
-  <button class="tool-btn" id="btn-annot-text"  style="--tool-color:#f472b6" onclick="setTool('annot-text')">𝐓 Texte</button>
-  <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')">↗ Flèche</button>
-  <div class="sep"></div>
-  <button class="tool-btn" id="btn-calibration" style="--tool-color:#00e0ff" onclick="setTool('calibration')">📏 Calib.</button>
-  <button class="tool-btn" id="btn-mesure" style="--tool-color:#00e0ff" onclick="setTool('mesure')">📐 Mesure</button>
-  <button class="action-btn" id="btn-toggle-labels" onclick="toggleLinkLabels()" title="Masquer longueurs" style="font-size:11px;">📏 m</button>
-  <div class="sep"></div>
-  <div id="size-wrap">
-    <span>Taille</span>
-    <input type="range" id="slider-global" min="1" max="50" value="7" step="1" oninput="onGlobalSlider(this.value)">
-    <input type="number" id="size-input" value="0.7" min="0.1" max="5" step="0.1"
-      style="width:52px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
-      oninput="onSizeInput(this.value)"
-      onchange="onSizeInput(this.value)"
-      onkeydown="if(event.key==='Enter')this.blur()">
-    <span style="font-size:11px;color:var(--text2);">×</span>
-  </div>
-  <div class="sep"></div>
-  <button class="action-btn" onclick="openConfig()">⚙ Conduits</button>
-  <div class="sep"></div>
-  <button class="action-btn save" onclick="saveProject()">💾 Sauver</button>
-  <label class="action-btn" for="upload-save" style="cursor:pointer;">📂 Ouvrir</label>
-  <div class="sep"></div>
-  <button class="action-btn" onclick="undo()">↩ Annuler</button>
-  <button class="action-btn danger" onclick="clearAll()">🗑 Effacer</button>
-</div>
+
+    <!-- ANNOTATIONS -->
+    <div class="hgroup">
+      <div class="hgroup-label">Annotations</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-annot-zone"  style="--tool-color:#6366f1" onclick="setTool('annot-zone')">⬡ Zone</button>
+        <button class="tool-btn" id="btn-annot-text"  style="--tool-color:#f472b6" onclick="setTool('annot-text')">𝐓 Texte</button>
+        <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')">↗ Flèche</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- COTATION -->
+    <div class="hgroup">
+      <div class="hgroup-label">Cotation</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-calibration" style="--tool-color:#00e0ff" onclick="setTool('calibration')" title="Calibrer l'échelle">📏 Calib.</button>
+        <button class="tool-btn" id="btn-mesure"      style="--tool-color:#00e0ff" onclick="setTool('mesure')"      title="Mesurer une distance">📐 Mesure</button>
+        <button class="action-btn" id="btn-toggle-labels" onclick="toggleLinkLabels()" title="Afficher/masquer les longueurs" style="font-size:11px;">📏 m</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- ACTIONS -->
+    <div class="hgroup">
+      <div class="hgroup-label">Actions</div>
+      <div class="hgroup-body">
+        <button class="action-btn" onclick="undo()" title="Annuler (Ctrl+Z)">↩ Annuler</button>
+        <button class="action-btn danger" onclick="clearAll()" title="Tout effacer">🗑 Effacer</button>
+      </div>
+    </div>
+
+  </div><!-- /hrow1 -->
+
+  <!-- ══ LIGNE 2 : Navigation · Éléments · Liaisons · Taille · Config ══ -->
+  <div class="hrow" id="hrow2">
+
+    <!-- NAVIGATION -->
+    <div class="hgroup">
+      <div class="hgroup-label">Navigation</div>
+      <div class="hgroup-body">
+        <button class="tool-btn active" id="btn-none" style="--tool-color:#8891aa" onclick="setTool('none')">✥ Nav.</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- ÉLÉMENTS VMC -->
+    <div class="hgroup">
+      <div class="hgroup-label">Éléments</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-soufflage"       style="--tool-color:var(--soufflage)"      onclick="setTool('soufflage')"      ><span class="tool-icon" id="ti-soufflage"></span>Soufflage</button>
+        <button class="tool-btn" id="btn-extraction"      style="--tool-color:var(--extraction)"     onclick="setTool('extraction')"     ><span class="tool-icon" id="ti-extraction"></span>Extraction</button>
+        <button class="tool-btn" id="btn-prise-air-neuf"  style="--tool-color:var(--prise-air-neuf)" onclick="setTool('prise-air-neuf')" ><span class="tool-icon" id="ti-prise-air-neuf"></span>Prise AN</button>
+        <button class="tool-btn" id="btn-rejet-air-vicie" style="--tool-color:#ff8c00"               onclick="setTool('rejet-air-vicie')"><span class="tool-icon" id="ti-rejet-air-vicie"></span>Rejet AV</button>
+        <button class="tool-btn" id="btn-vmc"             style="--tool-color:var(--vmc)"            onclick="setTool('vmc')"            ><span class="tool-icon" id="ti-vmc"></span>VMC</button>
+        <button class="tool-btn" id="btn-caisson"         style="--tool-color:var(--caisson)"        onclick="setTool('caisson')"        ><span class="tool-icon" id="ti-caisson"></span>Caisson</button>
+        <button class="tool-btn" id="btn-coude"           style="--tool-color:var(--coude)"          onclick="setTool('coude')"          ><span class="tool-icon" id="ti-coude"></span>Coude</button>
+        <button class="tool-btn" id="btn-piquage"         style="--tool-color:var(--piquage)"        onclick="setTool('piquage')"        ><span class="tool-icon" id="ti-piquage"></span>Piquage</button>
+        <!-- Taille éléments -->
+        <div id="size-wrap">
+          <span>Taille</span>
+          <input type="range" id="slider-global" min="1" max="50" value="7" step="1" oninput="onGlobalSlider(this.value)">
+          <input type="number" id="size-input" value="0.7" min="0.1" max="5" step="0.1"
+            style="width:48px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
+            oninput="onSizeInput(this.value)" onchange="onSizeInput(this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()">
+          <span style="font-size:11px;color:var(--text2);">×</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- LIAISONS -->
+    <div class="hgroup">
+      <div class="hgroup-label">Liaisons</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-liaison" onclick="setTool('liaison')">🔗 Liaison</button>
+        <select id="quick-mat" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:90px;">
+          <option value="">— Mat. —</option>
+        </select>
+        <select id="quick-dia" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:80px;">
+          <option value="">— Ø —</option>
+        </select>
+        <div id="reseau-wrap">
+          <span id="reseau-dot"></span>
+          <select id="quick-reseau" onchange="updateActiveReseau()"><option value="">— Réseau —</option></select>
+          <button id="btn-lock-reseau" onclick="toggleLockReseau()" title="Verrouiller réseau">🔓</button>
+        </div>
+        <button id="btn-lock" onclick="toggleLock()" title="Verrouiller mat./Ø" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:4px 8px;cursor:pointer;">🔓</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- CONFIG -->
+    <div class="hgroup">
+      <div class="hgroup-label">Config</div>
+      <div class="hgroup-body">
+        <button class="action-btn" onclick="openConfig()">⚙ Conduits</button>
+      </div>
+    </div>
+
+  </div><!-- /hrow2 -->
+</div><!-- /header -->
 
 <div id="main">
   <div id="canvas-wrap" class="pan">
@@ -1982,7 +2053,10 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('upload').addEventListener('change',function(e){
     const file=e.target.files[0];if(!file){setStatus('Aucun fichier sélectionné.','err');return;}
     this.value='';
-    if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
+    if(file.name.toLowerCase().endsWith('.annotavmc')){
+      // Fichier projet chargé via le mauvais bouton — on redirige
+      loadProject(file);
+    }else if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
       loadPDF(file);
     }else{
       setStatus('Chargement…','loading');
