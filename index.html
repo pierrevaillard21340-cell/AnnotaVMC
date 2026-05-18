@@ -2171,16 +2171,8 @@ function openResizePopup(){document.getElementById('contextMenu').style.display=
 function onIndividualSlider(val){if(!selectedShape||selectedShape.name()!=='element')return;const s=parseInt(val)/10;document.getElementById('slider-individual-val').textContent=s.toFixed(1)+'×';applyScaleToElement(selectedShape,s);updateLinks();drawLayer.batchDraw();showDeleteBtn(selectedShape);}
 function closeResizePopup(){document.getElementById('resize-popup').classList.remove('open');}
 function _applyGroupClip(g){
-  const B=ICON_BASE_PX;
-  // clipFunc pour le visuel uniquement
-  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
-  // hitFunc étendu pour que les clics/drag fonctionnent bien
-  g.hitFunc((ctx,shape)=>{
-    ctx.beginPath();
-    ctx.rect(-B/2-4,-B/2-4,B+8,B+8);
-    ctx.closePath();
-    ctx.fillStrokeShape(shape);
-  });
+  // On ne clippe plus le groupe — le label est visible:false donc pas de problème
+  // Le bounding box est géré naturellement par Konva
 }
 function applyScaleToElement(g,sx,sy){
   const scX=sx, scY=(sy!==undefined&&sy!==null)?sy:sx;
