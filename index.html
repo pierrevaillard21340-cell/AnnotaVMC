@@ -352,7 +352,8 @@
   <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')">↗ Flèche</button>
   <div class="sep"></div>
   <button class="tool-btn" id="btn-calibration" style="--tool-color:#00e0ff" onclick="setTool('calibration')">📏 Calib.</button>
-  <button class="tool-btn" id="btn-mesure"      style="--tool-color:#00e0ff" onclick="setTool('mesure')">📐 Mesure</button>
+  <button class="tool-btn" id="btn-mesure" style="--tool-color:#00e0ff" onclick="setTool('mesure')">📐 Mesure</button>
+  <button class="action-btn" id="btn-toggle-labels" onclick="toggleLinkLabels()" title="Masquer longueurs" style="font-size:11px;">📏 m</button>
   <div class="sep"></div>
   <div id="size-wrap">
     <span>Taille</span>
@@ -753,6 +754,18 @@ let currentTool='none', selectedShape=null;
 let stage, bgLayer, annotLayer, drawLayer, transformer;
 let isPanning=false, lastPointer=null;
 let placedElements={}, linkStart=null, links=[], measures=[];
+let _showLinkLabels=true;
+function toggleLinkLabels(){
+  _showLinkLabels=!_showLinkLabels;
+  const btn=document.getElementById('btn-toggle-labels');
+  if(btn){btn.style.opacity=_showLinkLabels?'1':'0.45';btn.title=_showLinkLabels?'Masquer longueurs':'Afficher longueurs';}
+  links.forEach(l=>{
+    const hasText=l.label&&l.label.text()!=='';
+    if(l.label)l.label.visible(_showLinkLabels&&hasText);
+    if(l.labelBg)l.labelBg.visible(_showLinkLabels&&hasText);
+  });
+  drawLayer.batchDraw();
+}
 let calibrationPoints=[], measurePoints=[], scaleRatio=null, tempMarkers=[];
 let conduitConfig={materiaux:['Galva','PVC','Flex','ComfoPipe','ComfoTube'],diametres:['Ø80','Ø90','Ø125','Ø160','Ø200']};
 let activeConduit={mat:'',dia:'',locked:false};
@@ -1727,9 +1740,10 @@ function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY){
   g.on('dragstart',()=>{
     clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
     isPanning=false;
+    g.setAttr('_dragOrigin',{x:g.x(),y:g.y()});
   });
   g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
-  g.on('dragend',()=>{updateLinks();updateListe();});
+  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);updateLinks();updateListe();});
   g.on('click tap',()=>selectElement(g));
   drawLayer.add(g);
 }
@@ -2164,6 +2178,19 @@ function initEvents(){
   });
   window.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
+      // Annuler un déplacement en cours
+      if(selectedShape&&selectedShape.name()==='element'){
+        const origin=selectedShape.getAttr('_dragOrigin');
+        if(origin){
+          selectedShape.stopDrag();
+          selectedShape.position(origin);
+          selectedShape.setAttr('_dragOrigin',null);
+          updateLinks();drawLayer.batchDraw();
+          showDeleteBtn(selectedShape);
+          setStatus('Déplacement annulé','ok');
+          return;
+        }
+      }
       if(_annotDrawing){cancelZoneDrawing();showHint('Zone : configuration annulée');return;}
       if(_arrowDrawing){_arrowDrawing=false;_arrowStart=null;if(window._arrowPreview){window._arrowPreview.forEach(n=>n.destroy());window._arrowPreview=null;}annotLayer.batchDraw();return;}
       if(_linkDrawing){cancelLinkDrawing();showHint('');return;}
@@ -2291,8 +2318,11 @@ function handleTap(e){
     }
   }
 
-  // Waypoint
-  if(target&&target.getAttr&&target.getAttr('customType')==='waypoint'){_selectedWaypoint=target.getAttr('waypointInfo');return;}
+  // Waypoint — on cherche le plus proche par distance, pas par hitbox
+  if(pos){
+    const nearest=findNearestWaypoint(pos,18/stage.scaleX());
+    if(nearest){_selectedWaypoint={linkObj:nearest.linkObj,index:nearest.index};return;}
+  }
 
   // LIAISON
   if(currentTool==='liaison'){
@@ -2354,12 +2384,12 @@ function placeElement(toolId,conf,pos){
   const txt=new Konva.Text({x:B/2+2,y:-6,text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',fontFamily:'Segoe UI, sans-serif',scaleX:1/s,scaleY:1/s,visible:false,listening:false});
   g.add(txt);g.scale({x:s,y:s});addVisualToGroup(g,toolId,s);
   g.on('dragstart',()=>{
-    // Annuler immédiatement le long press si Konva démarre un drag
     clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
     isPanning=false;
+    g.setAttr('_dragOrigin',{x:g.x(),y:g.y()});
   });
   g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
-  g.on('dragend',()=>{updateLinks();updateListe();});
+  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);updateLinks();updateListe();});
   g.on('click tap',()=>selectElement(g));
   pushHistory();drawLayer.add(g);drawLayer.batchDraw();
   placedElements[conf.label]=(placedElements[conf.label]||0)+1;updateListe();
@@ -2370,7 +2400,32 @@ function placeElement(toolId,conf,pos){
 // ══════════════════════════════════════════════════════════════
 function clearAll(){if(!confirm('Effacer tous les éléments placés ?'))return;pushHistory();clearAllSilent();placedElements={};scaleRatio=null;clearTempMarkers();setTool('none');drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();hideDeleteBtn();refreshDeleteBtn();setStatus('Tableau effacé.','ok');}
 function removeElement(g){if(!g)return;pushHistory();const lbl=g.getAttr('toolLabel');if(lbl&&placedElements[lbl]){placedElements[lbl]--;if(!placedElements[lbl])delete placedElements[lbl];}links=links.filter(l=>{if(l.a===g||l.b===g){destroyLinkNodes(l);return false;}return true;});g.destroy();selectedShape=null;transformer.nodes([]);drawLayer.batchDraw();updateListe();hideDeleteBtn();refreshDeleteBtn();}
-function duplicateSelected(){if(!selectedShape)return;document.getElementById('contextMenu').style.display='none';const id=selectedShape.getAttr('toolId'),conf=TOOLS[id];if(conf)placeElement(id,conf,{x:selectedShape.x()+22,y:selectedShape.y()+22});}
+function duplicateSelected(){
+  if(!selectedShape)return;
+  document.getElementById('contextMenu').style.display='none';
+  const id=selectedShape.getAttr('toolId'),conf=TOOLS[id];
+  if(!conf)return;
+  pushHistory();
+  const s=globalSize/10;
+  const B=ICON_BASE_PX;
+  const sX=selectedShape.scaleX(), sY=selectedShape.scaleY();
+  const rot=selectedShape.rotation();
+  const realDims=selectedShape.getAttr('realDims')||null;
+  const g=new Konva.Group({x:selectedShape.x()+24,y:selectedShape.y()+24,rotation:rot,draggable:true,name:'element'});
+  g.setAttr('toolId',id);g.setAttr('toolLabel',conf.label);
+  if(realDims)g.setAttr('realDims',realDims);
+  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  const txt=new Konva.Text({x:(B/2+2)/sX,y:-6/sY,text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',fontFamily:'Segoe UI,sans-serif',scaleX:1/sX,scaleY:1/sY,visible:false,listening:false});
+  g.add(txt);g.scale({x:sX,y:sY});addVisualToGroup(g,id,sX);
+  g.on('dragstart',()=>{clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;isPanning=false;});
+  g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
+  g.on('dragend',()=>{updateLinks();updateListe();});
+  g.on('click tap',()=>selectElement(g));
+  drawLayer.add(g);drawLayer.batchDraw();
+  placedElements[conf.label]=(placedElements[conf.label]||0)+1;
+  updateListe();
+  selectElement(g);
+}
 function deleteSelected(){
   document.getElementById('contextMenu').style.display='none';closeResizePopup();hideDeleteBtn();closeLinkEditPopup();
   if(_selectedAnnotId!==null){deleteAnnotById(_selectedAnnotId);return;}
@@ -2392,16 +2447,15 @@ function createWaypointDot(linkObj,index){
   const wp=linkObj.waypoints[index];
   const dot=new Konva.Circle({
     x:wp._x,y:wp._y,
-    radius:2,                          // visuel réduit
+    radius:2,
     fill:'rgba(148,163,184,0.85)',
     stroke:'#fff',strokeWidth:1,
     draggable:true,name:'waypoint-dot'
   });
   dot.setAttr('customType','waypoint');
   dot.setAttr('waypointInfo',{linkObj,index});
-  dot.hitStrokeWidth(28);              // zone tactile généreuse
+  dot.hitStrokeWidth(14); // réduit — on utilise la distance pour départager
   dot.on('dragstart',()=>{
-    // Annuler immédiatement le long press dès que Konva démarre le drag
     clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
     isPanning=false;
   });
@@ -2417,6 +2471,19 @@ function createWaypointDot(linkObj,index){
   });
   drawLayer.add(dot);return dot;
 }
+
+// Trouve le waypoint le plus proche d'une position scène — évite les faux positifs
+function findNearestWaypoint(scenePos,maxDist=20){
+  let best=null,bestDist=maxDist;
+  links.forEach(linkObj=>{
+    linkObj.waypointDots.forEach((dot,i)=>{
+      const dx=dot.x()-scenePos.x,dy=dot.y()-scenePos.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<bestDist){bestDist=dist;best={dot,linkObj,index:i};}
+    });
+  });
+  return best;
+}
 function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',waypointData=[],tension=0.35,diaMm=null){
   const matColorMap={'Galva':'#94a3b8','PVC':'#60a5fa','Flex':'#f59e0b','ComfoPipe':'#c0bfbf','ComfoTube':'#bfbdbd'};
   const lineColor=reseauColorParam||(reseau?getReseauColor(reseau):'')||matColorMap[mat]||'#94a3b8';
@@ -2427,9 +2494,9 @@ function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',
   const line=new Konva.Line({points:pts,stroke:lineColor,strokeWidth:sw,lineCap:'round',lineJoin:'round',tension});
   line.setAttr('customType','link');line.hitStrokeWidth(Math.max(14,sw+8));
   const doCreate=(lengthM)=>{
-    const mid=getPathMidpoint(pts);const txt=buildLinkLabel(lengthM);const cw=4.5,tw=txt.length*cw;
-    const labelBg=new Konva.Rect({x:mid.x-tw/2-2,y:mid.y-6,width:tw+4,height:9,fill:'rgba(15,17,23,.75)',cornerRadius:2,visible:txt!==''});
-    const label=new Konva.Text({x:mid.x-tw/2,y:mid.y-5,text:txt,fontSize:7,fill:lineColor,fontStyle:'bold',fontFamily:'monospace',visible:txt!==''});
+    const mid=getPathMidpoint(pts);const txt=buildLinkLabel(lengthM);const cw=3.5,tw=txt.length*cw;
+    const labelBg=new Konva.Rect({x:mid.x-tw/2-2,y:mid.y-5,width:tw+4,height:7,fill:'rgba(15,17,23,.8)',cornerRadius:2,visible:txt!==''&&_showLinkLabels});
+    const label=new Konva.Text({x:mid.x-tw/2,y:mid.y-4,text:txt,fontSize:5,fill:lineColor,fontStyle:'bold',fontFamily:'monospace',visible:txt!==''&&_showLinkLabels});
     label.setAttr('customType','linkLabel');labelBg.setAttr('customType','linkLabel');
     drawLayer.add(line);drawLayer.add(labelBg);drawLayer.add(label);line.moveToBottom();
     const linkObj={a,b,line,label,labelBg,waypoints,waypointDots:[],lengthM,mat:mat||'',dia:dia||'',diaMm:resolvedDiaMm,reseau:reseau||'',reseauColor:lineColor,lineColor,tension};
@@ -2444,7 +2511,7 @@ function insertWaypointOnLink(linkObj,pos){const pts=buildLinkPoints(linkObj);le
 function distToSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y;if(dx===0&&dy===0)return Math.hypot(p.x-a.x,p.y-a.y);const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function getPathMidpoint(pts){let maxLen=0,mx=pts[0],my=pts[1];for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];const len=Math.sqrt(dx*dx+dy*dy);if(len>maxLen){maxLen=len;mx=(pts[i]+pts[i+2])/2;my=(pts[i+1]+pts[i+3])/2;}}return{x:mx,y:my};}
 function deleteSelectedWaypoint(){document.getElementById('contextMenu').style.display='none';if(!_selectedWaypoint)return;const{linkObj,index}=_selectedWaypoint;pushHistory();linkObj.waypoints.splice(index,1);linkObj.waypointDots.forEach(d=>d.destroy());linkObj.waypointDots=[];linkObj.waypoints.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));refreshLinkLine(linkObj);_selectedWaypoint=null;}
-function refreshLinkLine(l){const pts=buildLinkPoints(l);l.line.points(pts);if(scaleRatio){let len=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];len+=Math.sqrt(dx*dx+dy*dy);}l.lengthM=parseFloat((len*scaleRatio).toFixed(2));}const mid=getPathMidpoint(pts);const txt=buildLinkLabel(l.lengthM);const cw=4.5,tw=txt.length*cw;l.label.text(txt);l.label.x(mid.x-tw/2);l.label.y(mid.y-5);l.label.visible(txt!=='');l.labelBg.x(mid.x-tw/2-2);l.labelBg.y(mid.y-6);l.labelBg.width(tw+4);l.labelBg.height(9);l.labelBg.visible(txt!=='');drawLayer.batchDraw();}
+function refreshLinkLine(l){const pts=buildLinkPoints(l);l.line.points(pts);if(scaleRatio){let len=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];len+=Math.sqrt(dx*dx+dy*dy);}l.lengthM=parseFloat((len*scaleRatio).toFixed(2));}const mid=getPathMidpoint(pts);const txt=buildLinkLabel(l.lengthM);const cw=3.5,tw=txt.length*cw;const show=_showLinkLabels&&txt!=='';l.label.text(txt);l.label.x(mid.x-tw/2);l.label.y(mid.y-4);l.label.visible(show);l.labelBg.x(mid.x-tw/2-2);l.labelBg.y(mid.y-5);l.labelBg.width(tw+4);l.labelBg.height(7);l.labelBg.visible(show);drawLayer.batchDraw();}
 function refreshLinkWaypointDots(l){l.waypointDots.forEach(d=>d.destroy());l.waypointDots=[];l.line.stroke(l.reseauColor||l.lineColor||'#94a3b8');l.label.fill(l.reseauColor||l.lineColor||'#94a3b8');l.waypoints.forEach((_,i)=>l.waypointDots.push(createWaypointDot(l,i)));drawLayer.batchDraw();}
 function destroyLinkNodes(l){l.line.destroy();l.label?.destroy();l.labelBg?.destroy();l.waypointDots.forEach(d=>d.destroy());}
 function buildLinkLabel(lengthM){return lengthM!=null?lengthM+' m':'';}
