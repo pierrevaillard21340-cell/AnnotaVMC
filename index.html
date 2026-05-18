@@ -221,6 +221,21 @@
   .pk-ok{background:var(--accent);color:#fff;}.pk-ok:hover{background:#2563eb;}
   .pk-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
 
+  /* ── LEVEL TABS ── */
+  #level-bar{display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;padding:0 8px;height:32px;overflow-x:auto;gap:2px;}
+  #level-bar::-webkit-scrollbar{height:3px;}
+  #level-bar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  #level-tabs{display:flex;align-items:center;gap:2px;height:100%;}
+  .level-tab{display:flex;align-items:center;gap:4px;padding:0 10px;height:100%;border-bottom:2px solid transparent;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);white-space:nowrap;transition:all .15s;user-select:none;}
+  .level-tab:hover{color:var(--text);background:var(--surface2);}
+  .level-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(59,130,246,.08);}
+  .level-tab-name{cursor:pointer;}
+  .level-tab-name:hover{text-decoration:underline;}
+  .level-tab-del{background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 0 0 4px;opacity:.5;line-height:1;}
+  .level-tab-del:hover{color:#ef4444;opacity:1;}
+  .level-add-btn{display:flex;align-items:center;justify-content:center;background:none;border:1px dashed var(--border);border-radius:var(--radius);color:var(--text2);cursor:pointer;font-size:16px;padding:2px 10px;height:22px;transition:all .15s;margin-left:4px;}
+  .level-add-btn:hover{border-color:var(--accent);color:var(--accent);}
+
   /* ── TOOL DROPDOWN ── */
   .tool-dropdown{position:relative;display:inline-flex;}
   .tool-submenu{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:170px;}
@@ -477,6 +492,11 @@
 
   </div><!-- /hrow2 -->
 </div><!-- /header -->
+
+<!-- BARRE DE NIVEAUX -->
+<div id="level-bar">
+  <div id="level-tabs"></div>
+</div>
 
 <div id="main">
   <div id="canvas-wrap" class="pan">
@@ -860,8 +880,214 @@ let _editingAnnotId=null;        // pour édition existante
 let currentTool='none', selectedShape=null;
 let stage, bgLayer, annotLayer, drawLayer, transformer;
 let isPanning=false, lastPointer=null;
+
+// ══════════════════════════════════════════════════════════════
+// SYSTÈME MULTI-NIVEAUX
+// ══════════════════════════════════════════════════════════════
+let _currentLevelIdx=0;
+
+// Crée un objet niveau vierge
+function createLevelData(name='RDC'){
+  return{
+    name,
+    placedElements:{},
+    links:[],
+    measures:[],
+    annotations:[],
+    scaleRatio:null,
+    annotIdCounter:0,
+    bgImage:null,       // base64 JPEG
+    bgRotation:0,
+    bgFlipH:false,
+    bgFlipV:false,
+  };
+}
+
+let levels=[createLevelData('RDC')];
+
+// Accesseurs sur le niveau courant
+function curLevel(){return levels[_currentLevelIdx];}
+
+// Aliases pour compatibilité avec le reste du code
+// Ces getters/setters proxient vers curLevel()
+function getLinks(){return curLevel().links;}
+function getMeasures(){return curLevel().measures;}
+function getAnnotations(){return curLevel().annotations;}
+function getPlacedElements(){return curLevel().placedElements;}
+
+// Les variables globales restent mais sont synchronisées au switch de niveau
 let placedElements={}, linkStart=null, links=[], measures=[];
-let _showLinkLabels=true;
+let scaleRatio=null;
+
+// Sauvegarde le state courant dans curLevel()
+function saveLevelState(){
+  const lv=curLevel();
+  lv.placedElements={...placedElements};
+  lv.links=links;
+  lv.measures=measures;
+  lv.annotations=annotations;
+  lv.scaleRatio=scaleRatio;
+  lv.annotIdCounter=_annotIdCounter;
+  lv.bgImage=_bgToBase64();
+  lv.bgRotation=_bgRotation;
+  lv.bgFlipH=_bgFlipH;
+  lv.bgFlipV=_bgFlipV;
+}
+
+// Charge le state d'un niveau dans les variables globales et Konva
+function loadLevelState(idx){
+  // Sauvegarder l'état actuel avant de partir
+  saveLevelState();
+  _currentLevelIdx=idx;
+  const lv=levels[idx];
+
+  // Vider le canvas
+  clearAllSilent();
+
+  // Restaurer les variables globales
+  placedElements={...lv.placedElements};
+  scaleRatio=lv.scaleRatio;
+  _annotIdCounter=lv.annotIdCounter||0;
+
+  // Restaurer les éléments Konva
+  (lv.links||[]).forEach(l=>{
+    // links est déjà des objets Konva — on les réhydrate depuis les données sérialisées
+  });
+
+  // Restaurer le fond de plan
+  _bgRotation=lv.bgRotation||0;
+  _bgFlipH=lv.bgFlipH||false;
+  _bgFlipV=lv.bgFlipV||false;
+  if(lv.bgImage){
+    const img=new Image();
+    img.onload=function(){
+      _bgImg=img;
+      bgLayer.destroyChildren();
+      _bgKonva=new Konva.Image({image:img,x:0,y:0,listening:false});
+      bgLayer.add(_bgKonva);
+      applyBgTransform();
+      document.getElementById('bg-orient').style.display='flex';
+      document.getElementById('empty-screen').classList.add('hidden');
+      drawLayer.batchDraw();bgLayer.batchDraw();
+    };
+    img.src=lv.bgImage;
+  }else{
+    _bgImg=null;_bgKonva=null;
+    bgLayer.destroyChildren();bgLayer.batchDraw();
+    document.getElementById('bg-orient').style.display='none';
+    if(!lv.links||!lv.links.length)
+      document.getElementById('empty-screen').classList.remove('hidden');
+  }
+
+  updateListe();
+  updateAnnotList();
+  renderLevelTabs();
+  setStatus(`Niveau : ${lv.name}`,'ok');
+}
+
+// ── RENDU DES ONGLETS ──
+function renderLevelTabs(){
+  const bar=document.getElementById('level-tabs');
+  if(!bar)return;
+  bar.innerHTML=levels.map((lv,i)=>`
+    <div class="level-tab${i===_currentLevelIdx?' active':''}" onclick="switchLevel(${i})">
+      <span class="level-tab-name" ondblclick="renameLevelPrompt(${i},event)">${lv.name}</span>
+      ${levels.length>1?`<button class="level-tab-del" onclick="deleteLevel(${i},event)" title="Supprimer ce niveau">✕</button>`:''}
+    </div>`).join('')+
+    `<button class="level-add-btn" onclick="addLevel()" title="Ajouter un niveau">＋</button>`;
+}
+
+function switchLevel(idx){
+  if(idx===_currentLevelIdx)return;
+  // Sérialiser les éléments Konva du niveau courant avant de partir
+  _serializeLevelKonva();
+  loadLevelState(idx);
+  _deserializeLevelKonva(idx);
+}
+
+// Sérialise les nodes Konva en données JSON pour le niveau courant
+function _serializeLevelKonva(){
+  const lv=curLevel();
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  lv._elements=elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null}));
+  lv._links=links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y})),bends90:l.bends90||0,bends45:l.bends45||0}));
+  lv._measures=measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()}));
+  lv._annotations=annotations.map(a=>({id:a.id,type:a.type,data:a.type==='text'?{...a.data,pos:a.nodes[0]?{x:a.nodes[0].x(),y:a.nodes[0].y()}:{x:0,y:0}}:{...a.data}}));
+  lv.placedElements={...placedElements};
+  lv.scaleRatio=scaleRatio;
+  lv.annotIdCounter=_annotIdCounter;
+  lv.bgImage=_bgToBase64();
+  lv.bgRotation=_bgRotation;lv.bgFlipH=_bgFlipH;lv.bgFlipV=_bgFlipV;
+}
+
+// Désérialise et recrée les nodes Konva pour un niveau
+function _deserializeLevelKonva(idx){
+  const lv=levels[idx];
+  placedElements={...lv.placedElements};
+  scaleRatio=lv.scaleRatio;
+  _annotIdCounter=lv.annotIdCounter||0;
+  links=[];measures=[];annotations=[];
+
+  (lv._elements||[]).forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null);});
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  (lv._links||[]).forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
+  (lv._measures||[]).forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
+  (lv._annotations||[]).forEach(a=>{
+    if(a.type==='zone'&&a.data.points)rehydrateZoneAnnot(a);
+    else if(a.type==='text'&&a.data.text)rehydrateTextAnnot(a);
+    else if(a.type==='arrow'&&a.data.p1)rehydrateArrowAnnot(a);
+  });
+
+  drawLayer.batchDraw();annotLayer.batchDraw();
+  updateListe();updateAnnotList();
+}
+
+function addLevel(){
+  saveLevelState();
+  _serializeLevelKonva();
+  const names=['RDC','R+1','R+2','Combles','Sous-sol','Cave'];
+  const used=levels.map(l=>l.name);
+  const name=names.find(n=>!used.includes(n))||`Niveau ${levels.length+1}`;
+  levels.push(createLevelData(name));
+  const newIdx=levels.length-1;
+  _currentLevelIdx=newIdx;
+  clearAllSilent();
+  placedElements={};links=[];measures=[];annotations=[];scaleRatio=null;_annotIdCounter=0;
+  _bgImg=null;_bgKonva=null;_bgRotation=0;_bgFlipH=false;_bgFlipV=false;
+  bgLayer.destroyChildren();bgLayer.batchDraw();
+  document.getElementById('bg-orient').style.display='none';
+  document.getElementById('empty-screen').classList.remove('hidden');
+  renderLevelTabs();
+  updateListe();updateAnnotList();
+  setStatus(`Niveau "${name}" ajouté`,'ok');
+}
+
+function deleteLevel(idx,evt){
+  evt&&evt.stopPropagation();
+  if(levels.length<=1){setStatus('Impossible de supprimer le seul niveau','err');return;}
+  if(!confirm(`Supprimer le niveau "${levels[idx].name}" et tous ses éléments ?`))return;
+  levels.splice(idx,1);
+  const newIdx=Math.min(_currentLevelIdx,levels.length-1);
+  _currentLevelIdx=newIdx;
+  clearAllSilent();
+  placedElements={};links=[];measures=[];annotations=[];scaleRatio=null;_annotIdCounter=0;
+  _bgImg=null;_bgKonva=null;_bgRotation=0;_bgFlipH=false;_bgFlipV=false;
+  bgLayer.destroyChildren();bgLayer.batchDraw();
+  _deserializeLevelKonva(newIdx);
+  const lv=levels[newIdx];
+  _bgRotation=lv.bgRotation||0;_bgFlipH=lv.bgFlipH||false;_bgFlipV=lv.bgFlipV||false;
+  if(lv.bgImage){const img=new Image();img.onload=function(){_bgImg=img;bgLayer.destroyChildren();_bgKonva=new Konva.Image({image:img,x:0,y:0,listening:false});bgLayer.add(_bgKonva);applyBgTransform();document.getElementById('bg-orient').style.display='flex';document.getElementById('empty-screen').classList.add('hidden');bgLayer.batchDraw();};img.src=lv.bgImage;}
+  renderLevelTabs();
+  setStatus(`Niveau supprimé`,'ok');
+}
+
+function renameLevelPrompt(idx,evt){
+  evt&&evt.stopPropagation();
+  const current=levels[idx].name;
+  const name=prompt('Renommer le niveau :',current);
+  if(name&&name.trim()){levels[idx].name=name.trim();renderLevelTabs();}
+}
+
 function toggleLinkLabels(){
   _showLinkLabels=!_showLinkLabels;
   const btn=document.getElementById('btn-toggle-labels');
@@ -873,7 +1099,7 @@ function toggleLinkLabels(){
   });
   drawLayer.batchDraw();
 }
-let calibrationPoints=[], measurePoints=[], scaleRatio=null, tempMarkers=[];
+let calibrationPoints=[], measurePoints=[], tempMarkers=[];
 let conduitConfig={materiaux:['Galva','PVC','Flex','ComfoPipe','ComfoTube'],diametres:['Ø80','Ø90','Ø125','Ø160','Ø200']};
 let activeConduit={mat:'',dia:'',locked:false};
 let activeReseau={label:'',color:'',locked:false};
@@ -1607,31 +1833,25 @@ function _bgToBase64(quality=0.82){
 
 async function saveProject(){
   saveNotes();
+  _serializeLevelKonva();
   setStatus('Sauvegarde en cours…','loading');
-  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-  const els=elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null}));
-  const lks=links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))}));
-  const mes=measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()}));
-  const annotSer=annotations.map(a=>({
-    id:a.id,type:a.type,data:a.type==='zone'
-      ?{...a.data}
-      :a.type==='text'?{...a.data,pos:a.nodes[0]?{x:a.nodes[0].x(),y:a.nodes[0].y()}:{x:0,y:0}}
-      :{...a.data},
+  const levelsData=levels.map(lv=>({
+    name:lv.name,
+    placedElements:lv.placedElements||{},
+    scaleRatio:lv.scaleRatio,
+    annotIdCounter:lv.annotIdCounter||0,
+    bgImage:lv.bgImage||null,
+    bgRotation:lv.bgRotation||0,bgFlipH:lv.bgFlipH||false,bgFlipV:lv.bgFlipV||false,
+    elements:lv._elements||[],
+    links:lv._links||[],
+    measures:lv._measures||[],
+    annotations:lv._annotations||[],
   }));
-  const bgBase64=_bgToBase64();
-
-  const data={
-    version:6,scaleRatio,conduitConfig,reseauTypes,placedElements,
-    elements:els,links:lks,measures:mes,customIcons,
-    annotations:annotSer,chantierNotes,annotIdCounter:_annotIdCounter,
-    bgTransform:{rotation:_bgRotation,flipH:_bgFlipH,flipV:_bgFlipV},
-    bgImage:bgBase64, // JPEG base64 ou null
-  };
+  const data={version:7,currentLevelIdx:_currentLevelIdx,levels:levelsData,conduitConfig,reseauTypes,customIcons,chantierNotes};
   const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
-  const json=JSON.stringify(data);
-  const uri='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  const uri='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data));
   Object.assign(document.createElement('a'),{href:uri,download:`projet_vmc_${d}.annotavmc`}).click();
-  setStatus('✓ Projet sauvegardé (fond inclus)','ok');
+  setStatus('✓ Projet sauvegardé','ok');
 }
 
 function loadProject(file){
@@ -1639,50 +1859,83 @@ function loadProject(file){
   reader.onload=function(e){
     try{
       const data=JSON.parse(e.target.result);
-      clearAllSilent();
       if(data.conduitConfig){conduitConfig=data.conduitConfig;syncQuickSelects();}
       if(data.reseauTypes){reseauTypes=data.reseauTypes;syncReseauSelect();renderReseauxConfig();}
       if(data.customIcons){customIcons=data.customIcons;refreshToolbarIcons();}
-      if(data.scaleRatio)scaleRatio=data.scaleRatio;
       if(data.chantierNotes)loadNotes(data.chantierNotes);
-      if(data.annotIdCounter)_annotIdCounter=data.annotIdCounter;
 
-      const afterBg=()=>{
-        if(data.bgTransform&&_bgImg){
-          _bgRotation=data.bgTransform.rotation||0;
-          _bgFlipH=data.bgTransform.flipH||false;
-          _bgFlipV=data.bgTransform.flipV||false;
-          applyBgTransform();
-        }
-        placedElements=data.placedElements||{};
-        (data.elements||[]).forEach(el=>{const conf=TOOLS[el.toolId];if(conf)placeElementSilent(el.toolId,conf,{x:el.x,y:el.y},el.scaleX,el.rotation||0,el.realDims||null,el.scaleY||null);});
-        const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-        (data.links||[]).forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
-        (data.measures||[]).forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
-        (data.annotations||[]).forEach(a=>{
-          if(a.type==='zone'&&a.data.points&&a.data.points.length>=3)rehydrateZoneAnnot(a);
-          else if(a.type==='text'&&a.data.text)rehydrateTextAnnot(a);
-          else if(a.type==='arrow'&&a.data.p1&&a.data.p2)rehydrateArrowAnnot(a);
-        });
-        selectElement(null);hideDeleteBtn();drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();
-        document.getElementById('empty-screen').classList.add('hidden');
+      // ── Format v7 multi-niveaux ──
+      if(data.version>=7&&data.levels){
+        levels=data.levels.map(lv=>({
+          name:lv.name||'Niveau',
+          placedElements:lv.placedElements||{},
+          scaleRatio:lv.scaleRatio||null,
+          annotIdCounter:lv.annotIdCounter||0,
+          bgImage:lv.bgImage||null,
+          bgRotation:lv.bgRotation||0,bgFlipH:lv.bgFlipH||false,bgFlipV:lv.bgFlipV||false,
+          _elements:lv.elements||[],
+          _links:lv.links||[],
+          _measures:lv.measures||[],
+          _annotations:lv.annotations||[],
+        }));
+        _currentLevelIdx=data.currentLevelIdx||0;
+        clearAllSilent();
+        placedElements={};links=[];measures=[];annotations=[];
+        _bgImg=null;_bgKonva=null;_bgRotation=0;_bgFlipH=false;_bgFlipV=false;
+        bgLayer.destroyChildren();bgLayer.batchDraw();
+        _loadLevelBgAndElements(_currentLevelIdx);
+        renderLevelTabs();
         setStatus('✓ Projet chargé','ok');
-      };
-
-      // Charger le fond de plan s'il est inclus dans le fichier
-      if(data.bgImage){
-        setStatus('Chargement du fond de plan…','loading');
-        const img=new Image();
-        img.onload=function(){
-          loadBgImage(img,data.bgTransform||{});
-          afterBg();
-        };
-        img.src=data.bgImage;
-      }else{
-        afterBg();
+      }
+      // ── Format v6 et antérieur (un seul niveau) — rétrocompatibilité ──
+      else{
+        levels=[createLevelData('RDC')];
+        _currentLevelIdx=0;
+        const lv=levels[0];
+        lv.scaleRatio=data.scaleRatio||null;
+        lv.annotIdCounter=data.annotIdCounter||0;
+        lv.placedElements=data.placedElements||{};
+        lv._elements=data.elements||[];
+        lv._links=data.links||[];
+        lv._measures=data.measures||[];
+        lv._annotations=data.annotations||[];
+        lv.bgImage=data.bgImage||null;
+        if(data.bgTransform){lv.bgRotation=data.bgTransform.rotation||0;lv.bgFlipH=data.bgTransform.flipH||false;lv.bgFlipV=data.bgTransform.flipV||false;}
+        clearAllSilent();
+        placedElements={};links=[];measures=[];annotations=[];
+        _bgImg=null;_bgKonva=null;
+        bgLayer.destroyChildren();bgLayer.batchDraw();
+        _loadLevelBgAndElements(0);
+        renderLevelTabs();
+        setStatus('✓ Projet chargé (format ancien)','ok');
       }
     }catch(err){console.error(err);setStatus('✗ Fichier invalide','err');}
   };reader.readAsText(file);
+}
+
+// Charge le fond + les éléments Konva d'un niveau
+function _loadLevelBgAndElements(idx){
+  const lv=levels[idx];
+  scaleRatio=lv.scaleRatio;
+  _annotIdCounter=lv.annotIdCounter||0;
+  placedElements={...lv.placedElements};
+  _bgRotation=lv.bgRotation||0;_bgFlipH=lv.bgFlipH||false;_bgFlipV=lv.bgFlipV||false;
+
+  if(lv.bgImage){
+    const img=new Image();
+    img.onload=function(){
+      _bgImg=img;bgLayer.destroyChildren();
+      _bgKonva=new Konva.Image({image:img,x:0,y:0,listening:false});
+      bgLayer.add(_bgKonva);applyBgTransform();
+      document.getElementById('bg-orient').style.display='flex';
+      document.getElementById('empty-screen').classList.add('hidden');
+      bgLayer.batchDraw();
+    };
+    img.src=lv.bgImage;
+  }else{
+    document.getElementById('bg-orient').style.display='none';
+  }
+  _deserializeLevelKonva(idx);
 }
 
 // ── EXPORT PNG ──
@@ -2192,6 +2445,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('azp-label').addEventListener('input',updateZonePreview);
   document.getElementById('azp-stroke-style').addEventListener('input',updateZonePreview);
   syncQuickSelects();syncReseauSelect();renderReseauxConfig();refreshToolbarIcons();initEvents();
+  renderLevelTabs();
   setStatus('Prêt','ok');
 });
 
@@ -2586,7 +2840,19 @@ function placeElement(toolId,conf,pos){
 // ══════════════════════════════════════════════════════════════
 // DELETE / DUPLICATE
 // ══════════════════════════════════════════════════════════════
-function clearAll(){if(!confirm('Effacer tous les éléments placés ?'))return;pushHistory();clearAllSilent();placedElements={};scaleRatio=null;clearTempMarkers();setTool('none');drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();hideDeleteBtn();refreshDeleteBtn();setStatus('Tableau effacé.','ok');}
+function clearAll(){
+  if(!confirm('Effacer tous les éléments du niveau courant ?'))return;
+  pushHistory();
+  clearAllSilent();
+  placedElements={};scaleRatio=null;links=[];measures=[];annotations=[];
+  clearTempMarkers();setTool('none');
+  drawLayer.batchDraw();annotLayer.batchDraw();
+  updateListe();updateAnnotList();hideDeleteBtn();refreshDeleteBtn();
+  // Réinitialiser aussi le niveau courant
+  const lv=curLevel();
+  lv._elements=[];lv._links=[];lv._measures=[];lv._annotations=[];lv.placedElements={};lv.scaleRatio=null;
+  setStatus('Niveau effacé.','ok');
+}
 function removeElement(g){if(!g)return;pushHistory();const lbl=g.getAttr('toolLabel');if(lbl&&placedElements[lbl]){placedElements[lbl]--;if(!placedElements[lbl])delete placedElements[lbl];}links=links.filter(l=>{if(l.a===g||l.b===g){destroyLinkNodes(l);return false;}return true;});g.destroy();selectedShape=null;transformer.nodes([]);drawLayer.batchDraw();updateListe();hideDeleteBtn();refreshDeleteBtn();}
 function duplicateSelected(){
   if(!selectedShape)return;
