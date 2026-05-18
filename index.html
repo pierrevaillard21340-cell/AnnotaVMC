@@ -34,11 +34,11 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
-  #header{display:flex;flex-direction:column;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;}
-  .hrow{display:flex;align-items:center;gap:6px;padding:4px 10px;flex-wrap:nowrap;overflow-x:auto;}
+  .hrow{display:flex;align-items:center;gap:6px;padding:4px 10px;flex-wrap:nowrap;overflow:visible;}
   .hrow:first-child{border-bottom:1px solid var(--border);}
   .hrow::-webkit-scrollbar{height:3px;}
   .hrow::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  #header{display:flex;flex-direction:column;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;overflow:visible;}
   .hgroup{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
   .hgroup-label{font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;padding:0 2px;opacity:.7;}
   .hgroup-body{display:flex;align-items:center;gap:3px;}
@@ -223,7 +223,7 @@
 
   /* ── TOOL DROPDOWN ── */
   .tool-dropdown{position:relative;display:inline-flex;}
-  .tool-submenu{display:none;position:absolute;top:100%;left:0;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;box-shadow:0 6px 20px rgba(0,0,0,.5);min-width:160px;margin-top:2px;}
+  .tool-submenu{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:170px;}
   .tool-submenu.open{display:block;}
   .tool-submenu button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 12px;background:none;border:none;border-radius:5px;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;}
   .tool-submenu button:hover{background:var(--surface2);}
