@@ -1,0 +1,2753 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AnnotaVMC — Plans double flux</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3b82f6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AnnotaVMC">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="AnnotaVMC">
+<style>
+  :root {
+    --bg:#0f1117;--surface:#1a1d26;--surface2:#22263a;--border:#2e334d;
+    --accent:#3b82f6;--text:#e8eaf2;--text2:#8891aa;
+    --soufflage:#ff0101;--extraction:#0008fa;--vmc:#29b000;--caisson:#f59e0b;
+    --coude:#a855f7;--piquage:#06b6d4;--prise-air-neuf:#00e1ff;--radius:8px;
+    /* Annotation colors */
+    --annot-faux-plafond: rgba(99,102,241,0.18);
+    --annot-faux-plafond-border: #6366f1;
+    --annot-soffite: rgba(245,158,11,0.15);
+    --annot-soffite-border: #f59e0b;
+    --annot-exterieur: rgba(16,185,129,0.15);
+    --annot-exterieur-border: #10b981;
+    --annot-gaine: rgba(239,68,68,0.13);
+    --annot-gaine-border: #ef4444;
+    --annot-vide: rgba(148,163,184,0.12);
+    --annot-vide-border: #94a3b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
+  #header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;z-index:10;}
+  #logo{font-weight:700;font-size:15px;color:var(--accent);white-space:nowrap;}
+  .sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
+  .tool-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius);border:1.5px solid transparent;background:var(--surface2);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .tool-btn:hover{background:var(--border);color:var(--text);}
+  .tool-btn.active{border-color:var(--tool-color,var(--accent));color:var(--tool-color,var(--accent));background:color-mix(in srgb,var(--tool-color,var(--accent)) 12%,transparent);}
+  .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  #btn-import{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius);border:1.5px solid var(--accent);background:rgba(59,130,246,.1);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  #btn-import:hover{background:rgba(59,130,246,.22);}
+  #upload,#upload-save{display:none;}
+  .action-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .action-btn:hover{background:var(--surface2);color:var(--text);}
+  .action-btn.danger:hover{border-color:#ef4444;color:#ef4444;}
+  .action-btn.save{border-color:#22c55e;color:#22c55e;}
+  .action-btn.save:hover{background:rgba(34,197,94,.1);}
+  #size-wrap{display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);white-space:nowrap;}
+  #size-wrap span{font-size:11px;color:var(--text2);}
+  #size-wrap strong{font-size:12px;color:var(--accent);min-width:28px;}
+  #slider-global{width:80px;height:4px;accent-color:var(--accent);cursor:pointer;}
+  #reseau-wrap{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);white-space:nowrap;}
+  #reseau-wrap span{font-size:11px;color:var(--text2);}
+  #quick-reseau{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;outline:none;}
+  #reseau-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#94a3b8;transition:background .2s;}
+  #btn-lock-reseau{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:4px 8px;cursor:pointer;transition:all .15s;}
+  #main{display:flex;flex:1;overflow:hidden;}
+  #canvas-wrap{flex:1;position:relative;overflow:hidden;background:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;background-color:var(--bg);cursor:crosshair;}
+  #canvas-wrap.pan{cursor:grab;}#canvas-wrap.pan.panning{cursor:grabbing;}
+  #canvas-wrap.text-mode{cursor:text;}
+  #canvas-wrap.arrow-mode{cursor:crosshair;}
+  #container{position:absolute;inset:0;}
+  #empty-screen{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;pointer-events:none;transition:opacity .4s;}
+  #empty-screen.hidden{opacity:0;}
+  #empty-screen .big-icon{font-size:56px;opacity:.15;}
+  #empty-screen p{color:var(--text2);font-size:14px;text-align:center;line-height:1.7;opacity:.7;}
+  #empty-screen .arrow-hint{color:var(--accent);font-size:13px;opacity:.6;display:flex;align-items:center;gap:6px;}
+  #status-bar{position:absolute;bottom:0;left:0;right:0;z-index:5;background:rgba(10,12,20,.82);backdrop-filter:blur(4px);color:var(--text2);font-size:11px;font-family:monospace;padding:5px 14px;display:flex;align-items:center;gap:10px;}
+  #sdot{width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0;transition:background .3s;}
+  #sdot.ok{background:#22c55e;}#sdot.err{background:#ef4444;}#sdot.loading{background:#f59e0b;animation:blink .7s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+  /* ── PANEL ── */
+  #panel{width:260px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;z-index:10;}
+  #panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .panel-tab{flex:1;padding:9px 4px;font-size:11px;font-weight:600;color:var(--text2);text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.5px;}
+  .panel-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .panel-tab:hover:not(.active){color:var(--text);}
+  .panel-pane{display:none;flex:1;flex-direction:column;overflow:hidden;}
+  .panel-pane.active{display:flex;}
+  #material-list{flex:1;overflow-y:auto;padding:8px;}
+  #material-list::-webkit-scrollbar{width:4px;}
+  #material-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .mat-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);margin-bottom:4px;background:var(--surface2);}
+  .mat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .mat-name{flex:1;font-size:12px;color:var(--text);}
+  .mat-count{font-size:13px;font-weight:700;color:var(--text2);min-width:24px;text-align:right;}
+  #panel-footer{padding:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;}
+  .export-btn{width:100%;padding:8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}
+  .export-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .export-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .export-btn.primary:hover{background:#2563eb;}
+  .export-btn.green{background:rgba(34,197,94,.15);border-color:#22c55e;color:#22c55e;font-weight:600;}
+  .export-btn.green:hover{background:rgba(34,197,94,.25);}
+
+  /* ── NOTES CHANTIER ── */
+  #notes-pane{padding:12px;gap:10px;}
+  .notes-field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .notes-field label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;}
+  .notes-field input,.notes-field textarea,.notes-field select{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 10px;outline:none;font-family:inherit;resize:vertical;}
+  .notes-field input:focus,.notes-field textarea:focus{border-color:var(--accent);}
+  .notes-field textarea{min-height:70px;}
+  #notes-pane .save-notes-btn{width:100%;padding:8px;border-radius:var(--radius);background:rgba(59,130,246,.15);border:1px solid var(--accent);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;}
+  #notes-pane .save-notes-btn:hover{background:rgba(59,130,246,.28);}
+  #panel-count{background:var(--surface2);border-radius:20px;padding:2px 8px;font-size:11px;color:var(--accent);}
+
+  /* ── ANNOTATIONS PANEL ── */
+  #annot-pane{gap:0;}
+  #annot-list{flex:1;overflow-y:auto;padding:8px;}
+  #annot-list::-webkit-scrollbar{width:4px;}
+  #annot-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .annot-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);margin-bottom:4px;background:var(--surface2);border-left:3px solid transparent;cursor:pointer;transition:all .15s;}
+  .annot-item:hover{background:var(--border);}
+  .annot-item.selected{background:rgba(59,130,246,.12);border-left-color:var(--accent);}
+  .annot-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+  .annot-name{flex:1;font-size:12px;color:var(--text);}
+  .annot-type{font-size:10px;color:var(--text2);}
+  .annot-del{background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px;padding:0 2px;transition:color .15s;opacity:.6;}
+  .annot-del:hover{color:#ef4444;opacity:1;}
+  .annot-empty{color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5;line-height:1.6;}
+
+  /* ── ICÔNES ── */
+  .tool-icon{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .tool-icon svg{width:100%;height:100%;}
+  .tool-icon img{width:100%;height:100%;object-fit:contain;border-radius:2px;}
+
+  /* ── CONTEXT MENU ── */
+  #contextMenu{display:none;position:fixed;z-index:1000;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:200px;}
+  #contextMenu button{display:block;width:100%;text-align:left;padding:7px 12px;background:none;border:none;border-radius:5px;color:var(--text);font-size:13px;cursor:pointer;}
+  #contextMenu button:hover{background:var(--surface2);}
+  #contextMenu button.danger{color:#ef4444;}
+  #contextMenu button.danger:hover{background:rgba(239,68,68,.12);}
+  .ctx-sep{height:1px;background:var(--border);margin:4px 0;}
+
+  /* ── RESIZE POPUP ── */
+  #resize-popup{display:none;position:fixed;z-index:1100;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,.55);}
+  #resize-popup.open{display:block;}
+  #resize-popup h3{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;}
+  #resize-popup .rp-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  #resize-popup .rp-row span{font-size:13px;color:var(--accent);font-weight:700;min-width:32px;text-align:right;}
+  #slider-individual{width:100%;accent-color:var(--accent);cursor:pointer;}
+  #resize-popup .rp-actions{display:flex;gap:6px;justify-content:flex-end;}
+  #resize-popup .rp-actions button{padding:5px 14px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;border:none;}
+  .rp-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
+
+  /* ── LINK EDIT ── */
+  #link-edit-popup{display:none;position:fixed;z-index:1200;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:240px;box-shadow:0 8px 32px rgba(0,0,0,.55);}
+  #link-edit-popup.open{display:block;}
+  #link-edit-popup h3{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;}
+  .le-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .le-row label{font-size:11px;color:var(--text2);min-width:72px;}
+  .le-row select,.le-row input[type=number]{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;}
+  .le-row select:focus,.le-row input[type=number]:focus{border-color:var(--accent);}
+  .le-reseau-preview{width:18px;height:6px;border-radius:3px;flex-shrink:0;background:#94a3b8;}
+  .le-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:4px;}
+  .le-actions button{padding:6px 14px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;border:none;}
+  .le-ok{background:var(--accent);color:#fff;}.le-ok:hover{background:#2563eb;}
+  .le-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
+
+  /* ── MODAL ── */
+  #modal-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);align-items:center;justify-content:center;}
+  #modal-overlay.open{display:flex;}
+  #modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.6);}
+  #modal-box h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;}
+  .cfg-section{margin-bottom:16px;}
+  .cfg-section>label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;}
+  .cfg-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .cfg-tag{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px 3px 12px;font-size:12px;color:var(--text);}
+  .cfg-tag button{background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px;padding:0;line-height:1;transition:color .15s;}
+  .cfg-tag button:hover{color:#ef4444;}
+  .cfg-add{display:flex;gap:6px;}
+  .cfg-add input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 10px;outline:none;}
+  .cfg-add input:focus{border-color:var(--accent);}
+  .cfg-add button{padding:5px 12px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;}
+  .reseau-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);margin-bottom:4px;}
+  .reseau-swatch{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+  .reseau-label{flex:1;font-size:12px;color:var(--text);}
+  .reseau-color-input{width:32px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px;background:var(--surface);}
+  .reseau-item button{background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px;padding:0 2px;transition:color .15s;}
+  .reseau-item button:hover{color:#ef4444;}
+  .cfg-reseau-add{display:flex;gap:6px;align-items:center;margin-top:6px;}
+  .cfg-reseau-add input[type=text]{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 10px;outline:none;}
+  .cfg-reseau-add input[type=color]{width:36px;height:30px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:1px;background:var(--surface);}
+  .cfg-reseau-add button{padding:5px 12px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;}
+  .icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;}
+  .icon-item{background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius);padding:8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all .15s;position:relative;}
+  .icon-item:hover{border-color:var(--accent);}
+  .icon-item .icon-preview{width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+  .icon-item .icon-preview svg{width:100%;height:100%;}
+  .icon-item .icon-preview img{width:100%;height:100%;object-fit:contain;border-radius:3px;}
+  .icon-item .icon-name{font-size:10px;color:var(--text2);text-align:center;line-height:1.3;}
+  .icon-item .icon-reset{position:absolute;top:3px;right:3px;background:rgba(239,68,68,.8);border:none;border-radius:50%;width:14px;height:14px;color:#fff;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;}
+  .icon-item:hover .icon-reset{display:flex;}
+  .icon-item .icon-reset.hidden{display:none!important;}
+  .icon-upload-hint{font-size:9px;color:var(--accent);text-align:center;}
+  .modal-footer{display:flex;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--border);}
+  .modal-footer button{padding:7px 20px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;}
+  .modal-footer button:hover{background:#2563eb;}
+
+  /* ── LINK PICKER ── */
+  #link-picker{display:none;position:fixed;z-index:600;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.55);min-width:240px;}
+  #link-picker.open{display:block;}
+  #link-picker h3{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;}
+  .pk-row{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+  .pk-row label{font-size:11px;color:var(--text2);min-width:60px;}
+  .pk-row select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;cursor:pointer;}
+  .pk-reseau-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#94a3b8;transition:background .2s;}
+  .pk-actions{display:flex;gap:6px;justify-content:flex-end;}
+  .pk-actions button{padding:5px 14px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;border:none;}
+  .pk-ok{background:var(--accent);color:#fff;}.pk-ok:hover{background:#2563eb;}
+  .pk-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
+
+  #calib-hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(59,130,246,.18);border:1px solid var(--accent);color:var(--accent);font-size:12px;padding:6px 14px;border-radius:var(--radius);z-index:20;pointer-events:none;display:none;white-space:nowrap;}
+
+  /* ── DELETE BTN OVERLAY ── */
+  #delete-btn-overlay{display:none;position:fixed;z-index:900;width:22px;height:22px;border-radius:50%;background:#ef4444;border:2px solid #fff;color:#fff;font-size:13px;line-height:1;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:background .15s,transform .1s;pointer-events:auto;padding:0;}
+  #delete-btn-overlay:hover{background:#b91c1c;transform:scale(1.15);}
+  #delete-btn-overlay.visible{display:flex;}
+
+  /* ── INPUT POPUP ── */
+  #input-popup{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;}
+  #input-popup.open{display:flex;}
+  #input-popup-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:320px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,.7);}
+  #input-popup-box h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;}
+  #input-popup-box p{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5;}
+  #input-popup-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;padding:8px 12px;outline:none;margin-bottom:14px;}
+  #input-popup-input:focus{border-color:var(--accent);}
+  #input-popup-actions{display:flex;gap:8px;justify-content:flex-end;}
+  #input-popup-actions button{padding:7px 18px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;border:none;}
+  #input-popup-ok{background:var(--accent);color:#fff;}#input-popup-ok:hover{background:#2563eb;}
+  #input-popup-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
+
+  /* ── ANNOTATION ZONE POPUP ── */
+  #annot-zone-popup{display:none;position:fixed;z-index:1500;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;min-width:280px;box-shadow:0 12px 40px rgba(0,0,0,.65);}
+  #annot-zone-popup.open{display:block;}
+  #annot-zone-popup h3{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;}
+  .azp-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .azp-row label{font-size:11px;color:var(--text2);min-width:68px;}
+  .azp-row input[type=text],.azp-row select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 9px;outline:none;}
+  .azp-row input[type=text]:focus,.azp-row select:focus{border-color:var(--accent);}
+  .azp-row input[type=color]{width:40px;height:30px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:1px;background:var(--surface);}
+  .azp-row input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer;}
+  .azp-preview{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius);margin-bottom:12px;font-size:12px;font-weight:600;}
+  .azp-actions{display:flex;gap:8px;justify-content:flex-end;}
+  .azp-actions button{padding:6px 16px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;border:none;}
+  .azp-ok{background:var(--accent);color:#fff;}.azp-ok:hover{background:#2563eb;}
+  .azp-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
+
+  /* ── ANNOTATION TEXT POPUP ── */
+  #annot-text-popup{display:none;position:fixed;z-index:1500;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;min-width:300px;box-shadow:0 12px 40px rgba(0,0,0,.65);}
+  #annot-text-popup.open{display:block;}
+  #annot-text-popup h3{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;}
+  .atp-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .atp-row label{font-size:11px;color:var(--text2);min-width:68px;}
+  .atp-row input[type=text],.atp-row select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 9px;outline:none;}
+  .atp-row input[type=text]:focus{border-color:var(--accent);}
+  .atp-row input[type=color]{width:40px;height:30px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:1px;background:var(--surface);}
+  .atp-row textarea{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 9px;outline:none;resize:vertical;min-height:60px;font-family:inherit;}
+  .atp-row textarea:focus{border-color:var(--accent);}
+  .atp-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+  .atp-actions button{padding:6px 16px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;border:none;}
+  .atp-ok{background:var(--accent);color:#fff;}
+  .atp-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
+
+  /* ── DIMS POPUP ── */
+  #dims-popup{display:none;position:fixed;z-index:1300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:240px;box-shadow:0 8px 32px rgba(0,0,0,.55);}
+  #dims-popup.open{display:block;}
+
+  /* ── MOBILE ── */
+  #mobile-bar{display:none;}#mobile-more{display:none;}
+  @media(max-width:768px){
+    #header{display:none!important;}#mobile-bar{display:flex!important;}
+    #main{flex-direction:column;}
+    #panel{width:100%;height:200px;border-left:none;border-top:1px solid var(--border);flex-shrink:0;}
+    #canvas-wrap{flex:1;margin-top:64px;}
+    #delete-btn-overlay{width:36px;height:36px;font-size:16px;}
+    #mobile-bar{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:6px 4px;justify-content:space-around;flex-wrap:nowrap;}
+    #mobile-more{display:none;position:fixed;top:70px;left:8px;right:8px;z-index:199;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 4px 24px rgba(0,0,0,.5);}
+    #mobile-more.open{display:block;}
+    .mm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+    .mb-btn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:1.5px solid transparent;border-radius:var(--radius);padding:6px 4px;color:var(--text2);font-size:18px;cursor:pointer;min-width:44px;transition:all .15s;}
+    .mb-btn span:last-child{font-size:10px;font-weight:500;}
+    .mb-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.12);}
+    .mb-btn.delete-btn{color:#ef4444;}
+    .mb-btn.delete-btn.has-selection{border-color:#ef4444;background:rgba(239,68,68,.12);}
+    .mb-dot{width:14px;height:14px;border-radius:50%;display:block;}
+    .mm-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;cursor:pointer;transition:all .15s;}
+    .mm-btn.danger{color:#ef4444;}
+    .mm-btn.green{color:#22c55e;border-color:#22c55e;}
+  }
+
+  /* ── ANNOTATION ZONE TYPE BUTTONS ── */
+  .zone-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;}
+  .zone-type-btn{padding:8px 4px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .zone-type-btn:hover{border-color:var(--accent);color:var(--text);}
+  .zone-type-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.12);}
+  .zone-type-btn .zt-dot{width:14px;height:14px;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="logo">⊕ AnnotaVMC</div>
+  <label id="btn-import" for="upload">📷 Importer</label>
+  <input type="file" id="upload" accept="image/*,.pdf,application/pdf">
+  <input type="file" id="upload-save" accept=".annotavmc">
+  <!-- Orientation fond de plan — visible après import -->
+  <div id="bg-orient" style="display:none;align-items:center;gap:3px;">
+    <div class="sep"></div>
+    <span style="font-size:10px;color:var(--text2);font-weight:600;white-space:nowrap;">Plan</span>
+    <button class="action-btn" onclick="rotateBg(-90)" title="Rotation −90°">↺</button>
+    <button class="action-btn" onclick="rotateBg(90)"  title="Rotation +90°">↻</button>
+    <button class="action-btn" onclick="flipBg('h')"   title="Miroir horizontal">⇔</button>
+    <button class="action-btn" onclick="flipBg('v')"   title="Miroir vertical">⇕</button>
+    <button class="action-btn" onclick="resetBg()"     title="Réinitialiser">↺ Reset</button>
+  </div>
+  <div class="sep"></div>
+  <button class="tool-btn active" id="btn-none" style="--tool-color:#8891aa" onclick="setTool('none')">✥ Navigation</button>
+  <div class="sep"></div>
+  <!-- VMC Tools -->
+  <button class="tool-btn" id="btn-soufflage"      style="--tool-color:var(--soufflage)"      onclick="setTool('soufflage')">     <span class="tool-icon" id="ti-soufflage"></span>Soufflage</button>
+  <button class="tool-btn" id="btn-extraction"     style="--tool-color:var(--extraction)"     onclick="setTool('extraction')">    <span class="tool-icon" id="ti-extraction"></span>Extraction</button>
+  <button class="tool-btn" id="btn-prise-air-neuf" style="--tool-color:var(--prise-air-neuf)" onclick="setTool('prise-air-neuf')"><span class="tool-icon" id="ti-prise-air-neuf"></span>Prise AN</button>
+  <button class="tool-btn" id="btn-rejet-air-vicie" style="--tool-color:#ff8c00" onclick="setTool('rejet-air-vicie')"><span class="tool-icon" id="ti-rejet-air-vicie"></span>Rejet AV</button>
+  <div class="sep"></div>
+  <button class="tool-btn" id="btn-vmc"     style="--tool-color:var(--vmc)"     onclick="setTool('vmc')">    <span class="tool-icon" id="ti-vmc"></span>VMC</button>
+  <button class="tool-btn" id="btn-caisson" style="--tool-color:var(--caisson)" onclick="setTool('caisson')"><span class="tool-icon" id="ti-caisson"></span>Caisson</button>
+  <button class="tool-btn" id="btn-liaison" onclick="setTool('liaison')">🔗 Liaison</button>
+  <select id="quick-mat" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
+    <option value="">— Matériau —</option>
+  </select>
+  <select id="quick-dia" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
+    <option value="">— Diamètre —</option>
+  </select>
+  <div id="reseau-wrap">
+    <span>Réseau</span>
+    <span id="reseau-dot"></span>
+    <select id="quick-reseau" onchange="updateActiveReseau()"><option value="">— Type —</option></select>
+    <button id="btn-lock-reseau" onclick="toggleLockReseau()" title="Verrouiller réseau">🔓</button>
+  </div>
+  <button id="btn-lock" onclick="toggleLock()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:4px 8px;cursor:pointer;">🔓</button>
+  <button class="tool-btn" id="btn-coude"   style="--tool-color:var(--coude)"   onclick="setTool('coude')">  <span class="tool-icon" id="ti-coude"></span>Coude</button>
+  <button class="tool-btn" id="btn-piquage" style="--tool-color:var(--piquage)" onclick="setTool('piquage')"><span class="tool-icon" id="ti-piquage"></span>Piquage</button>
+  <div class="sep"></div>
+  <!-- ANNOTATION TOOLS -->
+  <button class="tool-btn" id="btn-annot-zone"  style="--tool-color:#6366f1" onclick="setTool('annot-zone')">⬡ Zone</button>
+  <button class="tool-btn" id="btn-annot-text"  style="--tool-color:#f472b6" onclick="setTool('annot-text')">𝐓 Texte</button>
+  <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')">↗ Flèche</button>
+  <div class="sep"></div>
+  <button class="tool-btn" id="btn-calibration" style="--tool-color:#00e0ff" onclick="setTool('calibration')">📏 Calib.</button>
+  <button class="tool-btn" id="btn-mesure"      style="--tool-color:#00e0ff" onclick="setTool('mesure')">📐 Mesure</button>
+  <div class="sep"></div>
+  <div id="size-wrap">
+    <span>Taille</span>
+    <input type="range" id="slider-global" min="1" max="50" value="7" step="1" oninput="onGlobalSlider(this.value)">
+    <input type="number" id="size-input" value="0.7" min="0.1" max="5" step="0.1"
+      style="width:52px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
+      oninput="onSizeInput(this.value)"
+      onchange="onSizeInput(this.value)"
+      onkeydown="if(event.key==='Enter')this.blur()">
+    <span style="font-size:11px;color:var(--text2);">×</span>
+  </div>
+  <div class="sep"></div>
+  <button class="action-btn" onclick="openConfig()">⚙ Conduits</button>
+  <div class="sep"></div>
+  <button class="action-btn save" onclick="saveProject()">💾 Sauver</button>
+  <label class="action-btn" for="upload-save" style="cursor:pointer;">📂 Ouvrir</label>
+  <div class="sep"></div>
+  <button class="action-btn" onclick="undo()">↩ Annuler</button>
+  <button class="action-btn danger" onclick="clearAll()">🗑 Effacer</button>
+</div>
+
+<div id="main">
+  <div id="canvas-wrap" class="pan">
+    <div id="container"></div>
+    <div id="calib-hint"></div>
+    <div id="empty-screen">
+      <div class="big-icon">📐</div>
+      <p>Aucun plan chargé<br>Utilise le bouton ci-dessus pour importer une image</p>
+      <div class="arrow-hint">↑ Clique sur "Importer"</div>
+    </div>
+    <div id="status-bar"><span id="sdot"></span><span id="smsg">En attente d'une image…</span></div>
+  </div>
+
+  <!-- PANEL -->
+  <div id="panel">
+    <div id="panel-tabs">
+      <div class="panel-tab active" onclick="switchTab('materiel')">Matériel</div>
+      <div class="panel-tab" onclick="switchTab('annotations')">Annotations</div>
+      <div class="panel-tab" onclick="switchTab('notes')">Infos client</div>
+    </div>
+
+    <!-- TAB MATERIEL -->
+    <div class="panel-pane active" id="tab-materiel">
+      <div id="material-list"><div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div></div>
+      <div id="panel-footer">
+        <button class="export-btn primary" onclick="exportListe()">📋 Copier la liste</button>
+        <button class="export-btn" onclick="exportXLSX()" style="border-color:#22c55e;color:#22c55e;">📊 Export Excel</button>
+        <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="export-btn" onclick="exportPNG()">🖼 Export PNG</button>
+        <button class="export-btn" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="export-btn green" onclick="saveProject()">💾 Sauvegarder</button>
+      </div>
+    </div>
+
+    <!-- TAB ANNOTATIONS -->
+    <div class="panel-pane" id="tab-annotations">
+      <div id="annot-list"><div class="annot-empty">Aucune annotation<br>Utilise les outils Zone, Texte ou Flèche</div></div>
+    </div>
+
+    <!-- TAB NOTES CHANTIER -->
+    <div class="panel-pane" id="tab-notes">
+      <div id="notes-pane">
+        <div class="notes-field"><label>Chantier / Client</label><input type="text" id="note-client" placeholder="Nom du client…"></div>
+        <div class="notes-field"><label>Téléphone</label><input type="tel" id="note-tel" placeholder="ex: 06 12 34 56 78"></div>
+        <div class="notes-field"><label>Email</label><input type="email" id="note-email" placeholder="ex: client@mail.com"></div>
+        <div class="notes-field"><label>Adresse</label><input type="text" id="note-adresse" placeholder="Adresse du chantier…"></div>
+        <div class="notes-field"><label>Date de visite</label><input type="date" id="note-date"></div>
+        <div class="notes-field"><label>Intervenant</label><input type="text" id="note-intervenant" placeholder="Nom du technicien…"></div>
+        <div class="notes-field"><label>Type de logement</label>
+          <select id="note-type">
+            <option value="">—</option>
+            <option>Maison individuelle</option>
+            <option>Appartement</option>
+            <option>Immeuble collectif</option>
+            <option>Tertiaire</option>
+            <option>ERP</option>
+          </select>
+        </div>
+        <div class="notes-field"><label>Surface (m²)</label><input type="number" id="note-surface" placeholder="ex: 120" min="0"></div>
+        <div class="notes-field"><label>Remarques générales</label><textarea id="note-remarques" placeholder="Notes libres, contraintes particulières…"></textarea></div>
+        <button class="save-notes-btn" onclick="saveNotes()">✓ Enregistrer les notes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="delete-btn-overlay" onclick="deleteFromOverlayBtn()">✕</button>
+
+<!-- CONTEXT MENU -->
+<div id="contextMenu">
+  <button onclick="duplicateSelected()">⧉ Dupliquer</button>
+  <button id="ctx-resize" onclick="openResizePopup()">⤢ Redimensionner</button>
+  <button id="ctx-rot-ccw" onclick="rotateSelected(-90)" style="display:none;">↺ Rotation −90°</button>
+  <button id="ctx-rot-cw"  onclick="rotateSelected(90)"  style="display:none;">↻ Rotation +90°</button>
+  <button id="ctx-edit-link" onclick="openLinkEditPopup()" style="display:none;">✏ Modifier la liaison</button>
+  <button id="ctx-dims" onclick="openDimsPopup()" style="display:none;">📐 Dimensions réelles</button>
+  <button id="ctx-del-waypoint" onclick="deleteSelectedWaypoint()" style="display:none;" class="danger">✕ Supprimer ce point</button>
+  <button id="ctx-edit-annot" onclick="editSelectedAnnot()" style="display:none;">✏ Modifier annotation</button>
+  <div class="ctx-sep"></div>
+  <button class="danger" onclick="deleteSelected()">✕ Supprimer</button>
+</div>
+
+<!-- DIMS POPUP -->
+<div id="dims-popup">
+  <h3 style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;">📐 Dimensions réelles</h3>
+  <div id="dims-field-w" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <label id="dims-label-w" style="font-size:11px;color:var(--text2);min-width:72px;">Largeur</label>
+    <input type="number" id="dims-w" min="1" max="99999" step="1" placeholder="mm" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;padding:5px 8px;outline:none;">
+    <span style="font-size:11px;color:var(--text2);">mm</span>
+  </div>
+  <div id="dims-field-h" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <label style="font-size:11px;color:var(--text2);min-width:72px;">Hauteur</label>
+    <input type="number" id="dims-h" min="1" max="99999" step="1" placeholder="mm" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;padding:5px 8px;outline:none;">
+    <span style="font-size:11px;color:var(--text2);">mm</span>
+  </div>
+  <div id="dims-hint" style="font-size:10px;color:var(--text2);margin-bottom:10px;line-height:1.4;"></div>
+  <div style="display:flex;gap:6px;justify-content:flex-end;">
+    <button onclick="closeDimsPopup()" style="padding:5px 14px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;background:var(--surface2);color:var(--text2);border:1px solid var(--border);">Annuler</button>
+    <button onclick="applyDims()" style="padding:5px 14px;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;border:none;">Appliquer</button>
+  </div>
+</div>
+
+<!-- RESIZE POPUP -->
+<div id="resize-popup">
+  <h3>Taille &amp; orientation</h3>
+  <div class="rp-row">
+    <input type="range" id="slider-individual" min="1" max="50" value="7" step="1" oninput="onIndividualSlider(this.value)">
+    <span id="slider-individual-val">1×</span>
+  </div>
+  <div class="rp-row" style="justify-content:center;gap:8px;margin-bottom:8px;">
+    <button onclick="rotateSelected(-45)" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);padding:4px 10px;font-size:13px;cursor:pointer;">↺ 45°</button>
+    <button onclick="rotateSelected(-90)" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);padding:4px 10px;font-size:13px;cursor:pointer;">↺ 90°</button>
+    <button onclick="rotateSelected(90)"  style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);padding:4px 10px;font-size:13px;cursor:pointer;">↻ 90°</button>
+    <button onclick="rotateSelected(45)"  style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);padding:4px 10px;font-size:13px;cursor:pointer;">↻ 45°</button>
+  </div>
+  <div style="text-align:center;font-size:11px;color:var(--text2);margin-bottom:8px;">Angle : <span id="rot-angle-val">0°</span></div>
+  <div class="rp-actions"><button class="rp-cancel" onclick="closeResizePopup()">Fermer</button></div>
+</div>
+
+<!-- LINK EDIT POPUP -->
+<div id="link-edit-popup">
+  <h3>✏ Modifier la liaison</h3>
+  <div class="le-row"><label>Réseau</label><span class="le-reseau-preview" id="le-reseau-preview"></span><select id="le-reseau" onchange="onLeReseauChange()"></select></div>
+  <div class="le-row"><label>Matériau</label><select id="le-mat"></select></div>
+  <div class="le-row"><label>Diamètre</label><select id="le-dia" onchange="onLeDiaChange()"></select></div>
+  <div class="le-row" id="le-dia-mm-row">
+    <label>Ø réel (mm)</label>
+    <input type="number" id="le-dia-mm" min="1" max="2000" step="1" placeholder="ex: 125" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;">
+    <span style="font-size:10px;color:var(--text2);margin-left:4px;">mm</span>
+  </div>
+  <div class="le-row"><label>Longueur (m)</label><input type="number" id="le-length" step="0.01" min="0" placeholder="auto"></div>
+  <div class="le-row">
+    <label>Tracé</label>
+    <select id="le-tension" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;cursor:pointer;">
+      <option value="0.35">〜 Courbe</option>
+      <option value="0">╌ Linéaire</option>
+    </select>
+  </div>
+  <div class="le-actions">
+    <button class="le-cancel" onclick="closeLinkEditPopup()">Annuler</button>
+    <button class="le-ok" onclick="confirmLinkEdit()">Appliquer</button>
+  </div>
+</div>
+
+<!-- CONFIG MODAL -->
+<div id="modal-overlay" onclick="closeConfigIfOutside(event)">
+  <div id="modal-box">
+    <h2>⚙ Configuration des conduits &amp; icônes</h2>
+    <div class="cfg-section">
+      <label>Matériaux</label>
+      <div class="cfg-tags" id="tags-materiaux"></div>
+      <div class="cfg-add">
+        <input type="text" id="input-materiau" placeholder="ex : Galva, PVC, Flex…" onkeydown="if(event.key==='Enter')addItem('materiaux')">
+        <button onclick="addItem('materiaux')">+ Ajouter</button>
+      </div>
+    </div>
+    <div class="cfg-section">
+      <label>Diamètres</label>
+      <div class="cfg-tags" id="tags-diametres"></div>
+      <div class="cfg-add">
+        <input type="text" id="input-diametre" placeholder="ex : Ø80, Ø125, Ø160…" onkeydown="if(event.key==='Enter')addItem('diametres')">
+        <button onclick="addItem('diametres')">+ Ajouter</button>
+      </div>
+    </div>
+    <div class="cfg-section">
+      <label>Types de réseau</label>
+      <div id="list-reseaux"></div>
+      <div class="cfg-reseau-add">
+        <input type="text" id="input-reseau-label" placeholder="ex : Recyclage…">
+        <input type="color" id="input-reseau-color" value="#ff8800">
+        <button onclick="addReseau()">+ Ajouter</button>
+      </div>
+    </div>
+    <div class="cfg-section">
+      <label>Icônes des éléments</label>
+      <div class="icon-grid" id="icon-grid"></div>
+    </div>
+    <div class="modal-footer"><button onclick="closeConfig()">Fermer</button></div>
+  </div>
+</div>
+
+<!-- LINK PICKER -->
+<div id="link-picker">
+  <h3>Propriétés de la liaison</h3>
+  <div class="pk-row">
+    <label>Réseau</label>
+    <span class="pk-reseau-dot" id="pk-reseau-dot"></span>
+    <select id="pk-reseau" onchange="onPkReseauChange()"></select>
+  </div>
+  <div class="pk-row">
+    <select id="pk-materiau"><option value="">— Matériau —</option></select>
+    <select id="pk-diametre" onchange="onPkDiaChange()"><option value="">— Diamètre —</option></select>
+  </div>
+  <div class="pk-row" id="pk-dia-mm-row" style="display:none;">
+    <label style="font-size:11px;color:var(--text2);min-width:60px;">Ø réel (mm)</label>
+    <input type="number" id="pk-dia-mm" min="1" max="2000" step="1" placeholder="ex: 125" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;">
+    <span style="font-size:10px;color:var(--text2);margin-left:4px;">mm</span>
+  </div>
+  <div class="pk-row">
+    <label style="font-size:11px;color:var(--text2);min-width:60px;">Tracé</label>
+    <select id="pk-tension" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;cursor:pointer;">
+      <option value="0.35">〜 Courbe</option>
+      <option value="0">╌ Linéaire</option>
+    </select>
+  </div>
+  <div class="pk-actions">
+    <button class="pk-cancel" onclick="cancelPicker()">Annuler</button>
+    <button class="pk-ok" onclick="confirmPicker()">Créer</button>
+  </div>
+</div>
+
+<!-- PDF PAGE PICKER -->
+<div id="pdf-popup" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.65);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:320px;box-shadow:0 16px 48px rgba(0,0,0,.7);">
+    <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">📄 Importer un PDF</h3>
+    <p id="pdf-info" style="font-size:12px;color:var(--text2);margin-bottom:14px;"></p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <label style="font-size:11px;color:var(--text2);white-space:nowrap;">Page</label>
+      <input type="number" id="pdf-page-input" min="1" value="1"
+        style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;padding:6px 8px;outline:none;text-align:center;">
+      <span id="pdf-page-total" style="font-size:11px;color:var(--text2);"></span>
+    </div>
+    <!-- Miniature preview -->
+    <canvas id="pdf-preview-canvas" style="width:100%;border-radius:6px;border:1px solid var(--border);margin-bottom:14px;background:#111;display:block;"></canvas>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closePdfPopup()" style="padding:7px 16px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">Annuler</button>
+      <button onclick="confirmPdfPage()" style="padding:7px 16px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Importer cette page</button>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT POPUP -->
+<div id="input-popup">
+  <div id="input-popup-box">
+    <h3 id="input-popup-title">Saisie</h3>
+    <p id="input-popup-msg"></p>
+    <input type="number" id="input-popup-input" step="0.01" min="0" placeholder="0.00">
+    <div id="input-popup-actions">
+      <button id="input-popup-cancel" onclick="inputPopupCancel()">Annuler</button>
+      <button id="input-popup-ok" onclick="inputPopupOk()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ANNOTATION ZONE POPUP -->
+<div id="annot-zone-popup">
+  <h3>⬡ Nouvelle zone</h3>
+  <div class="zone-type-grid" id="zone-type-grid">
+    <!-- filled by JS -->
+  </div>
+  <div class="azp-row"><label>Libellé</label><input type="text" id="azp-label" placeholder="ex: Faux-plafond salon…"></div>
+  <div class="azp-row"><label>Couleur</label><input type="color" id="azp-color" value="#6366f1"><span style="font-size:11px;color:var(--text2);margin-left:6px;">Opacité</span><input type="range" id="azp-opacity" min="5" max="60" value="18" style="width:80px;accent-color:var(--accent);cursor:pointer;"></div>
+  <div class="azp-row"><label>Contour</label>
+    <select id="azp-stroke-style" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;">
+      <option value="solid">— Plein</option>
+      <option value="dashed">- - Tirets</option>
+      <option value="dotted">· · · Pointillés</option>
+    </select>
+  </div>
+  <div id="azp-preview" class="azp-preview" style="border:2px dashed #6366f1;background:rgba(99,102,241,0.18);color:#6366f1;">⬡ Faux-plafond</div>
+  <div class="azp-actions">
+    <button class="azp-cancel" onclick="closeAnnotZonePopup()">Annuler</button>
+    <button class="azp-ok" id="azp-ok" onclick="confirmAnnotZone()">Dessiner</button>
+  </div>
+</div>
+
+<!-- ANNOTATION TEXT POPUP -->
+<div id="annot-text-popup">
+  <h3>𝐓 Annotation texte</h3>
+  <div class="atp-row"><label>Texte</label><textarea id="atp-text" placeholder="Saisissez votre annotation…"></textarea></div>
+  <div class="atp-row"><label>Style</label>
+    <select id="atp-style" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;">
+      <option value="note">📝 Note (fond sombre)</option>
+      <option value="warning">⚠ Attention (fond orange)</option>
+      <option value="info">ℹ Info (fond bleu)</option>
+      <option value="ok">✓ OK (fond vert)</option>
+      <option value="plain">Texte simple</option>
+    </select>
+  </div>
+  <div class="atp-row"><label>Couleur</label><input type="color" id="atp-color" value="#f472b6"></div>
+  <div class="atp-row"><label>Taille</label>
+    <select id="atp-size" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;">
+      <option value="10">Petit</option>
+      <option value="14" selected>Moyen</option>
+      <option value="20">Grand</option>
+    </select>
+  </div>
+  <div class="atp-actions">
+    <button class="atp-cancel" onclick="closeAnnotTextPopup()">Annuler</button>
+    <button class="atp-ok" id="atp-ok" onclick="confirmAnnotText()">Placer</button>
+  </div>
+</div>
+
+<!-- MOBILE BAR -->
+<div id="mobile-bar">
+  <button class="mb-btn active" id="mb-none" onclick="setTool('none')">✥<span>Nav</span></button>
+  <button class="mb-btn" id="mb-soufflage" onclick="setTool('soufflage')"><span class="mb-dot" style="background:#ff0101"></span><span>Souf.</span></button>
+  <button class="mb-btn" id="mb-extraction" onclick="setTool('extraction')"><span class="mb-dot" style="background:#0008fa"></span><span>Extr.</span></button>
+  <button class="mb-btn" id="mb-vmc" onclick="setTool('vmc')"><span class="mb-dot" style="background:#29b000"></span><span>VMC</span></button>
+  <button class="mb-btn" id="mb-liaison" onclick="setTool('liaison')">🔗<span>Liaison</span></button>
+  <button class="mb-btn" id="mb-annot-zone" onclick="setTool('annot-zone')" style="color:#6366f1">⬡<span>Zone</span></button>
+  <button class="mb-btn delete-btn" id="mb-delete" onclick="deleteSelected()">🗑<span>Suppr.</span></button>
+</div>
+
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// SVG ICONS
+// ══════════════════════════════════════════════════════════════
+const SVG_ICONS = {
+  'vmc': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="8" width="36" height="24" rx="3" fill="#1a2a1a" stroke="#29b000" stroke-width="2"/><circle cx="20" cy="20" r="7" fill="none" stroke="#29b000" stroke-width="1.5"/><line x1="20" y1="13" x2="20" y2="27" stroke="#29b000" stroke-width="1.2"/><line x1="13" y1="20" x2="27" y2="20" stroke="#29b000" stroke-width="1.2"/><line x1="15" y1="15" x2="25" y2="25" stroke="#29b000" stroke-width="1.2"/><line x1="25" y1="15" x2="15" y2="25" stroke="#29b000" stroke-width="1.2"/><circle cx="20" cy="20" r="2.5" fill="#29b000"/><rect x="5" y="11" width="4" height="4" rx="1" fill="#29b000" opacity=".5"/><rect x="31" y="11" width="4" height="4" rx="1" fill="#29b000" opacity=".5"/><text x="20" y="37" text-anchor="middle" font-size="5" fill="#29b000" font-family="monospace">VMC</text></svg>`,
+  'caisson': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#2a1e00" stroke="#f59e0b" stroke-width="2"/><line x1="4" y1="20" x2="36" y2="20" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity=".6"/><circle cx="12" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="12" y1="12.5" x2="12" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="8.5" y1="16" x2="15.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="20" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="20" y1="12.5" x2="20" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="16.5" y1="16" x2="23.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="28" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="28" y1="12.5" x2="28" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="24.5" y1="16" x2="31.5" y2="16" stroke="#f59e0b" stroke-width="1"/><text x="20" y="29" text-anchor="middle" font-size="4.5" fill="#f59e0b" font-family="monospace">RÉPARTITEUR</text></svg>`,
+  'soufflage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff0101" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="10" x2="20" y2="18" stroke="#ff0101" stroke-width="1.5"/><line x1="20" y1="30" x2="20" y2="22" stroke="#ff0101" stroke-width="1.5"/><line x1="10" y1="20" x2="18" y2="20" stroke="#ff0101" stroke-width="1.5"/><line x1="30" y1="20" x2="22" y2="20" stroke="#ff0101" stroke-width="1.5"/><circle cx="20" cy="20" r="3" fill="#ff0101"/></svg>`,
+  'extraction': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#00001a" stroke="#0008fa" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#0008fa" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="18" x2="20" y2="10" stroke="#0008fa" stroke-width="1.5"/><line x1="20" y1="22" x2="20" y2="30" stroke="#0008fa" stroke-width="1.5"/><line x1="18" y1="20" x2="10" y2="20" stroke="#0008fa" stroke-width="1.5"/><line x1="22" y1="20" x2="30" y2="20" stroke="#0008fa" stroke-width="1.5"/><circle cx="20" cy="20" r="3" fill="#0008fa"/></svg>`,
+  'prise-air-neuf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="10" width="34" height="22" rx="2" fill="#001a1a" stroke="#00e1ff" stroke-width="2"/><line x1="8" y1="14" x2="8" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="13" y1="14" x2="13" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="18" y1="14" x2="18" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="23" y1="14" x2="23" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="28" y1="14" x2="28" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="33" y1="14" x2="33" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="3" y1="14" x2="37" y2="14" stroke="#00e1ff" stroke-width="1.5"/><line x1="3" y1="28" x2="37" y2="28" stroke="#00e1ff" stroke-width="1.5"/><polygon points="20,4 17,10 23,10" fill="#00e1ff"/></svg>`,
+  'coude': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M8,32 L8,16 Q8,8 16,8 L32,8" fill="none" stroke="#a855f7" stroke-width="5" stroke-linecap="round"/><path d="M8,32 L8,16 Q8,8 16,8 L32,8" fill="none" stroke="#2a1a3a" stroke-width="2.5" stroke-linecap="round"/><circle cx="8" cy="32" r="3" fill="#a855f7"/><circle cx="32" cy="8" r="3" fill="#a855f7"/></svg>`,
+  'piquage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><line x1="4" y1="20" x2="36" y2="20" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/><line x1="4" y1="20" x2="36" y2="20" stroke="#001a2a" stroke-width="1.5" stroke-linecap="round"/><line x1="20" y1="20" x2="20" y2="6" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="20" r="4.5" fill="#001a2a" stroke="#06b6d4" stroke-width="2"/><circle cx="20" cy="6" r="3" fill="#06b6d4"/><circle cx="4" cy="20" r="3" fill="#06b6d4"/><circle cx="36" cy="20" r="3" fill="#06b6d4"/></svg>`,
+  'rejet-air-vicie': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="10" width="34" height="22" rx="2" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><line x1="8" y1="14" x2="8" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="13" y1="14" x2="13" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="18" y1="14" x2="18" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="23" y1="14" x2="23" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="28" y1="14" x2="28" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="33" y1="14" x2="33" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="3" y1="14" x2="37" y2="14" stroke="#ff8c00" stroke-width="1.5"/><line x1="3" y1="28" x2="37" y2="28" stroke="#ff8c00" stroke-width="1.5"/><polygon points="20,10 17,4 23,4" fill="#ff8c00"/></svg>`,
+};
+
+// ══════════════════════════════════════════════════════════════
+// ZONE TYPES (prédéfinis)
+// ══════════════════════════════════════════════════════════════
+const ZONE_PRESETS = [
+  {id:'faux-plafond', label:'Faux-plafond', color:'#6366f1', opacity:18, icon:'⬡'},
+  {id:'soffite',      label:'Soffite',      color:'#f59e0b', opacity:15, icon:'▭'},
+  {id:'gaine-tech',   label:'Gaine tech.',  color:'#ef4444', opacity:13, icon:'⊞'},
+  {id:'exterieur',    label:'Extérieur',    color:'#10b981', opacity:15, icon:'⊓'},
+  {id:'vide-san',     label:'Vide sanitaire',color:'#94a3b8',opacity:12, icon:'□'},
+  {id:'comble',       label:'Combles',      color:'#d97706', opacity:14, icon:'△'},
+  {id:'custom',       label:'Personnalisé', color:'#f472b6', opacity:16, icon:'✦'},
+];
+
+// ══════════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ══════════════════════════════════════════════════════════════
+const TAP_MAX_DURATION=300,TAP_MAX_MOVE=10,LONG_PRESS_DELAY=500;
+const ICON_BASE_PX=28;
+
+const TOOLS={
+  'soufflage':       {label:'Soufflage',     color:'#ff0101',shape:'circle'},
+  'extraction':      {label:'Extraction',    color:'#0008fa',shape:'circle'},
+  'prise-air-neuf':  {label:'PriseAN',       color:'#00e1ff',shape:'rect'},
+  'rejet-air-vicie': {label:'RejetAirVicié', color:'#ff8c00',shape:'rect'},
+  'vmc':             {label:'VMC',           color:'#29b000',shape:'rect'},
+  'caisson':         {label:'Répartiteur',   color:'#f59e0b',shape:'diamond'},
+  'coude':           {label:'Coude 90°',     color:'#a855f7',shape:'triangle'},
+  'piquage':         {label:'Piquage',       color:'#06b6d4',shape:'cross'},
+  'liaison':         {label:'Liaison',       color:'#94a3b8',shape:null},
+};
+
+let customIcons={};
+let reseauTypes=[
+  {label:'Air neuf',  color:'#00bfff'},
+  {label:'Rejet',     color:'#ff8c00'},
+  {label:'Soufflage', color:'#ff2020'},
+  {label:'Extraction',color:'#1a4fff'},
+];
+
+// Notes chantier
+let chantierNotes={client:'',adresse:'',date:'',intervenant:'',type:'',surface:'',remarques:''};
+
+// Annotations
+let annotations=[]; // {id, type:'zone'|'text'|'arrow', nodes:[], data:{}}
+let _annotIdCounter=0;
+let _annotDrawing=false;         // mode dessin zone polygone actif
+let _annotZonePoints=[];         // points du polygone en cours
+let _annotZonePreviewLine=null;
+let _annotZoneTempDots=[];
+let _pendingZoneConfig=null;     // config zone avant dessin
+let _pendingTextPos=null;        // position pour texte
+let _arrowDrawing=false;
+let _arrowStart=null;
+let _selectedAnnotId=null;
+let _editingAnnotId=null;        // pour édition existante
+
+let currentTool='none', selectedShape=null;
+let stage, bgLayer, annotLayer, drawLayer, transformer;
+let isPanning=false, lastPointer=null;
+let placedElements={}, linkStart=null, links=[], measures=[];
+let calibrationPoints=[], measurePoints=[], scaleRatio=null, tempMarkers=[];
+let conduitConfig={materiaux:['Galva','PVC','Flex','ComfoPipe','ComfoTube'],diametres:['Ø80','Ø90','Ø125','Ø160','Ø200']};
+let activeConduit={mat:'',dia:'',locked:false};
+let activeReseau={label:'',color:'',locked:false};
+let pendingLink=null, globalSize=7;
+let history=[], MAX_HISTORY=20;
+let _selectedLinkObj=null;
+let _touchStartTime=0,_touchStartX=0,_touchStartY=0,_touchMoved=false,_longPressTimer=null,_longPressTarget=null;
+let _lastTapWasTouch=false,_touchScenePos=null;
+let _linkDrawing=false,_linkWaypoints=[],_linkPreviewLine=null,_linkPreviewDot=null;
+let _selectedWaypoint=null;
+
+// ══════════════════════════════════════════════════════════════
+// PANEL TABS
+// ══════════════════════════════════════════════════════════════
+function switchTab(name){
+  document.querySelectorAll('.panel-tab').forEach((t,i)=>{
+    const names=['materiel','annotations','notes'];
+    t.classList.toggle('active',names[i]===name);
+  });
+  document.querySelectorAll('.panel-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// NOTES CHANTIER
+// ══════════════════════════════════════════════════════════════
+function saveNotes(){
+  chantierNotes={
+    client:document.getElementById('note-client').value,
+    tel:document.getElementById('note-tel').value,
+    email:document.getElementById('note-email').value,
+    adresse:document.getElementById('note-adresse').value,
+    date:document.getElementById('note-date').value,
+    intervenant:document.getElementById('note-intervenant').value,
+    type:document.getElementById('note-type').value,
+    surface:document.getElementById('note-surface').value,
+    remarques:document.getElementById('note-remarques').value,
+  };
+  setStatus('✓ Infos client enregistrées','ok');
+}
+function loadNotes(data){
+  if(!data)return;
+  chantierNotes={...data};
+  document.getElementById('note-client').value=data.client||'';
+  document.getElementById('note-tel').value=data.tel||'';
+  document.getElementById('note-email').value=data.email||'';
+  document.getElementById('note-adresse').value=data.adresse||'';
+  document.getElementById('note-date').value=data.date||'';
+  document.getElementById('note-intervenant').value=data.intervenant||'';
+  document.getElementById('note-type').value=data.type||'';
+  document.getElementById('note-surface').value=data.surface||'';
+  document.getElementById('note-remarques').value=data.remarques||'';
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANNOTATION LIST PANEL
+// ══════════════════════════════════════════════════════════════
+function updateAnnotList(){
+  const list=document.getElementById('annot-list');
+  if(!annotations.length){
+    list.innerHTML='<div class="annot-empty">Aucune annotation<br>Utilise les outils Zone, Texte ou Flèche</div>';
+    return;
+  }
+  list.innerHTML=annotations.map(a=>{
+    const typeLabel={zone:'Zone',text:'Texte',arrow:'Flèche'}[a.type]||'?';
+    const swatch=a.type==='zone'?`<span class="annot-swatch" style="background:${a.data.color};opacity:0.8;"></span>`:
+                  a.type==='text'?`<span style="font-size:14px;flex-shrink:0;line-height:1;">${a.data.styleIcon||'📝'}</span>`:
+                  `<span style="font-size:14px;flex-shrink:0;line-height:1;">↗</span>`;
+    return`<div class="annot-item${a.id===_selectedAnnotId?' selected':''}" onclick="selectAnnotById(${a.id})">
+      ${swatch}
+      <span class="annot-name">${a.data.label||a.data.text||'—'}</span>
+      <span class="annot-type">${typeLabel}</span>
+      <button class="annot-del" onclick="event.stopPropagation();deleteAnnotById(${a.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+function selectAnnotById(id){
+  _selectedAnnotId=id;
+  updateAnnotList();
+  switchTab('annotations');
+}
+function deleteAnnotById(id){
+  const idx=annotations.findIndex(a=>a.id===id);
+  if(idx===-1)return;
+  pushHistory();
+  destroyAnnotNodes(annotations[idx]);
+  annotations.splice(idx,1);
+  if(_selectedAnnotId===id)_selectedAnnotId=null;
+  updateAnnotList();
+  annotLayer.batchDraw();
+}
+function destroyAnnotNodes(a){
+  if(a.nodes)a.nodes.forEach(n=>{try{n.destroy();}catch(e){}});
+}
+function editSelectedAnnot(){
+  document.getElementById('contextMenu').style.display='none';
+  if(_selectedAnnotId===null)return;
+  const a=annotations.find(x=>x.id===_selectedAnnotId);
+  if(!a)return;
+  _editingAnnotId=_selectedAnnotId;
+  if(a.type==='text')openAnnotTextPopupForEdit(a);
+  else if(a.type==='zone')openAnnotZonePopupForEdit(a);
+  else if(a.type==='arrow')openAnnotArrowEdit(a);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ZONE PRESETS UI
+// ══════════════════════════════════════════════════════════════
+function renderZoneTypeGrid(){
+  const grid=document.getElementById('zone-type-grid');
+  grid.innerHTML=ZONE_PRESETS.map(p=>`
+    <button class="zone-type-btn" id="zt-${p.id}" onclick="selectZonePreset('${p.id}')">
+      <span class="zt-dot" style="background:${p.color};opacity:0.7;"></span>
+      <span>${p.icon} ${p.label}</span>
+    </button>`).join('');
+  selectZonePreset('faux-plafond');
+}
+
+function selectZonePreset(id){
+  const p=ZONE_PRESETS.find(x=>x.id===id);if(!p)return;
+  document.querySelectorAll('.zone-type-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('zt-'+id);if(btn)btn.classList.add('active');
+  document.getElementById('azp-color').value=p.color;
+  document.getElementById('azp-opacity').value=p.opacity;
+  // Set label only if empty or a previous preset label
+  const lblInput=document.getElementById('azp-label');
+  const prevPreset=ZONE_PRESETS.find(x=>x.label===lblInput.value);
+  if(!lblInput.value||prevPreset)lblInput.value=p.label;
+  updateZonePreview();
+}
+
+function updateZonePreview(){
+  const color=document.getElementById('azp-color').value;
+  const opacity=parseInt(document.getElementById('azp-opacity').value);
+  const label=document.getElementById('azp-label').value||'Zone';
+  const strokeStyle=document.getElementById('azp-stroke-style').value;
+  const r=parseInt(color.slice(1,3),16),g=parseInt(color.slice(3,5),16),b=parseInt(color.slice(5,7),16);
+  const prev=document.getElementById('azp-preview');
+  const borderStyle=strokeStyle==='dashed'?'dashed':strokeStyle==='dotted'?'dotted':'solid';
+  prev.style.cssText=`border:2px ${borderStyle} ${color};background:rgba(${r},${g},${b},${opacity/100});color:${color};display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:12px;font-weight:600;`;
+  prev.textContent='⬡ '+label;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANNOTATION ZONE POPUP
+// ══════════════════════════════════════════════════════════════
+function openAnnotZonePopup(){
+  renderZoneTypeGrid();
+  document.getElementById('azp-label').value='';
+  document.getElementById('azp-stroke-style').value='dashed';
+  updateZonePreview();
+  const pop=document.getElementById('annot-zone-popup');
+  pop.style.left='50%';pop.style.top='50%';pop.style.transform='translate(-50%,-50%)';
+  pop.classList.add('open');
+  // Live preview updates
+  ['azp-color','azp-opacity','azp-label','azp-stroke-style'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',updateZonePreview);
+  });
+}
+function openAnnotZonePopupForEdit(a){
+  renderZoneTypeGrid();
+  document.getElementById('azp-label').value=a.data.label||'';
+  document.getElementById('azp-color').value=a.data.color||'#6366f1';
+  document.getElementById('azp-opacity').value=a.data.opacity||18;
+  document.getElementById('azp-stroke-style').value=a.data.strokeStyle||'dashed';
+  updateZonePreview();
+  const pop=document.getElementById('annot-zone-popup');
+  pop.style.left='50%';pop.style.top='50%';pop.style.transform='translate(-50%,-50%)';
+  pop.classList.add('open');
+  document.getElementById('azp-ok').textContent='Mettre à jour';
+}
+function closeAnnotZonePopup(){
+  document.getElementById('annot-zone-popup').classList.remove('open');
+  document.getElementById('azp-ok').textContent='Dessiner';
+  if(!_annotDrawing)_editingAnnotId=null;
+}
+function confirmAnnotZone(){
+  const config={
+    label:document.getElementById('azp-label').value||'Zone',
+    color:document.getElementById('azp-color').value,
+    opacity:parseInt(document.getElementById('azp-opacity').value),
+    strokeStyle:document.getElementById('azp-stroke-style').value,
+  };
+  closeAnnotZonePopup();
+  if(_editingAnnotId!==null){
+    // Just update style on existing
+    const a=annotations.find(x=>x.id===_editingAnnotId);
+    if(a){updateZoneAnnotStyle(a,config);}
+    _editingAnnotId=null;return;
+  }
+  // Start polygon drawing mode
+  _pendingZoneConfig=config;
+  _annotDrawing=true;_annotZonePoints=[];
+  document.getElementById('canvas-wrap').style.cursor='crosshair';
+  showHint('Zone : cliquez pour poser des points — double-clic ou Entrée pour terminer — Échap pour annuler');
+  setStatus('Dessin de zone…','loading');
+}
+
+function updateZoneAnnotStyle(a,config){
+  a.data={...a.data,...config};
+  if(a.nodes&&a.nodes.length){
+    const poly=a.nodes.find(n=>n.getClassName&&(n.getClassName()==='Line'||n.getClassName()==='Rect'));
+    if(poly){
+      const r=parseInt(config.color.slice(1,3),16),g=parseInt(config.color.slice(3,5),16),b=parseInt(config.color.slice(5,7),16);
+      poly.fill(`rgba(${r},${g},${b},${config.opacity/100})`);
+      poly.stroke(config.color);
+      poly.dash(config.strokeStyle==='dashed'?[10,6]:config.strokeStyle==='dotted'?[3,5]:[]);
+    }
+    const txt=a.nodes.find(n=>n.getClassName&&n.getClassName()==='Text');
+    if(txt){txt.text(config.label);txt.fill(config.color);}
+  }
+  annotLayer.batchDraw();
+  updateAnnotList();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANNOTATION TEXT POPUP
+// ══════════════════════════════════════════════════════════════
+const STYLE_ICONS={'note':'📝','warning':'⚠','info':'ℹ','ok':'✓','plain':'T'};
+function openAnnotTextPopup(pos){
+  _pendingTextPos=pos;
+  _editingAnnotId=null;
+  document.getElementById('atp-text').value='';
+  document.getElementById('atp-style').value='note';
+  document.getElementById('atp-color').value='#f472b6';
+  document.getElementById('atp-size').value='14';
+  const pop=document.getElementById('annot-text-popup');
+  pop.style.left='50%';pop.style.top='50%';pop.style.transform='translate(-50%,-50%)';
+  pop.classList.add('open');
+  setTimeout(()=>document.getElementById('atp-text').focus(),100);
+  document.getElementById('atp-ok').textContent='Placer';
+}
+function openAnnotTextPopupForEdit(a){
+  document.getElementById('atp-text').value=a.data.text||'';
+  document.getElementById('atp-style').value=a.data.style||'note';
+  document.getElementById('atp-color').value=a.data.color||'#f472b6';
+  document.getElementById('atp-size').value=String(a.data.size||14);
+  const pop=document.getElementById('annot-text-popup');
+  pop.style.left='50%';pop.style.top='50%';pop.style.transform='translate(-50%,-50%)';
+  pop.classList.add('open');
+  document.getElementById('atp-ok').textContent='Mettre à jour';
+  setTimeout(()=>document.getElementById('atp-text').focus(),100);
+}
+function closeAnnotTextPopup(){
+  document.getElementById('annot-text-popup').classList.remove('open');
+  document.getElementById('atp-ok').textContent='Placer';
+  _editingAnnotId=null;
+}
+function confirmAnnotText(){
+  const text=document.getElementById('atp-text').value.trim();
+  if(!text){closeAnnotTextPopup();return;}
+  const style=document.getElementById('atp-style').value;
+  const color=document.getElementById('atp-color').value;
+  const size=parseInt(document.getElementById('atp-size').value)||14;
+  closeAnnotTextPopup();
+  if(_editingAnnotId!==null){
+    const a=annotations.find(x=>x.id===_editingAnnotId);
+    if(a){updateTextAnnot(a,{text,style,color,size});} _editingAnnotId=null;return;
+  }
+  if(_pendingTextPos)createTextAnnot(_pendingTextPos,{text,style,color,size});
+  _pendingTextPos=null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CREATE ZONE ANNOTATION (polygone Konva)
+// ══════════════════════════════════════════════════════════════
+function finishZoneDrawing(){
+  if(_annotZonePoints.length<3){
+    cancelZoneDrawing();
+    showHint('Zone annulée (moins de 3 points)');
+    return;
+  }
+  pushHistory();
+  const config=_pendingZoneConfig;
+  const flatPoints=_annotZonePoints.flatMap(p=>[p.x,p.y]);
+  const r=parseInt(config.color.slice(1,3),16),gg=parseInt(config.color.slice(3,5),16),b=parseInt(config.color.slice(5,7),16);
+  const fillColor=`rgba(${r},${gg},${b},${config.opacity/100})`;
+  const dash=config.strokeStyle==='dashed'?[10,6]:config.strokeStyle==='dotted'?[3,5]:[];
+
+  const poly=new Konva.Line({
+    points:flatPoints,
+    fill:fillColor,stroke:config.color,strokeWidth:2,
+    closed:true,dash,lineCap:'round',lineJoin:'round',
+    draggable:true,
+  });
+  poly.setAttr('customType','annot-zone');
+
+  // Centroid pour label
+  const cx=_annotZonePoints.reduce((s,p)=>s+p.x,0)/_annotZonePoints.length;
+  const cy=_annotZonePoints.reduce((s,p)=>s+p.y,0)/_annotZonePoints.length;
+  const label=new Konva.Text({
+    x:cx,y:cy,text:config.label,
+    fontSize:12,fill:config.color,fontStyle:'bold',fontFamily:'Segoe UI,sans-serif',
+    align:'center',offsetX:0,
+  });
+  label.offsetX(label.width()/2);
+  label.setAttr('customType','annot-label');
+
+  const id=++_annotIdCounter;
+  const annotObj={id,type:'zone',nodes:[poly,label],data:{...config,points:_annotZonePoints.map(p=>({...p}))}};
+
+  poly.on('click tap',()=>{_selectedAnnotId=id;updateAnnotList();});
+  poly.on('contextmenu',e=>{e.evt.preventDefault();_selectedAnnotId=id;updateAnnotList();openAnnotContextMenu(e.evt);});
+  poly.on('dragmove',()=>{
+    const dx=poly.x(),dy=poly.y();
+    label.x(cx+dx);label.y(cy+dy);
+    annotObj.data.points=_annotZonePoints.map(p=>({x:p.x+dx,y:p.y+dy}));
+    annotLayer.batchDraw();
+  });
+  label.on('click tap',()=>{_selectedAnnotId=id;updateAnnotList();});
+
+  annotLayer.add(poly);annotLayer.add(label);annotLayer.batchDraw();
+  annotations.push(annotObj);
+
+  cancelZoneDrawing();
+  updateAnnotList();
+  switchTab('annotations');
+  setStatus('✓ Zone créée','ok');showHint('');
+}
+
+function cancelZoneDrawing(){
+  _annotDrawing=false;_annotZonePoints=[];_pendingZoneConfig=null;
+  if(_annotZonePreviewLine){_annotZonePreviewLine.destroy();_annotZonePreviewLine=null;}
+  _annotZoneTempDots.forEach(d=>d.destroy());_annotZoneTempDots=[];
+  annotLayer&&annotLayer.batchDraw();
+  if(currentTool==='annot-zone')document.getElementById('canvas-wrap').style.cursor='crosshair';
+}
+
+function updateZonePreviewLine(mousePos){
+  if(!_annotDrawing)return;
+  const pts=_annotZonePoints.flatMap(p=>[p.x,p.y]);
+  if(mousePos)pts.push(mousePos.x,mousePos.y);
+  if(_annotZonePreviewLine){
+    _annotZonePreviewLine.points(pts);
+  }else{
+    _annotZonePreviewLine=new Konva.Line({
+      points:pts,stroke:_pendingZoneConfig?.color||'#6366f1',
+      strokeWidth:1.5,dash:[6,4],opacity:.7,closed:false,listening:false,
+    });
+    annotLayer.add(_annotZonePreviewLine);
+  }
+  annotLayer.batchDraw();
+}
+
+// ══════════════════════════════════════════════════════════════
+// CREATE TEXT ANNOTATION
+// ══════════════════════════════════════════════════════════════
+const STYLE_COLORS={note:{bg:'rgba(30,30,50,.85)',border:'#6366f1',text:'#e8eaf2'},
+  warning:{bg:'rgba(120,60,0,.85)',border:'#f59e0b',text:'#fde68a'},
+  info:{bg:'rgba(10,40,100,.85)',border:'#3b82f6',text:'#bfdbfe'},
+  ok:{bg:'rgba(10,60,30,.85)',border:'#22c55e',text:'#bbf7d0'},
+  plain:{bg:'transparent',border:'transparent',text:'#e8eaf2'}};
+
+function _measureText(text,fontSize,maxWidth){
+  // Mesure via un canvas 2D natif — fiable sans besoin d'ajouter au stage
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.font=`bold ${fontSize}px "Segoe UI",sans-serif`;
+  const words=text.split(/\s+/);
+  let line='',lines=1;
+  for(const w of words){
+    const test=line?line+' '+w:w;
+    if(ctx.measureText(test).width>maxWidth&&line){lines++;line=w;}
+    else line=test;
+  }
+  return{width:maxWidth,height:lines*fontSize*1.3};
+}
+
+function createTextAnnot(pos,cfg){
+  const sc=STYLE_COLORS[cfg.style]||STYLE_COLORS.note;
+  const fontSize=cfg.size||14;
+  const padding=8;
+  const maxTxtW=Math.min(280,Math.max(120,cfg.text.length*fontSize*0.6));
+  const measured=_measureText(cfg.text,fontSize,maxTxtW);
+  const tw=measured.width+padding*2;
+  const th=measured.height+padding*2;
+
+  const rect=new Konva.Rect({
+    x:0,y:0,width:tw,height:th,
+    fill:sc.bg,stroke:sc.border,strokeWidth:cfg.style==='plain'?0:1.5,
+    cornerRadius:6,
+  });
+  rect.setAttr('customType','annot-text');
+
+  const txt=new Konva.Text({
+    x:padding,y:padding,
+    text:cfg.text,fontSize,fill:sc.text,
+    fontFamily:'Segoe UI,sans-serif',fontStyle:'bold',
+    width:maxTxtW,wrap:'word',
+  });
+
+  const grp=new Konva.Group({x:pos.x,y:pos.y,draggable:true});
+  grp.add(rect);grp.add(txt);
+  grp.setAttr('customType','annot-text-group');
+
+  const id=++_annotIdCounter;
+  const annotObj={id,type:'text',nodes:[grp],data:{...cfg,styleIcon:STYLE_ICONS[cfg.style]||'📝',pos:{x:pos.x,y:pos.y}}};
+
+  grp.on('dragend',()=>{annotObj.data.pos={x:grp.x(),y:grp.y()};});
+  grp.on('click tap',()=>{_selectedAnnotId=id;updateAnnotList();});
+  grp.on('contextmenu',e=>{e.evt.preventDefault();_selectedAnnotId=id;updateAnnotList();openAnnotContextMenu(e.evt);});
+  grp.on('dragstart',()=>{grp.moveToTop();});
+
+  annotLayer.add(grp);annotLayer.batchDraw();
+  annotations.push(annotObj);
+  updateAnnotList();
+  switchTab('annotations');
+  setStatus('✓ Annotation texte créée','ok');
+}
+
+function updateTextAnnot(a,cfg){
+  destroyAnnotNodes(a);
+  const pos=a.data.pos||{x:100,y:100};
+  a.data={...a.data,...cfg,styleIcon:STYLE_ICONS[cfg.style]||'📝'};
+  const sc=STYLE_COLORS[cfg.style]||STYLE_COLORS.note;
+  const fontSize=cfg.size||14,padding=8;
+  const maxTxtW=Math.min(280,Math.max(120,cfg.text.length*fontSize*0.6));
+  const measured=_measureText(cfg.text,fontSize,maxTxtW);
+  const tw=measured.width+padding*2,th=measured.height+padding*2;
+  const rect=new Konva.Rect({x:0,y:0,width:tw,height:th,fill:sc.bg,stroke:sc.border,strokeWidth:cfg.style==='plain'?0:1.5,cornerRadius:6});
+  rect.setAttr('customType','annot-text');
+  const txt=new Konva.Text({x:padding,y:padding,text:cfg.text,fontSize,fill:sc.text,fontFamily:'Segoe UI,sans-serif',fontStyle:'bold',width:maxTxtW,wrap:'word'});
+  const grp=new Konva.Group({x:pos.x,y:pos.y,draggable:true});
+  grp.add(rect);grp.add(txt);grp.setAttr('customType','annot-text-group');
+  grp.on('dragend',()=>{a.data.pos={x:grp.x(),y:grp.y()};});
+  grp.on('click tap',()=>{_selectedAnnotId=a.id;updateAnnotList();});
+  grp.on('contextmenu',e=>{e.evt.preventDefault();_selectedAnnotId=a.id;updateAnnotList();openAnnotContextMenu(e.evt);});
+  a.nodes=[grp];
+  annotLayer.add(grp);annotLayer.batchDraw();
+  updateAnnotList();
+}
+
+// ══════════════════════════════════════════════════════════════
+// CREATE ARROW ANNOTATION
+// ══════════════════════════════════════════════════════════════
+function createArrowAnnot(p1,p2){
+  pushHistory();
+  const id=++_annotIdCounter;
+  const annotObj={id,type:'arrow',nodes:[],data:{p1,p2,label:''}};
+  annotations.push(annotObj);
+
+  showInputPopupText('↗ Libellé de la flèche','Libellé (laisser vide si aucun) :').then(lbl=>{
+    lbl=lbl||'';
+    annotObj.data.label=lbl;
+    _buildArrowNodes(annotObj);
+    annotLayer.batchDraw();
+    updateAnnotList();
+    switchTab('annotations');
+    setStatus('✓ Flèche créée','ok');
+  });
+}
+
+function _buildArrowNodes(annotObj){
+  // Détruire les anciens nœuds si édition
+  if(annotObj.nodes&&annotObj.nodes.length)annotObj.nodes.forEach(n=>{try{n.destroy();}catch(e){}});
+
+  const {p1,p2,label}=annotObj.data;
+  const id=annotObj.id;
+  const angle=Math.atan2(p2.y-p1.y,p2.x-p1.x);
+  const headLen=14,headAngle=Math.PI/7;
+  const ap1={x:p2.x-headLen*Math.cos(angle-headAngle),y:p2.y-headLen*Math.sin(angle-headAngle)};
+  const ap2={x:p2.x-headLen*Math.cos(angle+headAngle),y:p2.y-headLen*Math.sin(angle+headAngle)};
+
+  // Groupe draggable contenant tout
+  const grp=new Konva.Group({draggable:true});
+  grp.setAttr('customType','annot-arrow-group');
+
+  const shaft=new Konva.Line({
+    points:[p1.x,p1.y,p2.x,p2.y],
+    stroke:'#fb923c',strokeWidth:2.5,lineCap:'round',
+  });
+  const head=new Konva.Line({
+    points:[ap1.x,ap1.y,p2.x,p2.y,ap2.x,ap2.y],
+    stroke:'#fb923c',strokeWidth:2.5,lineCap:'round',lineJoin:'round',
+  });
+
+  // Label sur la QUEUE (près de p1)
+  const labelOffset=18;
+  const lx=p1.x-Math.cos(angle)*labelOffset;
+  const ly=p1.y-Math.sin(angle)*labelOffset;
+  const lbl=label||'';
+  const fontSize=10;
+  const tw=lbl?lbl.length*fontSize*0.6+10:0;
+
+  const labelBg=new Konva.Rect({
+    x:lx-tw/2,y:ly-10,width:tw,height:lbl?14:0,
+    fill:lbl?'rgba(15,17,23,.8)':'transparent',cornerRadius:3,
+  });
+  const labelTxt=new Konva.Text({
+    x:lx-tw/2+4,y:ly-8,text:lbl,
+    fontSize,fill:'#fb923c',fontStyle:'bold',fontFamily:'monospace',
+  });
+
+  grp.add(shaft);grp.add(head);grp.add(labelBg);grp.add(labelTxt);
+
+  grp.on('dragend',()=>{
+    // Mettre à jour p1/p2 après déplacement
+    const dx=grp.x(),dy=grp.y();
+    annotObj.data.p1={x:p1.x+dx,y:p1.y+dy};
+    annotObj.data.p2={x:p2.x+dx,y:p2.y+dy};
+    grp.position({x:0,y:0});
+    // Reconstruire les nœuds avec les nouvelles coordonnées
+    _buildArrowNodes(annotObj);
+    annotLayer.batchDraw();
+  });
+  grp.on('click tap',()=>{_selectedAnnotId=id;updateAnnotList();});
+  grp.on('contextmenu',e=>{e.evt.preventDefault();_selectedAnnotId=id;updateAnnotList();openAnnotContextMenu(e.evt);});
+
+  annotLayer.add(grp);
+  annotObj.nodes=[grp];
+}
+
+// Text input popup variant
+let _textPopupResolve=null;
+function showInputPopupText(title,msg){
+  return new Promise(resolve=>{
+    _textPopupResolve=resolve;
+    document.getElementById('input-popup-title').textContent=title;
+    document.getElementById('input-popup-msg').textContent=msg;
+    const inp=document.getElementById('input-popup-input');
+    inp.type='text';inp.value='';inp.placeholder='Libellé optionnel';
+    document.getElementById('input-popup').classList.add('open');
+    setTimeout(()=>inp.focus(),100);
+  });
+}
+
+function openAnnotArrowEdit(a){
+  showInputPopupText('✏ Modifier le libellé','Nouveau libellé :').then(lbl=>{
+    if(lbl!==null){
+      a.data.label=lbl;
+      const labelTxt=a.nodes[3];
+      if(labelTxt)labelTxt.text(lbl);
+      annotLayer.batchDraw();
+      updateAnnotList();
+    }
+    _editingAnnotId=null;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANNOT CONTEXT MENU
+// ══════════════════════════════════════════════════════════════
+function openAnnotContextMenu(evt){
+  ['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-edit-link','ctx-dims','ctx-del-waypoint'].forEach(id=>{
+    document.getElementById(id).style.display='none';
+  });
+  document.getElementById('ctx-edit-annot').style.display='block';
+  const m=document.getElementById('contextMenu');
+  m.style.display='block';m.style.left=evt.clientX+'px';m.style.top=evt.clientY+'px';
+  m.style.transform='';m.style.minWidth='200px';
+}
+
+// ══════════════════════════════════════════════════════════════
+// ICONS
+// ══════════════════════════════════════════════════════════════
+function getIconHTML(toolId){
+  if(customIcons[toolId])return`<img src="${customIcons[toolId]}" alt="${toolId}">`;
+  if(SVG_ICONS[toolId])return SVG_ICONS[toolId];
+  const c=TOOLS[toolId]?.color||'#888';
+  return`<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${c}" opacity=".8"/></svg>`;
+}
+function refreshToolbarIcons(){Object.keys(TOOLS).filter(id=>id!=='liaison').forEach(id=>{const el=document.getElementById('ti-'+id);if(el)el.innerHTML=getIconHTML(id);});}
+function renderIconGrid(){
+  const grid=document.getElementById('icon-grid');
+  grid.innerHTML=Object.keys(TOOLS).filter(id=>id!=='liaison').map(id=>{
+    const hasCustom=!!customIcons[id];
+    return`<div class="icon-item" id="ii-${id}" onclick="triggerIconUpload('${id}')" title="Cliquer pour importer">
+      <div class="icon-preview">${getIconHTML(id)}</div>
+      <div class="icon-name">${TOOLS[id].label}</div>
+      <span class="icon-upload-hint">📁 Importer</span>
+      <button class="icon-reset ${hasCustom?'':'hidden'}" onclick="resetIcon(event,'${id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+function triggerIconUpload(toolId){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=function(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(ev){customIcons[toolId]=ev.target.result;refreshToolbarIcons();renderIconGrid();refreshKonvaIcons(toolId);};reader.readAsDataURL(file);};inp.click();}
+function resetIcon(evt,toolId){evt.stopPropagation();delete customIcons[toolId];refreshToolbarIcons();renderIconGrid();refreshKonvaIcons(toolId);}
+function refreshKonvaIcons(toolId){if(!drawLayer)return;drawLayer.getChildren().filter(n=>n.name()==='element'&&n.getAttr('toolId')===toolId).forEach(g=>{const children=g.getChildren().filter(c=>c.getClassName()!=='Text');children.forEach(c=>c.destroy());addVisualToGroup(g,toolId,g.scaleX());});drawLayer.batchDraw();}
+function addVisualToGroup(g,toolId,s){
+  const conf=TOOLS[toolId];if(!conf)return;
+  const B=ICON_BASE_PX; // 28px — toutes les formes s'inscrivent dans ±B/2 = ±14px
+  if(customIcons[toolId]||SVG_ICONS[toolId]){
+    const img=new window.Image();
+    img.onload=function(){
+      g.getChildren().filter(c=>c.getClassName()==='Image').forEach(c=>c.destroy());
+      const ki=new Konva.Image({image:img,x:-B/2,y:-B/2,width:B,height:B});
+      const txt=g.getChildren().find(c=>c.getClassName()==='Text');
+      g.add(ki);if(txt)ki.moveToBottom();drawLayer&&drawLayer.batchDraw();
+    };
+    img.src=customIcons[toolId]||svgToDataURL(SVG_ICONS[toolId]);return;
+  }
+  switch(conf.shape){
+    case 'circle':
+      g.add(new Konva.Circle({radius:B/2,fill:conf.color,stroke:'#fff',strokeWidth:1.5}));
+      break;
+    case 'rect':
+      g.add(new Konva.Rect({x:-B/2,y:-B/2,width:B,height:B,fill:conf.color,stroke:'#fff',strokeWidth:1.5,cornerRadius:3}));
+      break;
+    case 'diamond':
+      g.add(new Konva.RegularPolygon({sides:4,radius:B/2,fill:conf.color,stroke:'#fff',strokeWidth:1.5,rotation:45}));
+      break;
+    case 'triangle':
+      g.add(new Konva.RegularPolygon({sides:3,radius:B/2,fill:conf.color,stroke:'#fff',strokeWidth:1.5}));
+      break;
+    case 'cross':
+      g.add(new Konva.Line({points:[-B/2,0,B/2,0],stroke:conf.color,strokeWidth:3.5,lineCap:'round'}));
+      g.add(new Konva.Line({points:[0,-B/2,0,B/2],stroke:conf.color,strokeWidth:3.5,lineCap:'round'}));
+      g.add(new Konva.Circle({radius:4,fill:conf.color}));
+      break;
+  }
+}
+function svgToDataURL(svgStr){return'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);}
+function findElementGroup(node){let g=node;while(g){if(g.name&&typeof g.name==='function'&&g.name()==='element')return g;if(typeof g.getParent!=='function')return null;const p=g.getParent();if(!p||p===stage)return null;g=p;}return null;}
+
+// ══════════════════════════════════════════════════════════════
+// INPUT POPUP (numeric)
+// ══════════════════════════════════════════════════════════════
+let _inputPopupResolve=null;
+function showInputPopup(title,msg,defaultVal=''){
+  return new Promise(resolve=>{
+    _inputPopupResolve=resolve;
+    document.getElementById('input-popup-title').textContent=title;
+    document.getElementById('input-popup-msg').textContent=msg;
+    const inp=document.getElementById('input-popup-input');
+    inp.type='number';inp.value=defaultVal;inp.placeholder='0.00';
+    document.getElementById('input-popup').classList.add('open');
+    setTimeout(()=>inp.focus(),100);
+  });
+}
+function inputPopupOk(){
+  const inp=document.getElementById('input-popup-input');
+  const isText=inp.type==='text';
+  const val=isText?inp.value:parseFloat(inp.value);
+  document.getElementById('input-popup').classList.remove('open');
+  inp.type='number';
+  if(_textPopupResolve){_textPopupResolve(isText?val:null);_textPopupResolve=null;return;}
+  if(_inputPopupResolve){_inputPopupResolve(isNaN(val)?null:val);_inputPopupResolve=null;}
+}
+function inputPopupCancel(){
+  const inp=document.getElementById('input-popup-input');
+  document.getElementById('input-popup').classList.remove('open');
+  inp.type='number';
+  if(_textPopupResolve){_textPopupResolve('');_textPopupResolve=null;return;}
+  if(_inputPopupResolve){_inputPopupResolve(null);_inputPopupResolve=null;}
+}
+
+// ══════════════════════════════════════════════════════════════
+// RÉSEAU
+// ══════════════════════════════════════════════════════════════
+function getReseauColor(label){const r=reseauTypes.find(t=>t.label===label);return r?r.color:'#94a3b8';}
+function extractDiaMm(label){if(!label)return null;const m=label.match(/(\d+(?:[.,]\d+)?)/);if(!m)return null;return parseFloat(m[1].replace(',','.'));}
+function diaToStroke(diaMm){if(!diaMm||!scaleRatio)return null;const px=(diaMm/1000)/scaleRatio;return Math.max(1,px);}
+function applyLinkStroke(l){const sw=diaToStroke(l.diaMm);l.line.strokeWidth(sw||4);}
+function refreshAllLinkStrokes(){links.forEach(l=>applyLinkStroke(l));drawLayer&&drawLayer.batchDraw();}
+function syncReseauSelect(){['quick-reseau','pk-reseau','le-reseau'].forEach(id=>{const sel=document.getElementById(id);if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">— Type —</option>'+reseauTypes.map(r=>`<option value="${r.label}" ${r.label===cur?'selected':''}>${r.label}</option>`).join('');});updateReseauDot();}
+function updateActiveReseau(){const label=document.getElementById('quick-reseau').value;activeReseau.label=label;activeReseau.color=label?getReseauColor(label):'';updateReseauDot();}
+function updateReseauDot(){const dot=document.getElementById('reseau-dot');if(dot)dot.style.background=activeReseau.color||'#444';}
+function toggleLockReseau(){activeReseau.locked=!activeReseau.locked;const btn=document.getElementById('btn-lock-reseau');btn.textContent=activeReseau.locked?'🔒':'🔓';btn.style.borderColor=activeReseau.locked?'var(--accent)':'var(--border)';btn.style.color=activeReseau.locked?'var(--accent)':'var(--text2)';}
+function onPkReseauChange(){const label=document.getElementById('pk-reseau').value;const dot=document.getElementById('pk-reseau-dot');if(dot)dot.style.background=label?getReseauColor(label):'#94a3b8';}
+function onLeReseauChange(){const label=document.getElementById('le-reseau').value;const prev=document.getElementById('le-reseau-preview');if(prev)prev.style.background=label?getReseauColor(label):'#94a3b8';}
+function onPkDiaChange(){const dia=document.getElementById('pk-diametre').value;const row=document.getElementById('pk-dia-mm-row');if(row)row.style.display=scaleRatio?'flex':'none';const inp=document.getElementById('pk-dia-mm');if(inp&&extractDiaMm(dia))inp.value=extractDiaMm(dia);}
+function onLeDiaChange(){const dia=document.getElementById('le-dia').value;const extracted=extractDiaMm(dia);const inp=document.getElementById('le-dia-mm');if(inp&&extracted)inp.value=extracted;}
+function renderReseauxConfig(){document.getElementById('list-reseaux').innerHTML=reseauTypes.map((r,i)=>`<div class="reseau-item"><span class="reseau-swatch" style="background:${r.color}"></span><span class="reseau-label">${r.label}</span><input type="color" class="reseau-color-input" value="${r.color}" onchange="updateReseauColor(${i},this.value)"><button onclick="removeReseau(${i})">✕</button></div>`).join('');}
+function addReseau(){const lbl=document.getElementById('input-reseau-label').value.trim();const col=document.getElementById('input-reseau-color').value;if(!lbl||reseauTypes.find(r=>r.label===lbl))return;reseauTypes.push({label:lbl,color:col});renderReseauxConfig();syncReseauSelect();document.getElementById('input-reseau-label').value='';}
+function removeReseau(i){reseauTypes.splice(i,1);renderReseauxConfig();syncReseauSelect();}
+function updateReseauColor(i,color){reseauTypes[i].color=color;renderReseauxConfig();syncReseauSelect();links.forEach(l=>{if(l.reseau===reseauTypes[i]?.label){l.reseauColor=color;l.line.stroke(color);}});drawLayer&&drawLayer.batchDraw();updateListe();}
+
+// ══════════════════════════════════════════════════════════════
+// LINK EDIT POPUP
+// ══════════════════════════════════════════════════════════════
+function openLinkEditPopup(){document.getElementById('contextMenu').style.display='none';if(!_selectedLinkObj)return;const l=_selectedLinkObj;syncReseauSelect();document.getElementById('le-reseau').value=l.reseau||'';onLeReseauChange();document.getElementById('le-mat').innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${m===l.mat?'selected':''}>${m}</option>`).join('');document.getElementById('le-dia').innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${d===l.dia?'selected':''}>${d}</option>`).join('');document.getElementById('le-length').value=l.lengthM!=null?l.lengthM:'';document.getElementById('le-tension').value=String(l.tension??0.35);const leDiaMm=document.getElementById('le-dia-mm');if(leDiaMm)leDiaMm.value=l.diaMm||extractDiaMm(l.dia)||'';const popup=document.getElementById('link-edit-popup');popup.style.left='50%';popup.style.top='50%';popup.style.transform='translate(-50%,-50%)';popup.classList.add('open');}
+function closeLinkEditPopup(){document.getElementById('link-edit-popup').classList.remove('open');}
+function confirmLinkEdit(){if(!_selectedLinkObj){closeLinkEditPopup();return;}const l=_selectedLinkObj;pushHistory();const reseauLabel=document.getElementById('le-reseau').value;l.reseau=reseauLabel;l.reseauColor=reseauLabel?getReseauColor(reseauLabel):'#94a3b8';l.mat=document.getElementById('le-mat').value;l.dia=document.getElementById('le-dia').value;const lv=parseFloat(document.getElementById('le-length').value);l.lengthM=(!isNaN(lv)&&lv>0)?lv:(scaleRatio?parseFloat((linkTotalLength(l)*scaleRatio).toFixed(2)):null);l.tension=parseFloat(document.getElementById('le-tension').value);l.line.tension(l.tension);const leDiaMmV=parseFloat(document.getElementById('le-dia-mm').value);l.diaMm=isNaN(leDiaMmV)?extractDiaMm(l.dia):leDiaMmV;applyLinkStroke(l);l.line.stroke(l.reseauColor);refreshLinkWaypointDots(l);updateLinks();updateListe();closeLinkEditPopup();}
+
+// ══════════════════════════════════════════════════════════════
+// MOBILE
+// ══════════════════════════════════════════════════════════════
+function toggleMobileMore(){document.getElementById('mobile-more')?.classList.toggle('open');}
+function refreshDeleteBtn(){const btn=document.getElementById('mb-delete');if(!btn)return;(selectedShape||_selectedAnnotId!==null)?btn.classList.add('has-selection'):btn.classList.remove('has-selection');}
+
+// ══════════════════════════════════════════════════════════════
+// SAVE / LOAD
+// ══════════════════════════════════════════════════════════════
+function _bgToBase64(quality=0.82){
+  // Encode le fond de plan en JPEG via canvas 2D (compression)
+  const state=_bgImg?{img:_bgImg}:null;
+  if(!state||!state.img)return null;
+  const img=state.img;
+  const MAX=2400; // plafond px pour éviter fichiers trop lourds
+  const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+  const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  c.getContext('2d').drawImage(img,0,0,w,h);
+  return c.toDataURL('image/jpeg',quality);
+}
+
+async function saveProject(){
+  saveNotes();
+  setStatus('Sauvegarde en cours…','loading');
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  const els=elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null}));
+  const lks=links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))}));
+  const mes=measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()}));
+  const annotSer=annotations.map(a=>({
+    id:a.id,type:a.type,data:a.type==='zone'
+      ?{...a.data}
+      :a.type==='text'?{...a.data,pos:a.nodes[0]?{x:a.nodes[0].x(),y:a.nodes[0].y()}:{x:0,y:0}}
+      :{...a.data},
+  }));
+  const bgBase64=_bgToBase64();
+
+  const data={
+    version:6,scaleRatio,conduitConfig,reseauTypes,placedElements,
+    elements:els,links:lks,measures:mes,customIcons,
+    annotations:annotSer,chantierNotes,annotIdCounter:_annotIdCounter,
+    bgTransform:{rotation:_bgRotation,flipH:_bgFlipH,flipV:_bgFlipV},
+    bgImage:bgBase64, // JPEG base64 ou null
+  };
+  const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+  const json=JSON.stringify(data);
+  const uri='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  Object.assign(document.createElement('a'),{href:uri,download:`projet_vmc_${d}.annotavmc`}).click();
+  setStatus('✓ Projet sauvegardé (fond inclus)','ok');
+}
+
+function loadProject(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      clearAllSilent();
+      if(data.conduitConfig){conduitConfig=data.conduitConfig;syncQuickSelects();}
+      if(data.reseauTypes){reseauTypes=data.reseauTypes;syncReseauSelect();renderReseauxConfig();}
+      if(data.customIcons){customIcons=data.customIcons;refreshToolbarIcons();}
+      if(data.scaleRatio)scaleRatio=data.scaleRatio;
+      if(data.chantierNotes)loadNotes(data.chantierNotes);
+      if(data.annotIdCounter)_annotIdCounter=data.annotIdCounter;
+
+      const afterBg=()=>{
+        if(data.bgTransform&&_bgImg){
+          _bgRotation=data.bgTransform.rotation||0;
+          _bgFlipH=data.bgTransform.flipH||false;
+          _bgFlipV=data.bgTransform.flipV||false;
+          applyBgTransform();
+        }
+        placedElements=data.placedElements||{};
+        (data.elements||[]).forEach(el=>{const conf=TOOLS[el.toolId];if(conf)placeElementSilent(el.toolId,conf,{x:el.x,y:el.y},el.scaleX,el.rotation||0,el.realDims||null,el.scaleY||null);});
+        const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+        (data.links||[]).forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
+        (data.measures||[]).forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
+        (data.annotations||[]).forEach(a=>{
+          if(a.type==='zone'&&a.data.points&&a.data.points.length>=3)rehydrateZoneAnnot(a);
+          else if(a.type==='text'&&a.data.text)rehydrateTextAnnot(a);
+          else if(a.type==='arrow'&&a.data.p1&&a.data.p2)rehydrateArrowAnnot(a);
+        });
+        selectElement(null);hideDeleteBtn();drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();
+        document.getElementById('empty-screen').classList.add('hidden');
+        setStatus('✓ Projet chargé','ok');
+      };
+
+      // Charger le fond de plan s'il est inclus dans le fichier
+      if(data.bgImage){
+        setStatus('Chargement du fond de plan…','loading');
+        const img=new Image();
+        img.onload=function(){
+          loadBgImage(img,data.bgTransform||{});
+          afterBg();
+        };
+        img.src=data.bgImage;
+      }else{
+        afterBg();
+      }
+    }catch(err){console.error(err);setStatus('✗ Fichier invalide','err');}
+  };reader.readAsText(file);
+}
+
+// ── EXPORT PNG ──
+function exportPNG(){
+  setStatus('Export PNG en cours…','loading');
+  // Réinitialiser la vue pour capturer tout le stage
+  const oldScale=stage.scaleX();const oldX=stage.x();const oldY=stage.y();
+  stage.scale({x:1,y:1});stage.position({x:0,y:0});
+  const uri=stage.toDataURL({pixelRatio:2,mimeType:'image/png'});
+  stage.scale({x:oldScale,y:oldScale});stage.position({x:oldX,y:oldY});
+  const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+  Object.assign(document.createElement('a'),{href:uri,download:`plan_vmc_${d}.png`}).click();
+  setStatus('✓ Export PNG','ok');
+}
+
+// ── EXPORT PDF ──
+async function exportPDF(){
+  setStatus('Export PDF en cours…','loading');
+  try{
+    // Utiliser la lib jsPDF via CDN
+    if(!window.jspdf){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
+      });
+    }
+    const oldScale=stage.scaleX();const oldX=stage.x();const oldY=stage.y();
+    stage.scale({x:1,y:1});stage.position({x:0,y:0});
+    const uri=stage.toDataURL({pixelRatio:2,mimeType:'image/jpeg',quality:0.92});
+    stage.scale({x:oldScale,y:oldScale});stage.position({x:oldX,y:oldY});
+
+    const {jsPDF}=window.jspdf;
+    const sw=stage.width(),sh=stage.height();
+    const isLandscape=sw>sh;
+    const pdf=new jsPDF({orientation:isLandscape?'landscape':'portrait',unit:'px',format:[sw,sh],compress:true});
+
+    // Infos chantier en entête
+    pdf.setFontSize(9);pdf.setTextColor(80,80,80);
+    const cn=chantierNotes;
+    let header=`Plan VMC — ${new Date().toLocaleDateString('fr-FR')}`;
+    if(cn.client)header+=`  |  ${cn.client}`;
+    if(cn.adresse)header+=`  |  ${cn.adresse}`;
+    pdf.text(header,10,10);
+
+    pdf.addImage(uri,'JPEG',0,14,sw,sh-14,undefined,'FAST');
+    const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+    pdf.save(`plan_vmc_${d}.pdf`);
+    setStatus('✓ Export PDF','ok');
+  }catch(err){
+    console.error(err);
+    setStatus('✗ Erreur export PDF','err');
+  }
+}
+
+function rehydrateZoneAnnot(a){
+  const config=a.data;
+  const flatPoints=config.points.flatMap(p=>[p.x,p.y]);
+  const r=parseInt(config.color.slice(1,3),16),gg=parseInt(config.color.slice(3,5),16),b=parseInt(config.color.slice(5,7),16);
+  const fillColor=`rgba(${r},${gg},${b},${config.opacity/100})`;
+  const dash=config.strokeStyle==='dashed'?[10,6]:config.strokeStyle==='dotted'?[3,5]:[];
+  const poly=new Konva.Line({points:flatPoints,fill:fillColor,stroke:config.color,strokeWidth:2,closed:true,dash,lineCap:'round',lineJoin:'round',draggable:true});
+  poly.setAttr('customType','annot-zone');
+  const cx=config.points.reduce((s,p)=>s+p.x,0)/config.points.length;
+  const cy=config.points.reduce((s,p)=>s+p.y,0)/config.points.length;
+  const label=new Konva.Text({x:cx,y:cy,text:config.label,fontSize:12,fill:config.color,fontStyle:'bold',fontFamily:'Segoe UI,sans-serif',align:'center'});
+  label.offsetX(label.width()/2);
+  const annotObj={id:a.id,type:'zone',nodes:[poly,label],data:{...config}};
+  poly.on('click tap',()=>{_selectedAnnotId=a.id;updateAnnotList();});
+  poly.on('contextmenu',e=>{e.evt.preventDefault();_selectedAnnotId=a.id;updateAnnotList();openAnnotContextMenu(e.evt);});
+  poly.on('dragmove',()=>{const dx=poly.x(),dy=poly.y();label.x(cx+dx);label.y(cy+dy);annotLayer.batchDraw();});
+  label.on('click tap',()=>{_selectedAnnotId=a.id;updateAnnotList();});
+  annotLayer.add(poly);annotLayer.add(label);
+  annotations.push(annotObj);
+}
+function rehydrateArrowAnnot(a){
+  const annotObj={id:a.id,type:'arrow',nodes:[],data:{...a.data}};
+  annotations.push(annotObj);
+  _buildArrowNodes(annotObj);
+}
+
+function rehydrateTextAnnot(a){
+  const annotObj={id:a.id,type:'text',nodes:[],data:{...a.data}};
+  annotations.push(annotObj);
+  const pos=a.data.pos||{x:100,y:100};
+  const cfg=a.data;
+  const sc=STYLE_COLORS[cfg.style]||STYLE_COLORS.note;
+  const fontSize=cfg.size||14,padding=8;
+  const maxTxtW=Math.min(280,Math.max(120,cfg.text.length*fontSize*0.6));
+  const measured=_measureText(cfg.text,fontSize,maxTxtW);
+  const tw=measured.width+padding*2,th=measured.height+padding*2;
+  const rect=new Konva.Rect({x:0,y:0,width:tw,height:th,fill:sc.bg,stroke:sc.border,strokeWidth:cfg.style==='plain'?0:1.5,cornerRadius:6});
+  rect.setAttr('customType','annot-text');
+  const txt=new Konva.Text({x:padding,y:padding,text:cfg.text,fontSize,fill:sc.text,fontFamily:'Segoe UI,sans-serif',fontStyle:'bold',width:maxTxtW,wrap:'word'});
+  const grp=new Konva.Group({x:pos.x,y:pos.y,draggable:true});
+  grp.add(rect);grp.add(txt);grp.setAttr('customType','annot-text-group');
+  grp.on('dragend',()=>{annotObj.data.pos={x:grp.x(),y:grp.y()};});
+  grp.on('click tap',()=>{_selectedAnnotId=a.id;updateAnnotList();});
+  grp.on('contextmenu',ev=>{ev.evt.preventDefault();_selectedAnnotId=a.id;updateAnnotList();openAnnotContextMenu(ev.evt);});
+  annotObj.nodes=[grp];
+  annotLayer.add(grp);
+}
+
+// ══════════════════════════════════════════════════════════════
+// MEASURES
+// ══════════════════════════════════════════════════════════════
+function createMeasure(x1,y1,x2,y2){
+  const grp=new Konva.Group({name:'measure-group'});grp.setAttr('customType','measure-group');
+  const line=new Konva.Line({points:[x1,y1,x2,y2],stroke:'#00e0ff',strokeWidth:2,dash:[6,4]});
+  const dist=calcMeasureDist(x1,y1,x2,y2),mx=(x1+x2)/2,my=(y1+y2)/2;
+  const labelBg=new Konva.Rect({x:mx-dist.length*3-3,y:my-9,width:dist.length*6+6,height:11,fill:'rgba(0,0,0,.65)',cornerRadius:2});
+  const label=new Konva.Text({x:mx-dist.length*3,y:my-7,text:dist,fontSize:8,fill:'#00e0ff',fontStyle:'bold',fontFamily:'monospace'});
+  grp.add(line);grp.add(labelBg);grp.add(label);
+  drawLayer.add(grp);
+  const p1=new Konva.Circle({x:x1,y:y1,radius:3,fill:'#00e0ff',stroke:'#fff',strokeWidth:1,draggable:true,name:'measure-point'});
+  const p2=new Konva.Circle({x:x2,y:y2,radius:3,fill:'#00e0ff',stroke:'#fff',strokeWidth:1,draggable:true,name:'measure-point'});
+  p1.hitStrokeWidth(20);p2.hitStrokeWidth(20);
+  drawLayer.add(p1);drawLayer.add(p2);
+  const upd=()=>{const nx1=p1.x(),ny1=p1.y(),nx2=p2.x(),ny2=p2.y();line.points([nx1,ny1,nx2,ny2]);const nd=calcMeasureDist(nx1,ny1,nx2,ny2);const nmx=(nx1+nx2)/2,nmy=(ny1+ny2)/2;label.text(nd);label.x(nmx-nd.length*3);label.y(nmy-7);labelBg.x(nmx-nd.length*3-3);labelBg.y(nmy-9);labelBg.width(nd.length*6+6);drawLayer.batchDraw();};
+  p1.on('dragmove',upd);p2.on('dragmove',upd);
+  grp.on('click tap',()=>{selectedShape=grp;refreshDeleteBtn();});
+  p1.on('click tap',e=>{e.cancelBubble=true;selectedShape=grp;refreshDeleteBtn();});
+  p2.on('click tap',e=>{e.cancelBubble=true;selectedShape=grp;refreshDeleteBtn();});
+  const mObj={grp,line,p1,p2,label,labelBg};measures.push(mObj);drawLayer.batchDraw();return mObj;
+}
+function calcMeasureDist(x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,px=Math.sqrt(dx*dx+dy*dy);return scaleRatio?(px*scaleRatio).toFixed(2)+' m':Math.round(px)+' px';}
+function removeMeasure(grp){const idx=measures.findIndex(m=>m.grp===grp);if(idx!==-1){measures[idx].p1.destroy();measures[idx].p2.destroy();measures[idx].grp.destroy();measures.splice(idx,1);}drawLayer.batchDraw();}
+
+// ══════════════════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════════════════
+function pushHistory(){
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  history.push({
+    placedElements:{...placedElements},
+    elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null})),
+    links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
+    measures:measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()})),
+    scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
+    annotations:annotations.map(a=>({id:a.id,type:a.type,data:JSON.parse(JSON.stringify(a.data))})),
+    annotIdCounter:_annotIdCounter,
+  });
+  if(history.length>MAX_HISTORY)history.shift();
+}
+function undo(){
+  if(!history.length)return;
+  const snap=history.pop();
+  clearAllSilent();
+  scaleRatio=snap.scaleRatio;placedElements={...snap.placedElements};
+  if(snap.reseauTypes){reseauTypes=snap.reseauTypes;syncReseauSelect();renderReseauxConfig();}
+  if(snap.customIcons){customIcons=snap.customIcons;refreshToolbarIcons();}
+  if(snap.annotIdCounter)_annotIdCounter=snap.annotIdCounter;
+  snap.elements.forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null);});
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  snap.links.forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
+  snap.measures.forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
+  (snap.annotations||[]).forEach(a=>{
+    if(a.type==='zone'&&a.data.points)rehydrateZoneAnnot(a);
+    else if(a.type==='text'&&a.data.text)rehydrateTextAnnot(a);
+    else if(a.type==='arrow'&&a.data.p1)rehydrateArrowAnnot(a);
+  });
+  selectElement(null);hideDeleteBtn();refreshDeleteBtn();drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();setStatus('Annulation effectuée','ok');
+}
+
+function clearAllSilent(){
+  links.forEach(l=>destroyLinkNodes(l));links=[];
+  measures.forEach(m=>{m.grp.destroy();m.p1.destroy();m.p2.destroy();});measures=[];
+  annotations.forEach(a=>destroyAnnotNodes(a));annotations=[];
+  drawLayer.getChildren().filter(n=>n.name()==='element'||n.getAttr('customType')==='link'||n.getAttr('customType')==='measure-group').forEach(n=>n.destroy());
+  annotLayer.destroyChildren();
+  transformer=new Konva.Transformer({rotateEnabled:true,enabledAnchors:[],borderStroke:'#3b82f6',borderStrokeWidth:1.5,rotateAnchorOffset:18,rotationSnaps:[0,45,90,135,180,225,270,315],rotationSnapTolerance:8});
+  drawLayer.add(transformer);
+  selectedShape=null;_selectedLinkObj=null;_selectedWaypoint=null;_selectedAnnotId=null;
+  cancelLinkDrawing();cancelZoneDrawing();
+  updateAnnotList();
+}
+function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY){
+  const sX=scaleX||globalSize/10;
+  const sY=(scaleY!==undefined&&scaleY!==null)?scaleY:sX;
+  const g=new Konva.Group({x:pos.x,y:pos.y,rotation:rotation||0,draggable:true,name:'element'});
+  g.setAttr('toolId',toolId);g.setAttr('toolLabel',conf.label);
+  if(realDims)g.setAttr('realDims',realDims);
+
+  const B=ICON_BASE_PX;
+  // Clipper le groupe à la zone icône — le label en dehors n'influe pas sur le bbox
+  g.clipFunc(ctx=>{
+    ctx.rect(-B/2-1,-B/2-1,B+2,B+2);
+  });
+
+  const txt=new Konva.Text({
+    x:B/2+2,y:-6,
+    text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',
+    fontFamily:'Segoe UI, sans-serif',
+    scaleX:1/sX,scaleY:1/sY,
+    visible:false,listening:false,
+  });
+  g.add(txt);g.scale({x:sX,y:sY});addVisualToGroup(g,toolId,sX);
+  g.on('dragstart',()=>{
+    clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
+    isPanning=false;
+  });
+  g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
+  g.on('dragend',()=>{updateLinks();updateListe();});
+  g.on('click tap',()=>selectElement(g));
+  drawLayer.add(g);
+}
+
+// ══════════════════════════════════════════════════════════════
+// DELETE BTN OVERLAY
+// ══════════════════════════════════════════════════════════════
+function showDeleteBtn(group){const btn=document.getElementById('delete-btn-overlay');if(!group){btn.classList.remove('visible');return;}const sp=stage.container().getBoundingClientRect(),sc=stage.scaleX();btn.style.left=(group.x()*sc+stage.x()+sp.left+6)+'px';btn.style.top=(group.y()*sc+stage.y()+sp.top-18)+'px';btn.classList.add('visible');}
+function hideDeleteBtn(){document.getElementById('delete-btn-overlay').classList.remove('visible');}
+function deleteFromOverlayBtn(){if(!selectedShape)return;hideDeleteBtn();removeElement(selectedShape);}
+function getTextNode(g){return g.getChildren().find(c=>c.getClassName()==='Text')||null;}
+function refreshAllElementTexts(){/* labels supprimés */}
+function selectElement(g){selectedShape=g;transformer.nodes(g?[g]:[]);if(g)showDeleteBtn(g);else hideDeleteBtn();refreshDeleteBtn();}
+
+// ══════════════════════════════════════════════════════════════
+// SLIDERS
+// ══════════════════════════════════════════════════════════════
+function onGlobalSlider(val){
+  globalSize=parseInt(val);
+  const s=(globalSize/10).toFixed(1);
+  const inp=document.getElementById('size-input');
+  if(inp&&document.activeElement!==inp)inp.value=s;
+}
+function onSizeInput(val){
+  const s=parseFloat(val);
+  if(isNaN(s)||s<0.1)return;
+  globalSize=Math.round(Math.min(5,s)*10);
+  const slider=document.getElementById('slider-global');
+  if(slider)slider.value=Math.min(50,Math.max(1,globalSize));
+}
+function rotateSelected(delta){if(!selectedShape||selectedShape.name()!=='element')return;pushHistory();selectedShape.rotation((selectedShape.rotation()+delta+360)%360);updateLinks();drawLayer.batchDraw();const av=document.getElementById('rot-angle-val');if(av)av.textContent=Math.round(selectedShape.rotation())+'°';showDeleteBtn(selectedShape);}
+function openResizePopup(){document.getElementById('contextMenu').style.display='none';if(!selectedShape||selectedShape.name()!=='element')return;const current=Math.round((selectedShape.scaleX()||1)*10);document.getElementById('slider-individual').value=Math.min(50,Math.max(1,current));document.getElementById('slider-individual-val').textContent=(current/10).toFixed(1)+'×';const av=document.getElementById('rot-angle-val');if(av)av.textContent=Math.round(selectedShape.rotation())+'°';const popup=document.getElementById('resize-popup');const sp=stage.container().getBoundingClientRect(),sc=stage.scaleX();popup.style.left=Math.min(selectedShape.x()*sc+stage.x()+sp.left+20,window.innerWidth-270)+'px';popup.style.top=Math.min(selectedShape.y()*sc+stage.y()+sp.top+20,window.innerHeight-180)+'px';popup.classList.add('open');}
+function onIndividualSlider(val){if(!selectedShape||selectedShape.name()!=='element')return;const s=parseInt(val)/10;document.getElementById('slider-individual-val').textContent=s.toFixed(1)+'×';applyScaleToElement(selectedShape,s);updateLinks();drawLayer.batchDraw();showDeleteBtn(selectedShape);}
+function closeResizePopup(){document.getElementById('resize-popup').classList.remove('open');}
+function applyScaleToElement(g,sx,sy){
+  const scX=sx, scY=(sy!==undefined&&sy!==null)?sy:sx;
+  g.scale({x:scX,y:scY});
+  // Mettre à jour le clipFunc pour suivre le scale (le clip est en coordonnées locales, donc invariant)
+  const B=ICON_BASE_PX;
+  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  const t=getTextNode(g);
+  if(t){
+    t.scale({x:1/scX,y:1/scY});
+    t.x((B/2+2)/scX);
+    t.y(-6/scY);
+  }
+}
+
+// Dims popup
+function isCircleShape(toolId){return TOOLS[toolId]?.shape==='circle';}
+function openDimsPopup(){
+  document.getElementById('contextMenu').style.display='none';
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  const toolId=selectedShape.getAttr('toolId');
+  const isCircle=isCircleShape(toolId);
+  const stored=selectedShape.getAttr('realDims')||{};
+  // Pré-remplir depuis les dimensions stockées ou depuis le scale actuel
+  const curScX=selectedShape.scaleX(), curScY=selectedShape.scaleY();
+  const defaultW=stored.w||(scaleRatio?Math.round(curScX*ICON_BASE_PX*scaleRatio*1000):'');
+  const defaultH=stored.h||(scaleRatio?Math.round(curScY*ICON_BASE_PX*scaleRatio*1000):'');
+  document.getElementById('dims-field-h').style.display=isCircle?'none':'flex';
+  const lw=document.getElementById('dims-label-w');
+  if(lw)lw.textContent=isCircle?'Diamètre':'Largeur (mm)';
+  document.getElementById('dims-w').value=defaultW;
+  document.getElementById('dims-h').value=isCircle?defaultW:defaultH;
+  const hint=document.getElementById('dims-hint');
+  hint.textContent=scaleRatio
+    ?'✓ Plan calibré — W et H appliqués indépendamment à l\'échelle réelle.'
+    :'⚠ Plan non calibré — calibrez l\'échelle d\'abord pour appliquer les dimensions.';
+  const popup=document.getElementById('dims-popup');
+  popup.style.display='block';
+  const sp=stage.container().getBoundingClientRect(),sc=stage.scaleX();
+  popup.style.left=Math.min(selectedShape.x()*sc+stage.x()+sp.left+20,window.innerWidth-280)+'px';
+  popup.style.top=Math.min(selectedShape.y()*sc+stage.y()+sp.top+20,window.innerHeight-220)+'px';
+}
+function closeDimsPopup(){document.getElementById('dims-popup').style.display='none';}
+function applyDims(){
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  const toolId=selectedShape.getAttr('toolId');
+  const isCircle=isCircleShape(toolId);
+  const wVal=parseFloat(document.getElementById('dims-w').value);
+  const hVal=isCircle?wVal:parseFloat(document.getElementById('dims-h').value);
+  if(isNaN(wVal)||wVal<=0){closeDimsPopup();return;}
+  pushHistory();
+  selectedShape.setAttr('realDims',{w:wVal,h:isCircle?wVal:hVal});
+  if(scaleRatio){
+    const wPx=(wVal/1000)/scaleRatio;
+    const hPx=(hVal/1000)/scaleRatio;
+    const scX=wPx/ICON_BASE_PX;
+    const scY=hPx/ICON_BASE_PX;
+    applyScaleToElement(selectedShape,Math.max(0.05,scX),Math.max(0.05,isCircle?scX:scY));
+    updateLinks();drawLayer.batchDraw();showDeleteBtn(selectedShape);
+    setStatus(`✓ ${isCircle?'Ø'+wVal:wVal+'×'+hVal} mm appliqué`,'ok');
+  }else{
+    setStatus('Dimensions stockées — calibrez pour appliquer','ok');
+  }
+  closeDimsPopup();
+}
+function refreshAllElementDims(){
+  if(!scaleRatio)return;
+  drawLayer.getChildren().filter(n=>n.name()==='element').forEach(g=>{
+    const dims=g.getAttr('realDims');if(!dims)return;
+    const scX=(dims.w/1000)/scaleRatio/ICON_BASE_PX;
+    const scY=(dims.h/1000)/scaleRatio/ICON_BASE_PX;
+    applyScaleToElement(g,Math.max(0.05,scX),Math.max(0.05,scY));
+  });
+  updateLinks();drawLayer.batchDraw();
+}
+function setStatus(msg,state){document.getElementById('smsg').textContent=msg;document.getElementById('sdot').className=state||'';}
+function showHint(msg){const h=document.getElementById('calib-hint');h.textContent=msg;h.style.display=msg?'block':'none';}
+
+// ══════════════════════════════════════════════════════════════
+// CONFIG CONDUITS
+// ══════════════════════════════════════════════════════════════
+function openConfig(){renderTags('materiaux');renderTags('diametres');renderReseauxConfig();syncQuickSelects();syncReseauSelect();renderIconGrid();document.getElementById('modal-overlay').classList.add('open');}
+function syncQuickSelects(){const matSel=document.getElementById('quick-mat'),diaSel=document.getElementById('quick-dia');const curMat=matSel.value,curDia=diaSel.value;matSel.innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${m===curMat?'selected':''}>${m}</option>`).join('');diaSel.innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${d===curDia?'selected':''}>${d}</option>`).join('');}
+function closeConfig(){document.getElementById('modal-overlay').classList.remove('open');}
+function closeConfigIfOutside(e){if(e.target===document.getElementById('modal-overlay'))closeConfig();}
+function renderTags(key){document.getElementById('tags-'+key).innerHTML=conduitConfig[key].map((v,i)=>`<span class="cfg-tag">${v}<button onclick="removeItem('${key}',${i})">✕</button></span>`).join('');}
+function addItem(key){const id=key==='materiaux'?'input-materiau':'input-diametre';const el=document.getElementById(id),val=el.value.trim();if(!val||conduitConfig[key].includes(val))return;conduitConfig[key].push(val);renderTags(key);el.value='';}
+function removeItem(key,idx){conduitConfig[key].splice(idx,1);renderTags(key);}
+function updateActiveConduit(){activeConduit.mat=document.getElementById('quick-mat').value;activeConduit.dia=document.getElementById('quick-dia').value;}
+function toggleLock(){activeConduit.locked=!activeConduit.locked;const btn=document.getElementById('btn-lock');btn.textContent=activeConduit.locked?'🔒':'🔓';btn.style.borderColor=activeConduit.locked?'var(--accent)':'var(--border)';btn.style.color=activeConduit.locked?'var(--accent)':'var(--text2)';}
+function openPicker(a,b){pendingLink={a,b};syncReseauSelect();document.getElementById('pk-reseau').innerHTML='<option value="">— Type —</option>'+reseauTypes.map(r=>`<option value="${r.label}" ${(activeReseau.locked&&r.label===activeReseau.label)?'selected':''}>${r.label}</option>`).join('');if(activeReseau.locked&&activeReseau.label){document.getElementById('pk-reseau').value=activeReseau.label;onPkReseauChange();}else onPkReseauChange();document.getElementById('pk-materiau').innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${(activeConduit.locked&&m===activeConduit.mat)?'selected':''}>${m}</option>`).join('');document.getElementById('pk-diametre').innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${(activeConduit.locked&&d===activeConduit.dia)?'selected':''}>${d}</option>`).join('');const pkDiaRow=document.getElementById('pk-dia-mm-row');if(pkDiaRow)pkDiaRow.style.display=scaleRatio?'flex':'none';const pkDiaInp=document.getElementById('pk-dia-mm');if(pkDiaInp){const auto=extractDiaMm(activeConduit.locked?activeConduit.dia:'');pkDiaInp.value=auto||'';}const p=document.getElementById('link-picker');p.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%)';p.classList.add('open');}
+function cancelPicker(){document.getElementById('link-picker').classList.remove('open');pendingLink=null;cancelLinkDrawing();}
+function confirmPicker(){if(!pendingLink)return;const mat=document.getElementById('pk-materiau').value,dia=document.getElementById('pk-diametre').value;const reseauLabel=document.getElementById('pk-reseau').value,reseauColor=reseauLabel?getReseauColor(reseauLabel):'';const tension=parseFloat(document.getElementById('pk-tension').value);const diaMmInp=parseFloat(document.getElementById('pk-dia-mm').value);const diaMm=isNaN(diaMmInp)?extractDiaMm(dia):diaMmInp;document.getElementById('link-picker').classList.remove('open');pushHistory();const wps=_linkWaypoints.slice();cancelLinkDrawing();createLink(pendingLink.a,pendingLink.b,mat,dia,null,reseauLabel,reseauColor,wps,tension,diaMm);pendingLink=null;}
+
+function getScenePos(){
+  const ptr=stage.getPointerPosition();
+  if(ptr){const sc=stage.scaleX();return{x:(ptr.x-stage.x())/sc,y:(ptr.y-stage.y())/sc};}
+  return _lastScenePos||null;
+}
+function addTempMarker(pos){const m=new Konva.Circle({x:pos.x,y:pos.y,radius:5,fill:'#00e0ff',stroke:'#fff',strokeWidth:1.5});drawLayer.add(m);drawLayer.batchDraw();tempMarkers.push(m);}
+function clearTempMarkers(){tempMarkers.forEach(m=>m.destroy());tempMarkers=[];drawLayer.batchDraw();}
+function clearMeasurePreview(){if(window._measurePreview){window._measurePreview.forEach(n=>n.destroy());window._measurePreview=null;drawLayer.batchDraw();}}
+
+// ══════════════════════════════════════════════════════════════
+// SET TOOL
+// ══════════════════════════════════════════════════════════════
+function setTool(tool){
+  cancelLinkDrawing();cancelZoneDrawing();
+  _arrowDrawing=false;_arrowStart=null;
+  currentTool=tool;
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('btn-'+tool);if(btn)btn.classList.add('active');
+  const cw=document.getElementById('canvas-wrap');
+  cw.className='';
+  if(tool==='none')cw.classList.add('pan');
+  else if(tool==='annot-text')cw.classList.add('text-mode');
+  else if(tool==='annot-arrow')cw.classList.add('arrow-mode');
+  linkStart=null;calibrationPoints=[];measurePoints=[];
+  clearTempMarkers();clearMeasurePreview();closeResizePopup();selectElement(null);closeLinkEditPopup();
+  if(tool==='calibration')showHint('Calibration : cliquez sur 2 points dont vous connaissez la distance réelle');
+  else if(tool==='mesure')showHint(scaleRatio?'Mesure : cliquez sur 2 points à mesurer':'Mesure : calibrez d\'abord l\'échelle');
+  else if(tool==='liaison')showHint('Liaison : cliquez sur un 1er élément — points intermédiaires dans le vide — cliquez sur l\'élément d\'arrivée');
+  else if(tool==='annot-zone')showHint('Zone : cliquez le bouton "Zone" pour configurer, puis dessinez un polygone');
+  else if(tool==='annot-text')showHint('Texte : cliquez sur le plan pour placer une annotation texte');
+  else if(tool==='annot-arrow')showHint('Flèche : cliquez le départ puis l\'arrivée de la flèche');
+  else showHint('');
+  document.querySelectorAll('.mb-btn').forEach(b=>b.classList.remove('active'));
+  const mb=document.getElementById('mb-'+tool);if(mb)mb.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// LINK DRAWING
+// ══════════════════════════════════════════════════════════════
+function cancelLinkDrawing(){_linkDrawing=false;_linkWaypoints=[];linkStart=null;if(_linkPreviewLine){_linkPreviewLine.destroy();_linkPreviewLine=null;}if(_linkPreviewDot){_linkPreviewDot.destroy();_linkPreviewDot=null;}tempMarkers.forEach(m=>m.destroy());tempMarkers=[];drawLayer&&drawLayer.batchDraw();}
+function startLinkDrawing(startEl){linkStart=startEl;_linkDrawing=true;_linkWaypoints=[];_linkPreviewLine=new Konva.Line({points:[startEl.x(),startEl.y(),startEl.x(),startEl.y()],stroke:'#94a3b8',strokeWidth:2,dash:[6,3],opacity:.7,tension:.4,listening:false});_linkPreviewDot=new Konva.Circle({radius:4,fill:'#94a3b8',opacity:.7,listening:false});drawLayer.add(_linkPreviewLine);drawLayer.add(_linkPreviewDot);drawLayer.batchDraw();showHint('Liaison en cours — cliquez dans le vide pour poser un point — arrivée sur un élément — Échap pour annuler');}
+function updateLinkPreview(pos){if(!_linkDrawing||!_linkPreviewLine)return;const base=[linkStart.x(),linkStart.y()];_linkWaypoints.forEach(wp=>{base.push(wp.x,wp.y);});base.push(pos.x,pos.y);_linkPreviewLine.points(base);_linkPreviewDot.x(pos.x);_linkPreviewDot.y(pos.y);drawLayer.batchDraw();}
+function addWaypointToDrawing(pos){const m=new Konva.Circle({x:pos.x,y:pos.y,radius:4,fill:'#94a3b8',stroke:'#fff',strokeWidth:1,opacity:.8,listening:false});drawLayer.add(m);tempMarkers.push(m);_linkWaypoints.push({x:pos.x,y:pos.y});drawLayer.batchDraw();}
+function finishLinkDrawing(endEl){if(!_linkDrawing)return;const wps=_linkWaypoints.slice();const a=linkStart,b=endEl;cancelLinkDrawing();if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){pushHistory();createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps);}else{pendingLink={a,b};_linkWaypoints=wps;openPicker(a,b);}}
+
+// ══════════════════════════════════════════════════════════════
+// FOND DE PLAN — état global
+// ══════════════════════════════════════════════════════════════
+let _bgImg=null;
+let _bgKonva=null;
+let _bgRotation=0;
+let _bgFlipH=false;
+let _bgFlipV=false;
+
+function applyBgTransform(){
+  if(!_bgKonva||!_bgImg||!stage)return;
+  const sw=stage.width(), sh=stage.height();
+  if(!sw||!sh)return;
+  const rot=(((_bgRotation%360)+360)%360);
+  const swapped=(rot===90||rot===270);
+  const fitW=swapped?_bgImg.height:_bgImg.width;
+  const fitH=swapped?_bgImg.width:_bgImg.height;
+  const scale=Math.min(sw/fitW, sh/fitH);
+  _bgKonva.setAttrs({
+    x:sw/2, y:sh/2,
+    width:_bgImg.width, height:_bgImg.height,
+    offsetX:_bgImg.width/2, offsetY:_bgImg.height/2,
+    rotation:rot,
+    scaleX:scale*(_bgFlipH?-1:1),
+    scaleY:scale*(_bgFlipV?-1:1),
+  });
+  bgLayer.batchDraw();
+}
+function rotateBg(delta){_bgRotation=(_bgRotation+delta+360)%360;applyBgTransform();}
+function flipBg(axis){if(axis==='h')_bgFlipH=!_bgFlipH;else _bgFlipV=!_bgFlipV;applyBgTransform();}
+function resetBg(){_bgRotation=0;_bgFlipH=false;_bgFlipV=false;applyBgTransform();}
+function loadBgImage(img,options={}){
+  _bgImg=img;
+  _bgRotation=options.rotation||0;
+  _bgFlipH=options.flipH||false;
+  _bgFlipV=options.flipV||false;
+  bgLayer.destroyChildren();
+  _bgKonva=new Konva.Image({image:img,x:0,y:0,listening:false});
+  bgLayer.add(_bgKonva);
+  applyBgTransform();
+  document.getElementById('bg-orient').style.display='flex';
+  document.getElementById('empty-screen').classList.add('hidden');
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT KONVA
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  const wrap=document.getElementById('canvas-wrap');
+  stage=new Konva.Stage({container:'container',width:wrap.clientWidth,height:wrap.clientHeight});
+  bgLayer=new Konva.Layer();
+  annotLayer=new Konva.Layer(); // annotations UNDER vmc elements
+  drawLayer=new Konva.Layer();
+  stage.add(bgLayer);stage.add(annotLayer);stage.add(drawLayer);
+  bgLayer.listening(false);
+  transformer=new Konva.Transformer({rotateEnabled:true,enabledAnchors:[],borderStroke:'#3b82f6',borderStrokeWidth:1.5,rotateAnchorOffset:18,rotationSnaps:[0,45,90,135,180,225,270,315],rotationSnapTolerance:8});
+  drawLayer.add(transformer);
+  window.addEventListener('resize',()=>{
+    stage.width(wrap.clientWidth);stage.height(wrap.clientHeight);
+    applyBgTransform();
+    if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);
+  });
+
+  document.getElementById('upload').addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file){setStatus('Aucun fichier sélectionné.','err');return;}
+    this.value='';
+    if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
+      loadPDF(file);
+    }else{
+      setStatus('Chargement…','loading');
+      const reader=new FileReader();
+      reader.onload=function(ev){
+        const img=new Image();
+        img.onload=function(){loadBgImage(img);setStatus('✓ '+file.name+' — '+img.width+'×'+img.height+' px','ok');};
+        img.onerror=()=>setStatus('✗ Impossible de lire ce fichier.','err');
+        img.src=ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+  document.getElementById('upload-save').addEventListener('change',function(e){const file=e.target.files[0];if(file)loadProject(file);this.value='';});
+  document.getElementById('input-popup-input').addEventListener('keydown',e=>{if(e.key==='Enter')inputPopupOk();if(e.key==='Escape')inputPopupCancel();});
+  // Zone popup live preview
+  document.getElementById('azp-color').addEventListener('input',updateZonePreview);
+  document.getElementById('azp-opacity').addEventListener('input',updateZonePreview);
+  document.getElementById('azp-label').addEventListener('input',updateZonePreview);
+  document.getElementById('azp-stroke-style').addEventListener('input',updateZonePreview);
+  syncQuickSelects();syncReseauSelect();renderReseauxConfig();refreshToolbarIcons();initEvents();
+  setStatus('Prêt','ok');
+});
+
+// ══════════════════════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════════════════════
+
+// Always track the last known scene position from real mouse moves on canvas
+let _lastScenePos=null;
+
+function getScenePosFromClient(clientX,clientY){
+  const sp=stage.container().getBoundingClientRect();
+  const sc=stage.scaleX();
+  return{x:(clientX-sp.left-stage.x())/sc,y:(clientY-sp.top-stage.y())/sc};
+}
+
+function initEvents(){
+  window.addEventListener('contextmenu',e=>e.preventDefault());
+
+  // Track mouse on canvas-wrap for scene coordinates
+  document.getElementById('canvas-wrap').addEventListener('mousemove',function(e){
+    _lastScenePos=getScenePosFromClient(e.clientX,e.clientY);
+  });
+
+  stage.on('wheel',function(e){
+    e.evt.preventDefault();
+    const by=1.12,old=stage.scaleX(),ptr=stage.getPointerPosition();if(!ptr)return;
+    const mp={x:(ptr.x-stage.x())/old,y:(ptr.y-stage.y())/old};
+    const ns=Math.max(.15,Math.min(10,e.evt.deltaY<0?old*by:old/by));
+    stage.scale({x:ns,y:ns});stage.position({x:ptr.x-mp.x*ns,y:ptr.y-mp.y*ns});stage.batchDraw();
+    if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);
+  });
+  stage.on('mousedown',function(e){
+    // Toujours capturer la position scène au mousedown (disponible dans le click suivant)
+    const ptr=stage.getPointerPosition();
+    if(ptr){const sc=stage.scaleX();_lastScenePos={x:(ptr.x-stage.x())/sc,y:(ptr.y-stage.y())/sc};}
+    if(e.evt.button===0&&currentTool==='none'){
+      if(e.target&&e.target.getAttr&&e.target.getAttr('customType')==='waypoint')return;
+      isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
+    }else if(e.evt.button===1){
+      // Molette — panning universel quelle que soit l'outil
+      isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
+    }
+  });
+  stage.on('mousemove',function(){
+    const pos=stage.getPointerPosition();if(!pos)return;
+    const sc=stage.scaleX();
+    const scenePos={x:(pos.x-stage.x())/sc,y:(pos.y-stage.y())/sc};
+    _lastScenePos=scenePos;
+    if(isPanning&&lastPointer){stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);}
+    if(_linkDrawing){updateLinkPreview(scenePos);}
+    if(_annotDrawing){updateZonePreviewLine(scenePos);}
+    if(_arrowDrawing&&_arrowStart){
+      const sp=scenePos;
+      if(window._arrowPreview)window._arrowPreview.forEach(n=>n.destroy());
+      const angle=Math.atan2(sp.y-_arrowStart.y,sp.x-_arrowStart.x);
+      const hl=14,ha=Math.PI/7;
+      const pl=new Konva.Line({points:[_arrowStart.x,_arrowStart.y,sp.x,sp.y],stroke:'#fb923c',strokeWidth:2,lineCap:'round',opacity:.6,listening:false});
+      const ph=new Konva.Line({points:[sp.x-hl*Math.cos(angle-ha),sp.y-hl*Math.sin(angle-ha),sp.x,sp.y,sp.x-hl*Math.cos(angle+ha),sp.y-hl*Math.sin(angle+ha)],stroke:'#fb923c',strokeWidth:2,lineCap:'round',lineJoin:'round',opacity:.6,listening:false});
+      window._arrowPreview=[pl,ph];[pl,ph].forEach(n=>annotLayer.add(n));annotLayer.batchDraw();
+    }
+    if(currentTool==='mesure'&&measurePoints.length===1){
+      const sp=scenePos;
+      if(window._measurePreview)window._measurePreview.forEach(n=>n.destroy());
+      const p0=measurePoints[0],dx=sp.x-p0.x,dy=sp.y-p0.y;
+      const realDist=scaleRatio?(Math.sqrt(dx*dx+dy*dy)*scaleRatio).toFixed(2)+' m':Math.round(Math.sqrt(dx*dx+dy*dy))+' px';
+      const mx=(p0.x+sp.x)/2,my=(p0.y+sp.y)/2;
+      const pl=new Konva.Line({points:[p0.x,p0.y,sp.x,sp.y],stroke:'#00e0ff',strokeWidth:1.5,dash:[6,4],opacity:.7});
+      const pb=new Konva.Rect({x:mx-realDist.length*3.5-2,y:my-10,width:realDist.length*7+4,height:13,fill:'rgba(0,0,0,.6)',cornerRadius:3});
+      const pt=new Konva.Text({x:mx-realDist.length*3.5,y:my-8,text:realDist,fontSize:11,fill:'#00e0ff',fontStyle:'bold',fontFamily:'monospace'});
+      window._measurePreview=[pl,pb,pt];window._measurePreview.forEach(n=>drawLayer.add(n));drawLayer.batchDraw();
+    }
+  });
+  stage.on('mouseup',()=>{isPanning=false;lastPointer=null;document.getElementById('canvas-wrap').classList.remove('panning');});
+
+  let lastDist=null;
+  stage.on('touchstart',function(e){
+    const touches=e.evt.touches;
+    if(touches.length===2){clearTimeout(_longPressTimer);_longPressTimer=null;isPanning=false;_touchScenePos=null;return;}
+    if(touches.length!==1)return;
+
+    const t0=touches[0];
+    _touchStartTime=Date.now();_touchStartX=t0.clientX;_touchStartY=t0.clientY;_touchMoved=false;
+
+    // Sur Samsung Internet, e.target peut être le canvas HTML — on utilise getIntersection
+    // pour fiabiliser la détection du node Konva sous le doigt
+    const ptr=stage.getPointerPosition();
+    let konvaTarget=e.target;
+    if(ptr){
+      const hit=stage.getIntersection(ptr);
+      if(hit)konvaTarget=hit;
+    }
+    _longPressTarget=konvaTarget;
+    _touchScenePos=getScenePos();
+
+    const isWaypoint=konvaTarget&&konvaTarget.getAttr&&konvaTarget.getAttr('customType')==='waypoint';
+    const isMeasurePoint=konvaTarget&&konvaTarget.name&&typeof konvaTarget.name==='function'&&konvaTarget.name()==='measure-point';
+
+    // Les waypoints et measure-points : long press avec délai plus long
+    // Le dragstart de Konva annulera le timer si le doigt bouge
+    if(isWaypoint||isMeasurePoint){
+      isPanning=false;
+      _longPressTimer=setTimeout(()=>{
+        if(_touchMoved)return;
+        _longPressTimer=null;
+        handleLongPress(_longPressTarget);
+      },800);
+      return;
+    }
+
+    if(currentTool==='none'&&!_linkDrawing){isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');}
+    if(currentTool==='liaison'||currentTool==='annot-zone'||currentTool==='annot-arrow')isPanning=false;
+
+    // Long press : sur un élément VMC, délai plus long (800ms) car Konva peut déclencher un drag
+    // Sur du vide/lien/annotation, délai standard (600ms)
+    const isOnElement=!!findElementGroup(konvaTarget);
+
+    if(currentTool!=='liaison'&&currentTool!=='annot-zone'&&currentTool!=='annot-arrow'){
+      const delay=isOnElement?800:600;
+      _longPressTimer=setTimeout(()=>{
+        if(_touchMoved)return;
+        _longPressTimer=null;
+        handleLongPress(_longPressTarget);
+      },delay);
+    }
+  });
+  stage.on('touchmove',function(e){
+    const touches=e.evt.touches;
+    if(touches.length===2){e.evt.preventDefault();const dx=touches[0].clientX-touches[1].clientX,dy=touches[0].clientY-touches[1].clientY,dist=Math.sqrt(dx*dx+dy*dy);if(lastDist===null){lastDist=dist;return;}const scale=stage.scaleX(),newScale=Math.max(.15,Math.min(10,scale*(dist/lastDist)));const cx=(touches[0].clientX+touches[1].clientX)/2,cy=(touches[0].clientY+touches[1].clientY)/2;const sp=stage.container().getBoundingClientRect();const ptr={x:cx-sp.left,y:cy-sp.top};const mp={x:(ptr.x-stage.x())/scale,y:(ptr.y-stage.y())/scale};stage.scale({x:newScale,y:newScale});stage.position({x:ptr.x-mp.x*newScale,y:ptr.y-mp.y*newScale});stage.batchDraw();lastDist=dist;return;}
+    if(touches.length!==1)return;
+
+    const isWaypoint=_longPressTarget&&_longPressTarget.getAttr&&_longPressTarget.getAttr('customType')==='waypoint';
+    const isMeasurePoint=_longPressTarget&&_longPressTarget.name&&typeof _longPressTarget.name==='function'&&_longPressTarget.name()==='measure-point';
+
+    const dx=touches[0].clientX-_touchStartX,dy=touches[0].clientY-_touchStartY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    // Seuil plus tolérant pour waypoints/measure-points (micro-mouvements Samsung)
+    const isOnElem=_longPressTarget&&!!findElementGroup(_longPressTarget);
+    const moveThreshold=(isWaypoint||isMeasurePoint)?TAP_MAX_MOVE*3:
+      isOnElem?TAP_MAX_MOVE*1.5:
+      (_linkDrawing||currentTool==='liaison'||_annotDrawing)?TAP_MAX_MOVE*2.5:TAP_MAX_MOVE;
+
+    if(dist>moveThreshold&&!_touchMoved){_touchMoved=true;clearTimeout(_longPressTimer);_longPressTimer=null;}
+
+    // Les waypoints/measure-points gèrent leur propre drag via Konva, pas de panning
+    if(isWaypoint||isMeasurePoint)return;
+
+    if(isPanning&&lastPointer){const pos=stage.getPointerPosition();if(!pos)return;stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);}
+    if(_linkDrawing){const sp=getScenePos();if(sp)updateLinkPreview(sp);}
+    if(_annotDrawing){const sp=getScenePos();if(sp)updateZonePreviewLine(sp);}
+  });
+  stage.on('touchend',function(e){
+    const touches=e.evt.touches;
+    if(touches.length<2)lastDist=null;
+    if(touches.length===0){isPanning=false;lastPointer=null;document.getElementById('canvas-wrap').classList.remove('panning');}
+    clearTimeout(_longPressTimer);_longPressTimer=null;
+    if(e.evt.changedTouches.length===1&&e.evt.touches.length===0){
+      const dt=Date.now()-_touchStartTime;
+      const isAnnotMode=currentTool==='annot-zone'||currentTool==='annot-arrow'||_annotDrawing;
+      const moved=isAnnotMode?false:_touchMoved;
+      if(dt<=TAP_MAX_DURATION&&!moved){_lastTapWasTouch=true;handleTap(e);setTimeout(()=>{_lastTapWasTouch=false;},400);}
+    }
+  });
+  stage.on('click',function(e){if(_lastTapWasTouch)return;if(e.evt.button!==0)return;handleTap(e);});
+  stage.on('dblclick dbltap',function(){
+    if(_annotDrawing&&_annotZonePoints.length>=3){finishZoneDrawing();}
+  });
+  stage.on('contextmenu',function(e){e.evt.preventDefault();handleContextMenu(e);});
+  window.addEventListener('click',(e)=>{
+    if(e.target.id==='delete-btn-overlay')return;
+    const m=document.getElementById('contextMenu');if(m.dataset.justOpened)return;m.style.display='none';
+  });
+  window.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+      if(_annotDrawing){cancelZoneDrawing();showHint('Zone : configuration annulée');return;}
+      if(_arrowDrawing){_arrowDrawing=false;_arrowStart=null;if(window._arrowPreview){window._arrowPreview.forEach(n=>n.destroy());window._arrowPreview=null;}annotLayer.batchDraw();return;}
+      if(_linkDrawing){cancelLinkDrawing();showHint('');return;}
+      setTool('none');closeResizePopup();closeLinkEditPopup();
+    }
+    if(e.key==='Enter'&&_annotDrawing&&_annotZonePoints.length>=3)finishZoneDrawing();
+    if((e.key==='Delete'||e.key==='Backspace')&&!document.activeElement.matches('input,select,textarea')){
+      if(_selectedWaypoint){deleteSelectedWaypoint();return;}
+      if(_selectedAnnotId!==null){deleteAnnotById(_selectedAnnotId);return;}
+      if(selectedShape){hideDeleteBtn();deleteSelected();}
+    }
+    if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveProject();}
+    if(!document.activeElement.matches('input,select,textarea')){
+      if(e.key==='['||e.key==='ArrowLeft'&&e.altKey){e.preventDefault();rotateSelected(-90);}
+      if(e.key===']'||e.key==='ArrowRight'&&e.altKey){e.preventDefault();rotateSelected(90);}
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// LONG PRESS
+// ══════════════════════════════════════════════════════════════
+function handleLongPress(target){
+  if(!target)return;
+
+  // Fallback Samsung Internet : si target est le canvas HTML brut, refaire un hit test Konva
+  if(target===stage.container()||target.tagName==='CANVAS'){
+    const ptr=stage.getPointerPosition()||(_touchScenePos?{
+      x:_touchScenePos.x*stage.scaleX()+stage.x(),
+      y:_touchScenePos.y*stage.scaleX()+stage.y()
+    }:null);
+    if(ptr){const hit=stage.getIntersection(ptr);if(hit)target=hit;}
+  }
+
+  if(target.getAttr&&target.getAttr('customType')==='waypoint'){_selectedWaypoint=target.getAttr('waypointInfo');['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-del-waypoint').style.display='block';openContextMenuTouch();return;}
+  let mg=target;while(mg){if(mg.getAttr&&mg.getAttr('customType')==='measure-group')break;mg=mg.getParent?.();if(!mg||mg===stage){mg=null;break;}}
+  if(mg){selectedShape=mg;refreshDeleteBtn();['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');openContextMenuTouch();return;}
+  // Annotation node?
+  const annotNode=findAnnotNode(target);
+  if(annotNode!==null){_selectedAnnotId=annotNode;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenuTouch();return;}
+  let t=target;while(t&&t.getParent){if(t.getAttr&&t.getAttr('customType')==='link')break;t=t.getParent();}
+  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';openContextMenuTouch();return;}
+  const elLp=findElementGroup(target);
+  if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims'].forEach(id=>document.getElementById(id).style.display='block');openContextMenuTouch();}
+}
+
+function findAnnotNode(target){
+  for(const a of annotations){
+    if(a.nodes.some(n=>n===target||isChildOf(target,n)))return a.id;
+  }
+  return null;
+}
+function isChildOf(child,parent){let n=child;while(n){if(n===parent)return true;n=n.getParent?.();}return false;}
+
+// ══════════════════════════════════════════════════════════════
+// TAP / CLICK
+// ══════════════════════════════════════════════════════════════
+function handleTap(e){
+  document.getElementById('contextMenu').style.display='none';
+  closeLinkEditPopup();
+  const isTouch=e.evt&&(e.evt.type==='touchend'||e.evt.type==='touchstart');
+  // Use Konva scene pos, fall back to last known mouse position
+  const pos=isTouch?_touchScenePos:(getScenePos()||_lastScenePos);
+  const target=isTouch?_longPressTarget:e.target;
+  if(!target)return;
+
+  // CALIBRATION
+  if(currentTool==='calibration'){
+    if(!pos)return;
+    calibrationPoints.push(pos);addTempMarker(pos);
+    if(calibrationPoints.length===1){showHint('Calibration : cliquez sur le 2e point');return;}
+    if(calibrationPoints.length===2){
+      const dx=calibrationPoints[1].x-calibrationPoints[0].x,dy=calibrationPoints[1].y-calibrationPoints[0].y;
+      const pixelDist=Math.sqrt(dx*dx+dy*dy);
+      const line=new Konva.Line({points:[calibrationPoints[0].x,calibrationPoints[0].y,calibrationPoints[1].x,calibrationPoints[1].y],stroke:'#00e0ff',strokeWidth:1.5,dash:[5,3]});
+      drawLayer.add(line);drawLayer.batchDraw();
+      showInputPopup('📏 Calibration','Distance réelle entre les 2 points (en mètres) :').then(realDist=>{
+        clearTempMarkers();line.destroy();drawLayer.batchDraw();calibrationPoints=[];
+        if(realDist!==null&&realDist>0){scaleRatio=realDist/pixelDist;setStatus('✓ Échelle définie : 1 px ≈ '+(scaleRatio*100).toFixed(4)+' cm','ok');showHint('Échelle calibrée !');measures.forEach(m=>{const d=calcMeasureDist(m.p1.x(),m.p1.y(),m.p2.x(),m.p2.y());m.label.text(d);drawLayer.batchDraw();});refreshAllLinkStrokes();refreshAllElementDims();}
+        else{showHint('Calibration annulée.');setStatus('Calibration annulée.','err');}
+        setTool('none');
+      });
+    }return;
+  }
+
+  // MESURE
+  if(currentTool==='mesure'){
+    if(!scaleRatio){showHint('Mesure : calibrez d\'abord l\'échelle');return;}
+    measurePoints.push(pos);addTempMarker(pos);
+    if(measurePoints.length===1){showHint('Mesure : cliquez sur le 2e point');return;}
+    if(measurePoints.length===2){clearTempMarkers();clearMeasurePreview();pushHistory();createMeasure(measurePoints[0].x,measurePoints[0].y,measurePoints[1].x,measurePoints[1].y);measurePoints=[];showHint('');}
+    return;
+  }
+
+  // ANNOTATIONS — gérées par listener direct sur le canvas Konva
+  if(currentTool==='annot-zone'||currentTool==='annot-text'||currentTool==='annot-arrow'){
+    if(!pos)return;
+    if(currentTool==='annot-zone'){
+      if(!_annotDrawing){openAnnotZonePopup();}
+      else{
+        _annotZonePoints.push({x:pos.x,y:pos.y});
+        const dot=new Konva.Circle({x:pos.x,y:pos.y,radius:4,fill:_pendingZoneConfig?.color||'#6366f1',stroke:'#fff',strokeWidth:1.5,opacity:.9,listening:false});
+        annotLayer.add(dot);_annotZoneTempDots.push(dot);
+        updateZonePreviewLine(pos);
+      }
+      return;
+    }
+    if(currentTool==='annot-text'){
+      if(!document.getElementById('annot-text-popup').classList.contains('open'))
+        openAnnotTextPopup(pos);
+      return;
+    }
+    if(currentTool==='annot-arrow'){
+      if(!_arrowDrawing){
+        _arrowDrawing=true;_arrowStart=pos;
+        showHint('Flèche : cliquez sur le point d\'arrivée');
+      }else{
+        if(window._arrowPreview){window._arrowPreview.forEach(n=>n.destroy());window._arrowPreview=null;annotLayer.batchDraw();}
+        createArrowAnnot(_arrowStart,pos);
+        _arrowDrawing=false;_arrowStart=null;
+        showHint('Flèche : cliquez le départ puis l\'arrivée de la flèche');
+      }
+      return;
+    }
+  }
+
+  // Waypoint
+  if(target&&target.getAttr&&target.getAttr('customType')==='waypoint'){_selectedWaypoint=target.getAttr('waypointInfo');return;}
+
+  // LIAISON
+  if(currentTool==='liaison'){
+    const clickedEl=findElementGroup(target);
+    if(!_linkDrawing){if(clickedEl){startLinkDrawing(clickedEl);}return;}
+    if(clickedEl&&clickedEl!==linkStart){finishLinkDrawing(clickedEl);}else if(!clickedEl){addWaypointToDrawing(pos);}
+    return;
+  }
+
+  // Check annotation click
+  const annotId=findAnnotNode(target);
+  if(annotId!==null){_selectedAnnotId=annotId;updateAnnotList();return;}
+
+  // Link click
+  if(target&&target.getAttr&&target.getAttr('customType')==='link'){
+    if(currentTool==='none'){const linkObj=links.find(l=>l.line===target);if(linkObj)insertWaypointOnLink(linkObj,pos);}
+    selectElement(null);return;
+  }
+
+  if(target&&target.name&&target.name()==='measure-point')return;
+  let mg=target;while(mg){if(mg.getAttr&&mg.getAttr('customType')==='measure-group')break;mg=mg.getParent?.();if(!mg||mg===stage){mg=null;break;}}
+  if(mg){selectedShape=mg;refreshDeleteBtn();return;}
+  const clickedElNav=findElementGroup(target);
+  if(clickedElNav){selectElement(clickedElNav);return;}
+  selectElement(null);_selectedWaypoint=null;_selectedAnnotId=null;
+  if(currentTool==='none')return;
+  const conf=TOOLS[currentTool];if(!conf||conf.shape===null)return;
+  placeElement(currentTool,conf,pos);
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONTEXT MENU
+// ══════════════════════════════════════════════════════════════
+function handleContextMenu(e){
+  let target=e.target;
+  if(target.getAttr&&target.getAttr('customType')==='waypoint'){_selectedWaypoint=target.getAttr('waypointInfo');['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-del-waypoint').style.display='block';openContextMenu(e.evt);return;}
+  let mg=target;while(mg){if(mg.getAttr&&mg.getAttr('customType')==='measure-group')break;mg=mg.getParent?.();if(!mg||mg===stage){mg=null;break;}}
+  if(!mg&&target.name&&typeof target.name==='function'&&target.name()==='measure-point'){const mObj=measures.find(m=>m.p1===target||m.p2===target);if(mObj)mg=mObj.grp;}
+  if(mg){selectedShape=mg;hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');openContextMenu(e.evt);return;}
+  const annotId=findAnnotNode(target);
+  if(annotId!==null){_selectedAnnotId=annotId;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenu(e.evt);return;}
+  let g2=target;while(g2&&g2.getParent){if(g2.getAttr&&g2.getAttr('customType')==='link')break;g2=g2.getParent();}
+  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';openContextMenu(e.evt);return;}
+  const elCtx=findElementGroup(e.target);
+  if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims'].forEach(id=>document.getElementById(id).style.display='block');openContextMenu(e.evt);}
+}
+function openContextMenu(evt){const m=document.getElementById('contextMenu');m.style.display='block';m.style.transform='';m.style.left=evt.clientX+'px';m.style.top=evt.clientY+'px';m.style.minWidth='200px';m.querySelectorAll('button').forEach(b=>b.style.padding='7px 12px');}
+function openContextMenuTouch(){const m=document.getElementById('contextMenu');m.style.display='block';m.style.left='50%';m.style.top='50%';m.style.transform='translate(-50%,-50%)';m.style.minWidth='220px';m.querySelectorAll('button').forEach(b=>b.style.padding='12px 16px');m.dataset.justOpened='true';setTimeout(()=>{m.dataset.justOpened='';},400);}
+
+// ══════════════════════════════════════════════════════════════
+// PLACE ELEMENT
+// ══════════════════════════════════════════════════════════════
+function placeElement(toolId,conf,pos){
+  const s=globalSize/10;
+  const B=ICON_BASE_PX;
+  const g=new Konva.Group({x:pos.x,y:pos.y,draggable:true,name:'element'});
+  g.setAttr('toolId',toolId);g.setAttr('toolLabel',conf.label);
+  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  const txt=new Konva.Text({x:B/2+2,y:-6,text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',fontFamily:'Segoe UI, sans-serif',scaleX:1/s,scaleY:1/s,visible:false,listening:false});
+  g.add(txt);g.scale({x:s,y:s});addVisualToGroup(g,toolId,s);
+  g.on('dragstart',()=>{
+    // Annuler immédiatement le long press si Konva démarre un drag
+    clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
+    isPanning=false;
+  });
+  g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
+  g.on('dragend',()=>{updateLinks();updateListe();});
+  g.on('click tap',()=>selectElement(g));
+  pushHistory();drawLayer.add(g);drawLayer.batchDraw();
+  placedElements[conf.label]=(placedElements[conf.label]||0)+1;updateListe();
+}
+
+// ══════════════════════════════════════════════════════════════
+// DELETE / DUPLICATE
+// ══════════════════════════════════════════════════════════════
+function clearAll(){if(!confirm('Effacer tous les éléments placés ?'))return;pushHistory();clearAllSilent();placedElements={};scaleRatio=null;clearTempMarkers();setTool('none');drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();hideDeleteBtn();refreshDeleteBtn();setStatus('Tableau effacé.','ok');}
+function removeElement(g){if(!g)return;pushHistory();const lbl=g.getAttr('toolLabel');if(lbl&&placedElements[lbl]){placedElements[lbl]--;if(!placedElements[lbl])delete placedElements[lbl];}links=links.filter(l=>{if(l.a===g||l.b===g){destroyLinkNodes(l);return false;}return true;});g.destroy();selectedShape=null;transformer.nodes([]);drawLayer.batchDraw();updateListe();hideDeleteBtn();refreshDeleteBtn();}
+function duplicateSelected(){if(!selectedShape)return;document.getElementById('contextMenu').style.display='none';const id=selectedShape.getAttr('toolId'),conf=TOOLS[id];if(conf)placeElement(id,conf,{x:selectedShape.x()+22,y:selectedShape.y()+22});}
+function deleteSelected(){
+  document.getElementById('contextMenu').style.display='none';closeResizePopup();hideDeleteBtn();closeLinkEditPopup();
+  if(_selectedAnnotId!==null){deleteAnnotById(_selectedAnnotId);return;}
+  if(!selectedShape)return;
+  const customType=selectedShape.getAttr?.('customType');
+  if(customType==='measure-group'){pushHistory();removeMeasure(selectedShape);selectedShape=null;refreshDeleteBtn();return;}
+  const isGroup=selectedShape.getClassName&&selectedShape.getClassName()==='Group';
+  const type=isGroup?selectedShape.name():customType;
+  if(type==='link'||customType==='link'){const lo=links.find(l=>l.line===selectedShape);if(lo){pushHistory();destroyLinkNodes(lo);links=links.filter(l=>l!==lo);}_selectedLinkObj=null;selectedShape=null;drawLayer.batchDraw();updateListe();refreshDeleteBtn();return;}
+  removeElement(selectedShape);
+}
+
+// ══════════════════════════════════════════════════════════════
+// LIENS MULTI-SEGMENTS
+// ══════════════════════════════════════════════════════════════
+function linkTotalLength(l){const pts=buildLinkPoints(l);let total=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];total+=Math.sqrt(dx*dx+dy*dy);}return total;}
+function buildLinkPoints(l){const pts=[l.a.x(),l.a.y()];l.waypoints.forEach(wp=>{pts.push(wp._x,wp._y);});pts.push(l.b.x(),l.b.y());return pts;}
+function createWaypointDot(linkObj,index){
+  const wp=linkObj.waypoints[index];
+  const dot=new Konva.Circle({
+    x:wp._x,y:wp._y,
+    radius:2,                          // visuel réduit
+    fill:'rgba(148,163,184,0.85)',
+    stroke:'#fff',strokeWidth:1,
+    draggable:true,name:'waypoint-dot'
+  });
+  dot.setAttr('customType','waypoint');
+  dot.setAttr('waypointInfo',{linkObj,index});
+  dot.hitStrokeWidth(28);              // zone tactile généreuse
+  dot.on('dragstart',()=>{
+    // Annuler immédiatement le long press dès que Konva démarre le drag
+    clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
+    isPanning=false;
+  });
+  dot.on('dragmove',()=>{wp._x=dot.x();wp._y=dot.y();refreshLinkLine(linkObj);});
+  dot.on('dragend',()=>{updateListe();});
+  dot.on('click tap',e=>{e.cancelBubble=true;_selectedWaypoint={linkObj,index};});
+  dot.on('contextmenu',e=>{
+    e.evt.preventDefault();
+    _selectedWaypoint={linkObj,index};
+    ['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');
+    document.getElementById('ctx-del-waypoint').style.display='block';
+    openContextMenu(e.evt);
+  });
+  drawLayer.add(dot);return dot;
+}
+function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',waypointData=[],tension=0.35,diaMm=null){
+  const matColorMap={'Galva':'#94a3b8','PVC':'#60a5fa','Flex':'#f59e0b','ComfoPipe':'#c0bfbf','ComfoTube':'#bfbdbd'};
+  const lineColor=reseauColorParam||(reseau?getReseauColor(reseau):'')||matColorMap[mat]||'#94a3b8';
+  const resolvedDiaMm=diaMm||extractDiaMm(dia);
+  const waypoints=waypointData.map(wp=>({_x:wp.x||0,_y:wp.y||0,x(){return this._x;},y(){return this._y;}}));
+  const pts=[a.x(),a.y(),...waypoints.flatMap(wp=>[wp._x,wp._y]),b.x(),b.y()];
+  const sw=diaToStroke(resolvedDiaMm)||4;
+  const line=new Konva.Line({points:pts,stroke:lineColor,strokeWidth:sw,lineCap:'round',lineJoin:'round',tension});
+  line.setAttr('customType','link');line.hitStrokeWidth(Math.max(14,sw+8));
+  const doCreate=(lengthM)=>{
+    const mid=getPathMidpoint(pts);const txt=buildLinkLabel(lengthM);const cw=4.5,tw=txt.length*cw;
+    const labelBg=new Konva.Rect({x:mid.x-tw/2-2,y:mid.y-6,width:tw+4,height:9,fill:'rgba(15,17,23,.75)',cornerRadius:2,visible:txt!==''});
+    const label=new Konva.Text({x:mid.x-tw/2,y:mid.y-5,text:txt,fontSize:7,fill:lineColor,fontStyle:'bold',fontFamily:'monospace',visible:txt!==''});
+    label.setAttr('customType','linkLabel');labelBg.setAttr('customType','linkLabel');
+    drawLayer.add(line);drawLayer.add(labelBg);drawLayer.add(label);line.moveToBottom();
+    const linkObj={a,b,line,label,labelBg,waypoints,waypointDots:[],lengthM,mat:mat||'',dia:dia||'',diaMm:resolvedDiaMm,reseau:reseau||'',reseauColor:lineColor,lineColor,tension};
+    waypointData.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));
+    links.push(linkObj);drawLayer.batchDraw();updateListe();
+  };
+  if(forcedLength!==null)doCreate(forcedLength);
+  else if(scaleRatio){const totalPx=[a.x(),a.y(),...waypointData.flatMap(wp=>[wp.x||0,wp.y||0]),b.x(),b.y()];let len=0;for(let i=0;i<totalPx.length-2;i+=2){const dx=totalPx[i+2]-totalPx[i],dy=totalPx[i+3]-totalPx[i+1];len+=Math.sqrt(dx*dx+dy*dy);}doCreate(parseFloat((len*scaleRatio).toFixed(2)));}
+  else{showInputPopup('🔗 Longueur de liaison','Longueur totale (en mètres) — laisser vide pour ignorer :').then(v=>{doCreate(v!==null&&v>0?v:null);});}
+}
+function insertWaypointOnLink(linkObj,pos){const pts=buildLinkPoints(linkObj);let bestIdx=0,bestDist=Infinity;for(let i=0;i<pts.length-2;i+=2){const d=distToSegment(pos,{x:pts[i],y:pts[i+1]},{x:pts[i+2],y:pts[i+3]});if(d<bestDist){bestDist=d;bestIdx=i/2;}}if(bestDist>20)return;pushHistory();const newWp={_x:pos.x,_y:pos.y,x(){return this._x;},y(){return this._y;}};linkObj.waypoints.splice(bestIdx,0,newWp);linkObj.waypointDots.forEach(d=>d.destroy());linkObj.waypointDots=[];linkObj.waypoints.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));refreshLinkLine(linkObj);}
+function distToSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y;if(dx===0&&dy===0)return Math.hypot(p.x-a.x,p.y-a.y);const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
+function getPathMidpoint(pts){let maxLen=0,mx=pts[0],my=pts[1];for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];const len=Math.sqrt(dx*dx+dy*dy);if(len>maxLen){maxLen=len;mx=(pts[i]+pts[i+2])/2;my=(pts[i+1]+pts[i+3])/2;}}return{x:mx,y:my};}
+function deleteSelectedWaypoint(){document.getElementById('contextMenu').style.display='none';if(!_selectedWaypoint)return;const{linkObj,index}=_selectedWaypoint;pushHistory();linkObj.waypoints.splice(index,1);linkObj.waypointDots.forEach(d=>d.destroy());linkObj.waypointDots=[];linkObj.waypoints.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));refreshLinkLine(linkObj);_selectedWaypoint=null;}
+function refreshLinkLine(l){const pts=buildLinkPoints(l);l.line.points(pts);if(scaleRatio){let len=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];len+=Math.sqrt(dx*dx+dy*dy);}l.lengthM=parseFloat((len*scaleRatio).toFixed(2));}const mid=getPathMidpoint(pts);const txt=buildLinkLabel(l.lengthM);const cw=4.5,tw=txt.length*cw;l.label.text(txt);l.label.x(mid.x-tw/2);l.label.y(mid.y-5);l.label.visible(txt!=='');l.labelBg.x(mid.x-tw/2-2);l.labelBg.y(mid.y-6);l.labelBg.width(tw+4);l.labelBg.height(9);l.labelBg.visible(txt!=='');drawLayer.batchDraw();}
+function refreshLinkWaypointDots(l){l.waypointDots.forEach(d=>d.destroy());l.waypointDots=[];l.line.stroke(l.reseauColor||l.lineColor||'#94a3b8');l.label.fill(l.reseauColor||l.lineColor||'#94a3b8');l.waypoints.forEach((_,i)=>l.waypointDots.push(createWaypointDot(l,i)));drawLayer.batchDraw();}
+function destroyLinkNodes(l){l.line.destroy();l.label?.destroy();l.labelBg?.destroy();l.waypointDots.forEach(d=>d.destroy());}
+function buildLinkLabel(lengthM){return lengthM!=null?lengthM+' m':'';}
+
+function updateLinks(){links.forEach(l=>refreshLinkLine(l));}
+
+// ══════════════════════════════════════════════════════════════
+// LISTE MATÉRIEL
+// ══════════════════════════════════════════════════════════════
+function updateListe(){
+  const entries=Object.entries(placedElements).filter(([,v])=>v>0);
+  const total=entries.reduce((s,[,v])=>s+v,0);
+  const colorMap=Object.fromEntries(Object.values(TOOLS).map(v=>[v.label,v.color]));
+  const byReseau={};
+  links.forEach(l=>{const key=l.reseau||'—';if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{}};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};byReseau[key].subnets[sk].count++;if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}});
+  const liaisonRows=Object.entries(byReseau).map(([reseau,v])=>`<div class="mat-item" style="border-left:3px solid ${v.color};flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;align-items:center;gap:8px;width:100%;"><span class="mat-dot" style="background:${v.color}"></span><span class="mat-name" style="font-size:12px;font-weight:600;">${reseau}</span><span class="mat-count" style="font-size:11px;">×${v.count}${v.hasLen?' — '+v.metres.toFixed(1)+' m':''}</span></div>${Object.entries(v.subnets).map(([sk,sv])=>`<div style="display:flex;width:100%;padding-left:18px;font-size:11px;color:var(--text2);"><span style="flex:1;">${sk}</span><span>×${sv.count}${sv.hasLen?' ('+sv.metres.toFixed(1)+' m)':''}</span></div>`).join('')}</div>`).join('');
+  document.getElementById('material-list').innerHTML=entries.length===0&&links.length===0?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div>':entries.map(([l,q])=>`<div class="mat-item"><span class="mat-dot" style="background:${colorMap[l]||'#888'}"></span><span class="mat-name">${l}</span><span class="mat-count">×${q}</span></div>`).join('')+liaisonRows;
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORTS
+// ══════════════════════════════════════════════════════════════
+function buildLiaisonStats(){const byReseau={};links.forEach(l=>{const key=`${l.reseau||'—'} / ${[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—'}`;if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}});return byReseau;}
+function exportListe(){
+  const entries=Object.entries(placedElements).filter(([,v])=>v>0);const byMat=buildLiaisonStats();if(!entries.length&&!links.length){alert('Aucun élément à exporter.');return;}
+  const d=new Date().toLocaleDateString('fr-FR');
+  const cn=chantierNotes;
+  let txt=`LISTE MATÉRIEL VMC — ${d}\n`;
+  if(cn.client)txt+=`Chantier : ${cn.client}\n`;
+  if(cn.tel)txt+=`Tél.     : ${cn.tel}\n`;
+  if(cn.email)txt+=`Email    : ${cn.email}\n`;
+  if(cn.adresse)txt+=`Adresse  : ${cn.adresse}\n`;
+  if(cn.intervenant)txt+=`Tech.    : ${cn.intervenant}\n`;
+  txt+=`${'─'.repeat(40)}\n`;
+  entries.forEach(([l,q])=>txt+=`${l.padEnd(30)} × ${q}\n`);
+  Object.entries(byMat).forEach(([key,v])=>txt+=`${key.padEnd(40)} × ${v.count}${v.hasLen?' ('+v.metres.toFixed(1)+' m)':''}\n`);
+  txt+=`${'─'.repeat(40)}\nTOTAL : ${entries.reduce((s,[,v])=>s+v,0)+links.length} éléments`;
+  if(annotations.length)txt+=`\n${'─'.repeat(40)}\nAnnotations : ${annotations.length}`;
+  if(cn.remarques)txt+=`\n\nRemarques :\n${cn.remarques}`;
+  navigator.clipboard.writeText(txt).then(()=>alert('Liste copiée !')).catch(()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('Liste copiée !');});
+}
+// ── EXPORT EXCEL ──
+async function exportXLSX(){
+  setStatus('Préparation export Excel…','loading');
+  // Chargement SheetJS si pas encore présent
+  if(!window.XLSX){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+    });
+  }
+
+  const cn=chantierNotes;
+  const date=new Date().toLocaleDateString('fr-FR');
+  const wb=XLSX.utils.book_new();
+
+  // ── ONGLET 1 : RÉCAPITULATIF ──
+  const recap=[];
+  recap.push(['LISTE MATÉRIEL VMC DOUBLE FLUX']);
+  recap.push([]);
+  if(cn.client)    recap.push(['Chantier / Client', cn.client]);
+  if(cn.tel)       recap.push(['Téléphone',         cn.tel]);
+  if(cn.email)     recap.push(['Email',             cn.email]);
+  if(cn.adresse)   recap.push(['Adresse',           cn.adresse]);
+  if(cn.date)      recap.push(['Date',               cn.date]);
+  if(cn.intervenant)recap.push(['Intervenant',       cn.intervenant]);
+  if(cn.type)      recap.push(['Type logement',      cn.type]);
+  if(cn.surface)   recap.push(['Surface',            cn.surface+' m²']);
+  recap.push([]);
+  recap.push(['Date export', date]);
+  if(scaleRatio)   recap.push(['Échelle calibrée', '1 px = '+(scaleRatio*100).toFixed(4)+' cm']);
+  recap.push([]);
+  recap.push(['RÉSUMÉ']);
+  const totalElements=Object.values(placedElements).reduce((s,v)=>s+v,0);
+  const totalLiaisons=links.length;
+  const totalMetres=links.reduce((s,l)=>s+(l.lengthM||0),0);
+  const totalAnnots=annotations.length;
+  recap.push(['Éléments VMC',   totalElements]);
+  recap.push(['Liaisons',       totalLiaisons]);
+  recap.push(['Longueur totale',totalMetres.toFixed(2)+' m']);
+  recap.push(['Annotations',    totalAnnots]);
+  if(cn.remarques){recap.push([]);recap.push(['Remarques']);recap.push([cn.remarques]);}
+
+  const wsRecap=XLSX.utils.aoa_to_sheet(recap);
+  wsRecap['!cols']=[{wch:28},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,wsRecap,'Récapitulatif');
+
+  // ── ONGLET 2 : ÉLÉMENTS VMC ──
+  const elRows=[
+    ['Élément','Quantité','Largeur réelle (mm)','Hauteur réelle (mm)','Notes'],
+  ];
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  const countByLabel={};
+  const dimsByLabel={};
+  elNodes.forEach(g=>{
+    const lbl=g.getAttr('toolLabel')||'?';
+    countByLabel[lbl]=(countByLabel[lbl]||0)+1;
+    const dims=g.getAttr('realDims');
+    if(dims&&!dimsByLabel[lbl])dimsByLabel[lbl]=dims;
+  });
+  Object.entries(countByLabel).filter(([,v])=>v>0).forEach(([lbl,qty])=>{
+    const dims=dimsByLabel[lbl];
+    elRows.push([lbl,qty,dims?dims.w:'',dims?dims.h:'','']);
+  });
+  elRows.push([]);
+  elRows.push(['TOTAL','=SUM(B2:B'+(elRows.length-1)+')','','','']);
+
+  const wsEl=XLSX.utils.aoa_to_sheet(elRows);
+  wsEl['!cols']=[{wch:24},{wch:12},{wch:20},{wch:20},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,wsEl,'Éléments VMC');
+
+  // ── ONGLET 3 : LIAISONS ──
+  const lkRows=[
+    ['N°','Réseau','Matériau','Diamètre','Ø réel (mm)','Longueur (m)','Tracé'],
+  ];
+  links.forEach((l,i)=>{
+    lkRows.push([
+      i+1,
+      l.reseau||'—',
+      l.mat||'—',
+      l.dia||'—',
+      l.diaMm||'',
+      l.lengthM!=null?l.lengthM:'',
+      l.tension===0?'Linéaire':'Courbe',
+    ]);
+  });
+  // Ligne totaux
+  const firstDataRow=2;
+  const lastDataRow=links.length+1;
+  lkRows.push([]);
+  lkRows.push([
+    'TOTAL','','','','',
+    links.length?`=SUM(F${firstDataRow}:F${lastDataRow})`:'',
+    '',
+  ]);
+
+  // Sous-totaux par réseau
+  const reseauGroups={};
+  links.forEach(l=>{
+    const k=l.reseau||'—';
+    if(!reseauGroups[k]){reseauGroups[k]={count:0,metres:0};}
+    reseauGroups[k].count++;
+    if(l.lengthM!=null)reseauGroups[k].metres+=l.lengthM;
+  });
+  lkRows.push([]);
+  lkRows.push(['Sous-totaux par réseau','Liaisons','Longueur (m)']);
+  Object.entries(reseauGroups).forEach(([res,v])=>{
+    lkRows.push([res,v.count,v.metres.toFixed(2)]);
+  });
+
+  const wsLk=XLSX.utils.aoa_to_sheet(lkRows);
+  wsLk['!cols']=[{wch:6},{wch:16},{wch:14},{wch:12},{wch:14},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,wsLk,'Liaisons');
+
+  // ── EXPORT ──
+  const d=date.replace(/\//g,'-');
+  XLSX.writeFile(wb,`materiel_vmc_${d}.xlsx`);
+  setStatus('✓ Export Excel généré','ok');
+}
+
+function exportListe(){
+  const entries=Object.entries(placedElements).filter(([,v])=>v>0);
+  const byMat=buildLiaisonStats();
+  if(!entries.length&&!links.length){alert('Aucun élément à exporter.');return;}
+  const d=new Date().toLocaleDateString('fr-FR');
+  const cn=chantierNotes;
+  let txt=`LISTE MATÉRIEL VMC — ${d}\n`;
+  if(cn.client)txt+=`Chantier : ${cn.client}\n`;
+  if(cn.tel)txt+=`Tél.     : ${cn.tel}\n`;
+  if(cn.email)txt+=`Email    : ${cn.email}\n`;
+  if(cn.adresse)txt+=`Adresse  : ${cn.adresse}\n`;
+  if(cn.intervenant)txt+=`Tech.    : ${cn.intervenant}\n`;
+  txt+=`${'─'.repeat(40)}\n`;
+  entries.forEach(([l,q])=>txt+=`${l.padEnd(30)} × ${q}\n`);
+  Object.entries(byMat).forEach(([key,v])=>txt+=`${key.padEnd(40)} × ${v.count}${v.hasLen?' ('+v.metres.toFixed(1)+' m)':''}\n`);
+  txt+=`${'─'.repeat(40)}\nTOTAL : ${entries.reduce((s,[,v])=>s+v,0)+links.length} éléments`;
+  if(annotations.length)txt+=`\n${'─'.repeat(40)}\nAnnotations : ${annotations.length}`;
+  if(cn.remarques)txt+=`\n\nRemarques :\n${cn.remarques}`;
+  navigator.clipboard.writeText(txt).then(()=>alert('Liste copiée !')).catch(()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('Liste copiée !');});
+}
+
+function exportCSV(){
+  const entries=Object.entries(placedElements).filter(([,v])=>v>0);
+  const byMat=buildLiaisonStats();
+  if(!entries.length&&!links.length){alert('Aucun élément à exporter.');return;}
+  const d=new Date().toLocaleDateString('fr-FR');
+  let rows=entries.map(([l,q])=>`"${l}";${q};;"${d}";"${chantierNotes.client||''}"`);
+  Object.entries(byMat).forEach(([key,v])=>rows.push(`"${key}";${v.count};"${v.hasLen?v.metres.toFixed(1):''} m";"${d}";"${chantierNotes.client||''}"`));
+  const csv=`Élément;Quantité;Longueur totale;Date;Chantier\n`+rows.join('\n');
+  // Utiliser data URI pour compatibilité file:// et navigateurs restrictifs
+  const uri='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  Object.assign(document.createElement('a'),{href:uri,download:`vmc_${d.replace(/\//g,'-')}.csv`}).click();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PDF IMPORT — PDF.js
+// ══════════════════════════════════════════════════════════════
+let _pdfDoc=null;
+let _pdfFileName='';
+
+async function _loadPdfJs(){
+  if(window.pdfjsLib)return;
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=res;s.onerror=rej;
+    document.head.appendChild(s);
+  });
+  // Pointer vers le worker
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+async function loadPDF(file){
+  setStatus('Chargement du PDF…','loading');
+  try{
+    await _loadPdfJs();
+    _pdfFileName=file.name;
+    const arrayBuffer=await file.arrayBuffer();
+    _pdfDoc=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    const total=_pdfDoc.numPages;
+    document.getElementById('pdf-info').textContent=
+      `${file.name} — ${total} page${total>1?'s':''}`;
+    document.getElementById('pdf-page-total').textContent=`/ ${total}`;
+    document.getElementById('pdf-page-input').max=total;
+    document.getElementById('pdf-page-input').value=1;
+    document.getElementById('pdf-popup').style.display='flex';
+    await renderPdfPreview(1);
+    setStatus('PDF chargé — choisissez une page','ok');
+  }catch(err){
+    console.error(err);
+    setStatus('✗ Impossible de lire ce PDF','err');
+  }
+}
+
+async function renderPdfPreview(pageNum){
+  if(!_pdfDoc)return;
+  const page=await _pdfDoc.getPage(pageNum);
+  const previewCanvas=document.getElementById('pdf-preview-canvas');
+  const containerW=previewCanvas.parentElement.clientWidth-48||240;
+  const viewport=page.getViewport({scale:1});
+  const scale=containerW/viewport.width;
+  const scaledViewport=page.getViewport({scale});
+  previewCanvas.width=scaledViewport.width;
+  previewCanvas.height=scaledViewport.height;
+  const ctx=previewCanvas.getContext('2d');
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,previewCanvas.width,previewCanvas.height);
+  await page.render({canvasContext:ctx,viewport:scaledViewport}).promise;
+}
+
+async function confirmPdfPage(){
+  if(!_pdfDoc)return;
+  const pageNum=parseInt(document.getElementById('pdf-page-input').value)||1;
+  const clamped=Math.max(1,Math.min(_pdfDoc.numPages,pageNum));
+  setStatus('Rendu de la page '+clamped+'…','loading');
+  try{
+    const page=await _pdfDoc.getPage(clamped);
+    // Rendu haute résolution pour le fond de plan
+    const SCALE=3; // 3× = ~216 dpi pour un PDF A4 72dpi natif
+    const viewport=page.getViewport({scale:SCALE});
+    const offscreen=document.createElement('canvas');
+    offscreen.width=viewport.width;
+    offscreen.height=viewport.height;
+    const ctx=offscreen.getContext('2d');
+    ctx.fillStyle='#ffffff';
+    ctx.fillRect(0,0,offscreen.width,offscreen.height);
+    await page.render({canvasContext:ctx,viewport}).promise;
+    // Convertir en image pour loadBgImage
+    const img=new Image();
+    img.onload=function(){
+      closePdfPopup();
+      loadBgImage(img);
+      setStatus(`✓ ${_pdfFileName} — page ${clamped}/${_pdfDoc.numPages} (${img.width}×${img.height}px)`,'ok');
+    };
+    img.src=offscreen.toDataURL('image/png');
+  }catch(err){
+    console.error(err);
+    setStatus('✗ Erreur rendu PDF','err');
+  }
+}
+
+function closePdfPopup(){
+  document.getElementById('pdf-popup').style.display='none';
+}
+
+// Mise à jour preview au changement de page
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('pdf-page-input').addEventListener('change',function(){
+    const v=parseInt(this.value);
+    if(_pdfDoc&&v>=1&&v<=_pdfDoc.numPages)renderPdfPreview(v);
+  });
+});
+
+// ── SERVICE WORKER (PWA) ──
+if('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(r=>console.log('SW actif:',r.scope))
+      .catch(e=>console.warn('SW non enregistré:',e));
+  });
+}
+</script>
+</body>
+</html>
