@@ -918,6 +918,7 @@ function getPlacedElements(){return curLevel().placedElements;}
 // Les variables globales restent mais sont synchronisées au switch de niveau
 let placedElements={}, linkStart=null, links=[], measures=[];
 let scaleRatio=null;
+let _showLinkLabels=true;
 
 // Sauvegarde le state courant dans curLevel()
 function saveLevelState(){
@@ -2118,12 +2119,7 @@ function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY){
   const g=new Konva.Group({x:pos.x,y:pos.y,rotation:rotation||0,draggable:true,name:'element'});
   g.setAttr('toolId',toolId);g.setAttr('toolLabel',conf.label);
   if(realDims)g.setAttr('realDims',realDims);
-
-  const B=ICON_BASE_PX;
-  // Clipper le groupe à la zone icône — le label en dehors n'influe pas sur le bbox
-  g.clipFunc(ctx=>{
-    ctx.rect(-B/2-1,-B/2-1,B+2,B+2);
-  });
+  _applyGroupClip(g);
 
   const txt=new Konva.Text({
     x:B/2+2,y:-6,
@@ -2174,14 +2170,25 @@ function rotateSelected(delta){if(!selectedShape||selectedShape.name()!=='elemen
 function openResizePopup(){document.getElementById('contextMenu').style.display='none';if(!selectedShape||selectedShape.name()!=='element')return;const current=Math.round((selectedShape.scaleX()||1)*10);document.getElementById('slider-individual').value=Math.min(50,Math.max(1,current));document.getElementById('slider-individual-val').textContent=(current/10).toFixed(1)+'×';const av=document.getElementById('rot-angle-val');if(av)av.textContent=Math.round(selectedShape.rotation())+'°';const popup=document.getElementById('resize-popup');const sp=stage.container().getBoundingClientRect(),sc=stage.scaleX();popup.style.left=Math.min(selectedShape.x()*sc+stage.x()+sp.left+20,window.innerWidth-270)+'px';popup.style.top=Math.min(selectedShape.y()*sc+stage.y()+sp.top+20,window.innerHeight-180)+'px';popup.classList.add('open');}
 function onIndividualSlider(val){if(!selectedShape||selectedShape.name()!=='element')return;const s=parseInt(val)/10;document.getElementById('slider-individual-val').textContent=s.toFixed(1)+'×';applyScaleToElement(selectedShape,s);updateLinks();drawLayer.batchDraw();showDeleteBtn(selectedShape);}
 function closeResizePopup(){document.getElementById('resize-popup').classList.remove('open');}
+function _applyGroupClip(g){
+  const B=ICON_BASE_PX;
+  // clipFunc pour le visuel uniquement
+  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  // hitFunc étendu pour que les clics/drag fonctionnent bien
+  g.hitFunc((ctx,shape)=>{
+    ctx.beginPath();
+    ctx.rect(-B/2-4,-B/2-4,B+8,B+8);
+    ctx.closePath();
+    ctx.fillStrokeShape(shape);
+  });
+}
 function applyScaleToElement(g,sx,sy){
   const scX=sx, scY=(sy!==undefined&&sy!==null)?sy:sx;
   g.scale({x:scX,y:scY});
-  // Mettre à jour le clipFunc pour suivre le scale (le clip est en coordonnées locales, donc invariant)
-  const B=ICON_BASE_PX;
-  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  _applyGroupClip(g);
   const t=getTextNode(g);
   if(t){
+    const B=ICON_BASE_PX;
     t.scale({x:1/scX,y:1/scY});
     t.x((B/2+2)/scX);
     t.y(-6/scY);
@@ -2822,7 +2829,7 @@ function placeElement(toolId,conf,pos){
   const B=ICON_BASE_PX;
   const g=new Konva.Group({x:pos.x,y:pos.y,draggable:true,name:'element'});
   g.setAttr('toolId',toolId);g.setAttr('toolLabel',conf.label);
-  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  _applyGroupClip(g);
   const txt=new Konva.Text({x:B/2+2,y:-6,text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',fontFamily:'Segoe UI, sans-serif',scaleX:1/s,scaleY:1/s,visible:false,listening:false});
   g.add(txt);g.scale({x:s,y:s});addVisualToGroup(g,toolId,s);
   g.on('dragstart',()=>{
@@ -2868,7 +2875,7 @@ function duplicateSelected(){
   const g=new Konva.Group({x:selectedShape.x()+24,y:selectedShape.y()+24,rotation:rot,draggable:true,name:'element'});
   g.setAttr('toolId',id);g.setAttr('toolLabel',conf.label);
   if(realDims)g.setAttr('realDims',realDims);
-  g.clipFunc(ctx=>{ctx.rect(-B/2-1,-B/2-1,B+2,B+2);});
+  _applyGroupClip(g);
   const txt=new Konva.Text({x:(B/2+2)/sX,y:-6/sY,text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',fontFamily:'Segoe UI,sans-serif',scaleX:1/sX,scaleY:1/sY,visible:false,listening:false});
   g.add(txt);g.scale({x:sX,y:sY});addVisualToGroup(g,id,sX);
   g.on('dragstart',()=>{clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;isPanning=false;});
