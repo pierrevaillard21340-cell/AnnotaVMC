@@ -632,7 +632,8 @@
       <div id="material-list"><div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div></div>
       <div id="panel-footer">
         <button class="export-btn primary" onclick="exportListe()">📋 Copier la liste</button>
-        <button class="export-btn" onclick="exportXLSX()" style="border-color:#22c55e;color:#22c55e;">📊 Export Excel</button>
+        <button class="export-btn" onclick="exportXLSX('level')" style="border-color:#22c55e;color:#22c55e;">📊 Excel niveau</button>
+        <button class="export-btn" onclick="exportXLSX('global')" style="border-color:#22c55e;color:#22c55e;">📊 Excel global</button>
         <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
         <button class="export-btn" onclick="exportPNG()">🖼 Export PNG</button>
         <button class="export-btn" onclick="exportPDF()">📄 Export PDF</button>
@@ -3403,9 +3404,8 @@ function exportListe(){
   navigator.clipboard.writeText(txt).then(()=>alert('Liste copiée !')).catch(()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('Liste copiée !');});
 }
 // ── EXPORT EXCEL ──
-async function exportXLSX(){
+async function exportXLSX(mode='global'){
   setStatus('Préparation export Excel…','loading');
-  // Chargement SheetJS si pas encore présent
   if(!window.XLSX){
     await new Promise((res,rej)=>{
       const s=document.createElement('script');
@@ -3414,111 +3414,184 @@ async function exportXLSX(){
     });
   }
 
+  // Sérialiser le niveau courant avant export
+  _serializeLevelKonva();
+
+  // En mode niveau : n'exporter que le niveau courant
+  const lvToExport = mode==='level' ? [levels[_currentLevelIdx]] : levels;
+
   const cn=chantierNotes;
   const date=new Date().toLocaleDateString('fr-FR');
   const wb=XLSX.utils.book_new();
 
-  // ── ONGLET 1 : RÉCAPITULATIF ──
+  // ── ONGLET RÉCAPITULATIF ──
   const recap=[];
   recap.push(['LISTE MATÉRIEL VMC DOUBLE FLUX']);
   recap.push([]);
-  if(cn.client)    recap.push(['Chantier / Client', cn.client]);
-  if(cn.tel)       recap.push(['Téléphone',         cn.tel]);
-  if(cn.email)     recap.push(['Email',             cn.email]);
-  if(cn.adresse)   recap.push(['Adresse',           cn.adresse]);
-  if(cn.date)      recap.push(['Date',               cn.date]);
-  if(cn.intervenant)recap.push(['Intervenant',       cn.intervenant]);
-  if(cn.type)      recap.push(['Type logement',      cn.type]);
-  if(cn.surface)   recap.push(['Surface',            cn.surface+' m²']);
+  if(cn.client)     recap.push(['Chantier / Client', cn.client]);
+  if(cn.tel)        recap.push(['Téléphone',          cn.tel]);
+  if(cn.email)      recap.push(['Email',              cn.email]);
+  if(cn.adresse)    recap.push(['Adresse',            cn.adresse]);
+  if(cn.date)       recap.push(['Date de visite',     cn.date]);
+  if(cn.intervenant)recap.push(['Intervenant',        cn.intervenant]);
+  if(cn.type)       recap.push(['Type logement',      cn.type]);
+  if(cn.surface)    recap.push(['Surface',            cn.surface+' m²']);
   recap.push([]);
   recap.push(['Date export', date]);
-  if(scaleRatio)   recap.push(['Échelle calibrée', '1 px = '+(scaleRatio*100).toFixed(4)+' cm']);
+  recap.push(['Niveaux', lvToExport.map(l=>l.name).join(' · ')])
+  recap.push(['Mode export', mode==='level'?'Niveau courant : '+curLevel().name:'Tous niveaux']);
   recap.push([]);
-  recap.push(['RÉSUMÉ']);
-  const totalElements=Object.values(placedElements).reduce((s,v)=>s+v,0);
-  const totalLiaisons=links.length;
-  const totalMetres=links.reduce((s,l)=>s+(l.lengthM||0),0);
-  const totalAnnots=annotations.length;
-  recap.push(['Éléments VMC',   totalElements]);
-  recap.push(['Liaisons',       totalLiaisons]);
-  recap.push(['Longueur totale',totalMetres.toFixed(2)+' m']);
-  recap.push(['Annotations',    totalAnnots]);
-  if(cn.remarques){recap.push([]);recap.push(['Remarques']);recap.push([cn.remarques]);}
 
+  // Totaux
+  let totalEls=0,totalLiaisons=0,totalMetres=0;
+  lvToExport.forEach(lv=>{
+    Object.values(lv.placedElements||{}).forEach(v=>totalEls+=v);
+    (lv._links||[]).forEach(l=>{totalLiaisons++;if(l.lengthM)totalMetres+=l.lengthM;});
+  });
+  recap.push(['TOTAUX GLOBAUX']);
+  recap.push(['Éléments VMC',    totalEls]);
+  recap.push(['Liaisons',        totalLiaisons]);
+  recap.push(['Longueur totale', totalMetres.toFixed(2)+' m']);
+  if(cn.remarques){recap.push([]);recap.push(['Remarques']);recap.push([cn.remarques]);}
   const wsRecap=XLSX.utils.aoa_to_sheet(recap);
   wsRecap['!cols']=[{wch:28},{wch:40}];
   XLSX.utils.book_append_sheet(wb,wsRecap,'Récapitulatif');
 
-  // ── ONGLET 2 : ÉLÉMENTS VMC ──
-  const elRows=[
-    ['Élément','Quantité','Largeur réelle (mm)','Hauteur réelle (mm)','Notes'],
-  ];
-  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-  const countByLabel={};
-  const dimsByLabel={};
-  elNodes.forEach(g=>{
-    const lbl=g.getAttr('toolLabel')||'?';
-    countByLabel[lbl]=(countByLabel[lbl]||0)+1;
-    const dims=g.getAttr('realDims');
-    if(dims&&!dimsByLabel[lbl])dimsByLabel[lbl]=dims;
-  });
-  Object.entries(countByLabel).filter(([,v])=>v>0).forEach(([lbl,qty])=>{
-    const dims=dimsByLabel[lbl];
-    elRows.push([lbl,qty,dims?dims.w:'',dims?dims.h:'','']);
-  });
-  elRows.push([]);
-  elRows.push(['TOTAL','=SUM(B2:B'+(elRows.length-1)+')','','','']);
+  // ── UN ONGLET PAR NIVEAU ──
+  lvToExport.forEach(lv=>{
+    const lvName=lv.name.replace(/[\/\\?*[\]]/g,'').slice(0,28); // nom sheet valide
 
-  const wsEl=XLSX.utils.aoa_to_sheet(elRows);
-  wsEl['!cols']=[{wch:24},{wch:12},{wch:20},{wch:20},{wch:30}];
-  XLSX.utils.book_append_sheet(wb,wsEl,'Éléments VMC');
+    // --- Éléments ---
+    const elRows=[['Élément','Quantité','Larg. réelle (mm)','Haut. réelle (mm)']];
+    const countByLabel={};const dimsByLabel={};
+    (lv._elements||[]).forEach(e=>{
+      if(e.traverseeData)return; // traversées séparées
+      const lbl=e.toolLabel||e.toolId||'?';
+      countByLabel[lbl]=(countByLabel[lbl]||0)+1;
+      if(e.realDims&&!dimsByLabel[lbl])dimsByLabel[lbl]=e.realDims;
+    });
+    Object.entries(countByLabel).filter(([,v])=>v>0).forEach(([lbl,qty])=>{
+      const dims=dimsByLabel[lbl];
+      elRows.push([lbl,qty,dims?dims.w:'',dims?dims.h:'']);
+    });
+    if(elRows.length>1){
+      elRows.push([]);
+      elRows.push(['TOTAL',`=SUM(B2:B${elRows.length-1})`,'','']);
+    }
 
-  // ── ONGLET 3 : LIAISONS ──
-  const lkRows=[
-    ['N°','Réseau','Matériau','Diamètre','Ø réel (mm)','Longueur (m)','Tracé'],
-  ];
-  links.forEach((l,i)=>{
-    lkRows.push([
-      i+1,
-      l.reseau||'—',
-      l.mat||'—',
-      l.dia||'—',
-      l.diaMm||'',
-      l.lengthM!=null?l.lengthM:'',
-      l.tension===0?'Linéaire':'Courbe',
-    ]);
+    // --- Liaisons ---
+    const lkRows=[['N°','Réseau','Matériau','Diamètre','Ø réel (mm)','Longueur (m)','Tracé','Coudes 90°','Coudes 45°']];
+    const reseauGroups={};
+    (lv._links||[]).forEach((l,i)=>{
+      lkRows.push([i+1,l.reseau||'—',l.mat||'—',l.dia||'—',l.diaMm||'',
+        l.lengthM!=null?l.lengthM:'',l.tension===0?'Linéaire':'Courbe',
+        l.bends90||0,l.bends45||0]);
+      const k=l.reseau||'—';
+      if(!reseauGroups[k])reseauGroups[k]={count:0,metres:0,bends90:0,bends45:0};
+      reseauGroups[k].count++;
+      if(l.lengthM!=null)reseauGroups[k].metres+=l.lengthM;
+      reseauGroups[k].bends90+=(l.bends90||0);
+      reseauGroups[k].bends45+=(l.bends45||0);
+    });
+    if(lkRows.length>1){
+      const lastDataRow=lkRows.length-1;
+      lkRows.push([]);
+      lkRows.push(['TOTAL','','','','',
+        `=SUM(F2:F${lastDataRow})`,'',
+        `=SUM(H2:H${lastDataRow})`,`=SUM(I2:I${lastDataRow})`]);
+      lkRows.push([]);
+      lkRows.push(['Sous-totaux par réseau','Liaisons','Longueur (m)','','Coudes 90°','Coudes 45°']);
+      Object.entries(reseauGroups).forEach(([res,v])=>{
+        lkRows.push([res,v.count,v.metres.toFixed(2),'',v.bends90,v.bends45]);
+      });
+    }
+
+    // --- Traversées ---
+    const tvRows=[['ID','Type','Réseau','Diamètre','Longueur verticale (m)']];
+    (lv._elements||[]).forEach(e=>{
+      if(!e.traverseeData)return;
+      const t=e.traverseeData;
+      tvRows.push([t.id,TRAVERSEE_TYPES[t.type]||t.type,
+        TRAVERSEE_LABELS[t.reseau]||t.reseau,t.dia||'',t.length||'']);
+    });
+
+    // Créer une feuille combinée pour ce niveau
+    const sheetRows=[];
+    sheetRows.push([`NIVEAU : ${lv.name}`]);
+    sheetRows.push([]);
+    sheetRows.push(['── ÉLÉMENTS ──']);
+    elRows.forEach(r=>sheetRows.push(r));
+    sheetRows.push([]);
+    sheetRows.push(['── LIAISONS ──']);
+    lkRows.forEach(r=>sheetRows.push(r));
+    if(tvRows.length>1){
+      sheetRows.push([]);
+      sheetRows.push(['── TRAVERSÉES ──']);
+      tvRows.forEach(r=>sheetRows.push(r));
+    }
+
+    const ws=XLSX.utils.aoa_to_sheet(sheetRows);
+    ws['!cols']=[{wch:6},{wch:20},{wch:14},{wch:12},{wch:14},{wch:14},{wch:12},{wch:10},{wch:10}];
+    XLSX.utils.book_append_sheet(wb,ws,lvName);
   });
-  // Ligne totaux
-  const firstDataRow=2;
-  const lastDataRow=links.length+1;
-  lkRows.push([]);
-  lkRows.push([
-    'TOTAL','','','','',
-    links.length?`=SUM(F${firstDataRow}:F${lastDataRow})`:'',
-    '',
-  ]);
 
-  // Sous-totaux par réseau
-  const reseauGroups={};
-  links.forEach(l=>{
-    const k=l.reseau||'—';
-    if(!reseauGroups[k]){reseauGroups[k]={count:0,metres:0};}
-    reseauGroups[k].count++;
-    if(l.lengthM!=null)reseauGroups[k].metres+=l.lengthM;
-  });
-  lkRows.push([]);
-  lkRows.push(['Sous-totaux par réseau','Liaisons','Longueur (m)']);
-  Object.entries(reseauGroups).forEach(([res,v])=>{
-    lkRows.push([res,v.count,v.metres.toFixed(2)]);
-  });
+  // ── ONGLET GLOBAL (si plusieurs niveaux) ──
+  if(lvToExport.length>1||mode==='global'){
+    const globalRows=[['SYNTHÈSE GLOBALE — TOUS NIVEAUX'],[]];
+    globalRows.push(['── ÉLÉMENTS (tous niveaux) ──']);
+    globalRows.push(['Élément','Quantité totale']);
+    const globalEls={};
+    lvToExport.forEach(lv=>{
+      Object.entries(lv.placedElements||{}).forEach(([k,v])=>{
+        globalEls[k]=(globalEls[k]||0)+v;
+      });
+    });
+    Object.entries(globalEls).filter(([,v])=>v>0)
+      .forEach(([lbl,qty])=>globalRows.push([lbl,qty]));
 
-  const wsLk=XLSX.utils.aoa_to_sheet(lkRows);
-  wsLk['!cols']=[{wch:6},{wch:16},{wch:14},{wch:12},{wch:14},{wch:14},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,wsLk,'Liaisons');
+    globalRows.push([]);
+    globalRows.push(['── LIAISONS (tous niveaux) ──']);
+    globalRows.push(['Réseau','Liaisons','Longueur totale (m)','Coudes 90°','Coudes 45°']);
+    const globalReseau={};
+    lvToExport.forEach(lv=>{
+      (lv._links||[]).forEach(l=>{
+        const k=l.reseau||'—';
+        if(!globalReseau[k])globalReseau[k]={count:0,metres:0,bends90:0,bends45:0};
+        globalReseau[k].count++;
+        if(l.lengthM)globalReseau[k].metres+=l.lengthM;
+        globalReseau[k].bends90+=(l.bends90||0);
+        globalReseau[k].bends45+=(l.bends45||0);
+      });
+    });
+    Object.entries(globalReseau).forEach(([res,v])=>{
+      globalRows.push([res,v.count,v.metres.toFixed(2),v.bends90,v.bends45]);
+    });
 
-  // ── EXPORT ──
+    // Traversées globales
+    const allTv=[];
+    levels.forEach(lv=>{
+      (lv._elements||[]).forEach(e=>{
+        if(e.traverseeData)allTv.push({...e.traverseeData,_level:lv.name});
+      });
+    });
+    if(allTv.length){
+      globalRows.push([]);
+      globalRows.push(['── TRAVERSÉES (tous niveaux) ──']);
+      globalRows.push(['ID','Type','Réseau','Niveau','Diamètre','Longueur (m)']);
+      allTv.forEach(t=>{
+        globalRows.push([t.id,TRAVERSEE_TYPES[t.type]||t.type,
+          TRAVERSEE_LABELS[t.reseau]||t.reseau,t._level,t.dia||'',t.length||'']);
+      });
+    }
+
+    const wsGlobal=XLSX.utils.aoa_to_sheet(globalRows);
+    wsGlobal['!cols']=[{wch:24},{wch:14},{wch:18},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,wsGlobal,'Global');
+  }
+
   const d=date.replace(/\//g,'-');
-  XLSX.writeFile(wb,`materiel_vmc_${d}.xlsx`);
+  const suffix=mode==='level'?`_${levels[_currentLevelIdx].name.replace(/\s/g,'_')}`:'_global';
+  XLSX.writeFile(wb,`materiel_vmc_${d}${suffix}.xlsx`);
   setStatus('✓ Export Excel généré','ok');
 }
 
