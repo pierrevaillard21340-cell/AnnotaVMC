@@ -621,6 +621,14 @@
 
     <!-- TAB MATERIEL -->
     <div class="panel-pane active" id="tab-materiel">
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <span style="font-size:10px;color:var(--text2);font-weight:600;flex:1;" id="mat-level-label">Niveau courant</span>
+        <button id="btn-global-view" onclick="toggleGlobalView()"
+          style="font-size:10px;padding:3px 8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;"
+          title="Basculer vue globale / niveau courant">
+          🌐 Global
+        </button>
+      </div>
       <div id="material-list"><div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div></div>
       <div id="panel-footer">
         <button class="export-btn primary" onclick="exportListe()">📋 Copier la liste</button>
@@ -3190,27 +3198,156 @@ function updateLinks(){links.forEach(l=>refreshLinkLine(l));}
 // ══════════════════════════════════════════════════════════════
 // LISTE MATÉRIEL
 // ══════════════════════════════════════════════════════════════
+let _globalView=false;
+function toggleGlobalView(){
+  _globalView=!_globalView;
+  const btn=document.getElementById('btn-global-view');
+  const lbl=document.getElementById('mat-level-label');
+  if(btn){
+    btn.style.borderColor=_globalView?'var(--accent)':'var(--border)';
+    btn.style.color=_globalView?'var(--accent)':'var(--text2)';
+    btn.style.background=_globalView?'rgba(59,130,246,.12)':'var(--surface2)';
+  }
+  if(lbl)lbl.textContent=_globalView?'Tous les niveaux':'Niveau : '+curLevel().name;
+  updateListe();
+}
+
 function updateListe(){
+  if(_globalView){_updateListeGlobal();return;}
+  _updateListeLevel();
+}
+
+function _buildLevelListeData(lvLinks, lvElements, lvPlaced){
+  // Construit les données pour un niveau à partir de données sérialisées ou live
+  const colorMap=Object.fromEntries(Object.values(TOOLS).map(v=>[v.label,v.color]));
+  const entries=Object.entries(lvPlaced||{}).filter(([,v])=>v>0);
+  const byReseau={};
+  (lvLinks||[]).forEach(l=>{
+    const key=l.reseau||'—';
+    if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{},bends90:0,bends45:0};
+    byReseau[key].count++;
+    if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}
+    byReseau[key].bends90+=(l.bends90||0);byReseau[key].bends45+=(l.bends45||0);
+    const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';
+    if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};
+    byReseau[key].subnets[sk].count++;
+    if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}
+  });
+  return{entries,byReseau,colorMap};
+}
+
+function _renderListeHTML(entries,byReseau,colorMap,traversees,showLevelBadge){
+  let html='';
+  entries.forEach(([l,q])=>{
+    html+=`<div class="mat-item"><span class="mat-dot" style="background:${colorMap[l]||'#888'}"></span><span class="mat-name">${l}</span><span class="mat-count">×${q}</span></div>`;
+  });
+  Object.entries(byReseau).forEach(([reseau,v])=>{
+    html+=`<div class="mat-item" style="border-left:3px solid ${v.color};flex-direction:column;align-items:flex-start;gap:4px;">
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <span class="mat-dot" style="background:${v.color}"></span>
+        <span class="mat-name" style="font-size:12px;font-weight:600;">${reseau}</span>
+        <span class="mat-count" style="font-size:11px;">×${v.count}${v.hasLen?' — '+v.metres.toFixed(1)+' m':''}</span>
+      </div>
+      ${Object.entries(v.subnets).map(([sk,sv])=>`<div style="display:flex;width:100%;padding-left:18px;font-size:11px;color:var(--text2);"><span style="flex:1;">${sk}</span><span>×${sv.count}${sv.hasLen?' ('+sv.metres.toFixed(1)+' m)':''}</span></div>`).join('')}
+      ${v.bends90>0?`<div style="padding-left:18px;font-size:11px;color:#a855f7;">↩ Coudes 90° : ${v.bends90}</div>`:''}
+      ${v.bends45>0?`<div style="padding-left:18px;font-size:11px;color:#a78bfa;">⤢ Coudes 45° : ${v.bends45}</div>`:''}
+    </div>`;
+  });
+  return html;
+}
+
+function _updateListeLevel(){
+  // Mode niveau courant — utilise les données live (Konva)
+  const colorMap=Object.fromEntries(Object.values(TOOLS).map(v=>[v.label,v.color]));
   const entries=Object.entries(placedElements).filter(([,v])=>v>0);
   const total=entries.reduce((s,[,v])=>s+v,0);
-  const colorMap=Object.fromEntries(Object.values(TOOLS).map(v=>[v.label,v.color]));
   const byReseau={};
-  links.forEach(l=>{const key=l.reseau||'—';if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{},bends90:0,bends45:0};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}byReseau[key].bends90+=(l.bends90||0);byReseau[key].bends45+=(l.bends45||0);const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};byReseau[key].subnets[sk].count++;if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}});
-  const liaisonRows=Object.entries(byReseau).map(([reseau,v])=>`<div class="mat-item" style="border-left:3px solid ${v.color};flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;align-items:center;gap:8px;width:100%;"><span class="mat-dot" style="background:${v.color}"></span><span class="mat-name" style="font-size:12px;font-weight:600;">${reseau}</span><span class="mat-count" style="font-size:11px;">×${v.count}${v.hasLen?' — '+v.metres.toFixed(1)+' m':''}</span></div>${Object.entries(v.subnets).map(([sk,sv])=>`<div style="display:flex;width:100%;padding-left:18px;font-size:11px;color:var(--text2);"><span style="flex:1;">${sk}</span><span>×${sv.count}${sv.hasLen?' ('+sv.metres.toFixed(1)+' m)':''}</span></div>`).join('')}${v.bends90>0?`<div style="padding-left:18px;font-size:11px;color:#a855f7;">↩ Coudes 90° : ${v.bends90}</div>`:''}${v.bends45>0?`<div style="padding-left:18px;font-size:11px;color:#a78bfa;">⤢ Coudes 45° : ${v.bends45}</div>`:''}</div>`).join('');
-  // Traversées — regroupées par identifiant
+  links.forEach(l=>{
+    const key=l.reseau||'—';
+    if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{},bends90:0,bends45:0};
+    byReseau[key].count++;
+    if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}
+    byReseau[key].bends90+=(l.bends90||0);byReseau[key].bends45+=(l.bends45||0);
+    const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';
+    if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};
+    byReseau[key].subnets[sk].count++;
+    if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}
+  });
+
+  // Traversées niveau courant
   const traversees=[];
   drawLayer.getChildren().filter(n=>n.name()==='element'&&n.getAttr('traverseeData')).forEach(g=>{
-    const d=g.getAttr('traverseeData');
-    if(d)traversees.push(d);
+    const d=g.getAttr('traverseeData');if(d)traversees.push(d);
   });
-  let traverseeRows='';
-  if(traversees.length){
-    const byId={};
-    traversees.forEach(t=>{
-      if(!byId[t.id])byId[t.id]={id:t.id,items:[]};
-      byId[t.id].items.push(t);
+  const traverseeRows=_buildTraverseeRows(traversees);
+
+  const mainHTML=_renderListeHTML(entries,byReseau,colorMap,traversees,false);
+  document.getElementById('material-list').innerHTML=
+    !mainHTML&&!traverseeRows
+    ?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div>'
+    :mainHTML+traverseeRows;
+
+  const lbl=document.getElementById('mat-level-label');
+  if(lbl&&!_globalView)lbl.textContent='Niveau : '+curLevel().name;
+}
+
+function _updateListeGlobal(){
+  // Mode global — cumule tous les niveaux
+  // D'abord sérialiser le niveau courant
+  _serializeLevelKonva();
+
+  const colorMap=Object.fromEntries(Object.values(TOOLS).map(v=>[v.label,v.color]));
+  const globalPlaced={};
+  const globalByReseau={};
+  const globalTraversees=[];
+
+  levels.forEach((lv,li)=>{
+    // Éléments
+    Object.entries(lv.placedElements||{}).forEach(([k,v])=>{
+      globalPlaced[k]=(globalPlaced[k]||0)+v;
     });
-    // Chercher aussi dans les autres niveaux
+    // Liaisons
+    (lv._links||[]).forEach(l=>{
+      const key=l.reseau||'—';
+      if(!globalByReseau[key])globalByReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{},bends90:0,bends45:0};
+      globalByReseau[key].count++;
+      if(l.lengthM!=null){globalByReseau[key].metres+=l.lengthM;globalByReseau[key].hasLen=true;}
+      globalByReseau[key].bends90+=(l.bends90||0);globalByReseau[key].bends45+=(l.bends45||0);
+      const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';
+      if(!globalByReseau[key].subnets[sk])globalByReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};
+      globalByReseau[key].subnets[sk].count++;
+      if(l.lengthM!=null){globalByReseau[key].subnets[sk].metres+=l.lengthM;globalByReseau[key].subnets[sk].hasLen=true;}
+    });
+    // Traversées
+    (lv._elements||[]).forEach(e=>{
+      if(e.traverseeData)globalTraversees.push({...e.traverseeData,_levelName:lv.name});
+    });
+  });
+
+  const entries=Object.entries(globalPlaced).filter(([,v])=>v>0);
+  const traverseeRows=_buildTraverseeRows(globalTraversees,true);
+  const mainHTML=_renderListeHTML(entries,globalByReseau,colorMap,globalTraversees,true);
+
+  // Entête par niveau
+  let lvSummary='<div style="padding:6px 8px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);margin-bottom:4px;">';
+  lvSummary+=levels.map(lv=>`<span style="margin-right:8px;">📐 ${lv.name}</span>`).join('');
+  lvSummary+='</div>';
+
+  document.getElementById('material-list').innerHTML=
+    !mainHTML&&!traverseeRows
+    ?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Aucun élément sur aucun niveau</div>'
+    :lvSummary+mainHTML+traverseeRows;
+}
+
+function _buildTraverseeRows(traversees,showLevel){
+  if(!traversees.length)return'';
+  const byId={};
+  traversees.forEach(t=>{
+    if(!byId[t.id])byId[t.id]={id:t.id,items:[]};
+    byId[t.id].items.push(t);
+  });
+  // Chercher dans les autres niveaux pour le mode niveau courant
+  if(!showLevel){
     levels.forEach((lv,li)=>{
       if(li===_currentLevelIdx)return;
       (lv._elements||[]).forEach(e=>{
@@ -3221,32 +3358,26 @@ function updateListe(){
         }
       });
     });
-    traverseeRows='<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">';
-    traverseeRows+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Traversées</div>';
-    Object.entries(byId).forEach(([id,grp])=>{
-      const allLevels=[...new Set(grp.items.map(t=>t._otherLevel||curLevel().name))];
-      const linked=allLevels.length>1;
-      const color=TRAVERSEE_COLORS[grp.items[0].reseau]||'#e879f9';
-      const totalLen=grp.items.reduce((s,t)=>s+(t.length||0),0);
-      traverseeRows+=`<div class="mat-item" style="border-left:3px solid ${color};flex-direction:column;align-items:flex-start;gap:2px;">
-        <div style="display:flex;align-items:center;gap:6px;width:100%;">
-          <span style="font-weight:700;color:${color};font-size:12px;">[${id}]</span>
-          <span style="font-size:11px;color:var(--text);">${TRAVERSEE_TYPES[grp.items[0].type]||'Traversée'}</span>
-          ${linked?`<span style="font-size:9px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:3px;padding:1px 5px;">⇅ multi-niveaux</span>`:''}
-          <span style="margin-left:auto;font-size:11px;color:var(--text2);">${totalLen>0?totalLen.toFixed(2)+' m':''}</span>
-        </div>
-        <div style="font-size:10px;color:var(--text2);padding-left:4px;">${TRAVERSEE_LABELS[grp.items[0].reseau]}${grp.items[0].dia?' · '+grp.items[0].dia:''}</div>
-        ${linked?`<div style="font-size:10px;color:#818cf8;padding-left:4px;">${allLevels.join(' ↕ ')}</div>`:''}
-      </div>`;
-    });
-    traverseeRows+='</div>';
   }
-
-  document.getElementById('material-list').innerHTML=
-    entries.length===0&&links.length===0&&traversees.length===0
-    ?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div>'
-    :entries.map(([l,q])=>`<div class="mat-item"><span class="mat-dot" style="background:${colorMap[l]||'#888'}"></span><span class="mat-name">${l}</span><span class="mat-count">×${q}</span></div>`).join('')
-    +liaisonRows+traverseeRows;
+  let rows='<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">';
+  rows+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Traversées</div>';
+  Object.entries(byId).forEach(([id,grp])=>{
+    const allLevels=[...new Set(grp.items.map(t=>t._otherLevel||t._levelName||curLevel().name))];
+    const linked=allLevels.length>1;
+    const color=TRAVERSEE_COLORS[grp.items[0].reseau]||'#e879f9';
+    const totalLen=grp.items.reduce((s,t)=>s+(t.length||0),0);
+    rows+=`<div class="mat-item" style="border-left:3px solid ${color};flex-direction:column;align-items:flex-start;gap:2px;">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;">
+        <span style="font-weight:700;color:${color};font-size:12px;">[${id}]</span>
+        <span style="font-size:11px;color:var(--text);">${TRAVERSEE_TYPES[grp.items[0].type]||'Traversée'}</span>
+        ${linked?`<span style="font-size:9px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:3px;padding:1px 5px;">⇅ ${allLevels.join(' ↕ ')}</span>`:''}
+        <span style="margin-left:auto;font-size:11px;color:var(--text2);">${totalLen>0?totalLen.toFixed(2)+' m':''}</span>
+      </div>
+      <div style="font-size:10px;color:var(--text2);padding-left:4px;">${TRAVERSEE_LABELS[grp.items[0].reseau]}${grp.items[0].dia?' · '+grp.items[0].dia:''}</div>
+    </div>`;
+  });
+  rows+='</div>';
+  return rows;
 }
 
 // ══════════════════════════════════════════════════════════════
