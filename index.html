@@ -388,6 +388,7 @@
       <div class="hgroup-label">Actions</div>
       <div class="hgroup-body">
         <button class="action-btn" onclick="undo()" title="Annuler (Ctrl+Z)">↩ Annuler</button>
+        <button class="action-btn" onclick="redo()" title="Restaurer (Ctrl+Y)">↪ Restaurer</button>
         <button class="action-btn danger" onclick="clearAll()" title="Tout effacer">🗑 Effacer</button>
       </div>
     </div>
@@ -2073,6 +2074,11 @@ function getLevelHistory(){
   if(!lv._history)lv._history=[];
   return lv._history;
 }
+function getLevelFuture(){
+  const lv=curLevel();
+  if(!lv._future)lv._future=[];
+  return lv._future;
+}
 function pushHistory(){
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
   const h=getLevelHistory();
@@ -2086,11 +2092,11 @@ function pushHistory(){
     annotIdCounter:_annotIdCounter,
   });
   if(h.length>MAX_HISTORY)h.shift();
+  // Toute nouvelle action efface le futur (redo)
+  getLevelFuture().length=0;
 }
-function undo(){
-  const h=getLevelHistory();
-  if(!h.length){setStatus('Rien à annuler','ok');return;}
-  const snap=h.pop();
+
+function _restoreSnapshot(snap){
   clearAllSilent();
   scaleRatio=snap.scaleRatio;placedElements={...snap.placedElements};
   if(snap.reseauTypes){reseauTypes=snap.reseauTypes;syncReseauSelect();renderReseauxConfig();}
@@ -2105,7 +2111,42 @@ function undo(){
     else if(a.type==='text'&&a.data.text)rehydrateTextAnnot(a);
     else if(a.type==='arrow'&&a.data.p1)rehydrateArrowAnnot(a);
   });
-  selectElement(null);hideDeleteBtn();refreshDeleteBtn();drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();setStatus('Annulation effectuée','ok');
+  selectElement(null);hideDeleteBtn();refreshDeleteBtn();drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();
+}
+
+function _currentSnapshot(){
+  const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
+  return{
+    placedElements:{...placedElements},
+    elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null})),
+    links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
+    measures:measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()})),
+    scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
+    annotations:annotations.map(a=>({id:a.id,type:a.type,data:JSON.parse(JSON.stringify(a.data))})),
+    annotIdCounter:_annotIdCounter,
+  };
+}
+
+function undo(){
+  const h=getLevelHistory();
+  const f=getLevelFuture();
+  if(!h.length){setStatus('Rien à annuler','ok');return;}
+  // Sauvegarder l'état courant dans le futur avant de revenir
+  f.push(_currentSnapshot());
+  const snap=h.pop();
+  _restoreSnapshot(snap);
+  setStatus('Annulation effectuée','ok');
+}
+
+function redo(){
+  const h=getLevelHistory();
+  const f=getLevelFuture();
+  if(!f.length){setStatus('Rien à restaurer','ok');return;}
+  // Sauvegarder l'état courant dans l'historique avant d'avancer
+  h.push(_currentSnapshot());
+  const snap=f.pop();
+  _restoreSnapshot(snap);
+  setStatus('Restauration effectuée','ok');
 }
 function clearAllSilent(){
   links.forEach(l=>destroyLinkNodes(l));links=[];
@@ -2650,6 +2691,7 @@ function initEvents(){
       if(selectedShape){hideDeleteBtn();deleteSelected();}
     }
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+    if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))){e.preventDefault();redo();}
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveProject();}
     if(!document.activeElement.matches('input,select,textarea')){
       if(e.key==='['||e.key==='ArrowLeft'&&e.altKey){e.preventDefault();rotateSelected(-90);}
