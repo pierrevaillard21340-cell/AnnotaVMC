@@ -3574,6 +3574,18 @@ function isTraverseeTool(tool){
   return tool&&tool.startsWith('traversee-');
 }
 
+// ── RAPPEL SAUVEGARDE À LA FERMETURE ──
+let _hasUnsavedChanges=false;
+window.addEventListener('beforeunload',function(e){
+  if(_hasUnsavedChanges){e.preventDefault();e.returnValue='';}
+});
+// Marquer changements non sauvegardés à chaque pushHistory
+const _origPushHistory=pushHistory;
+pushHistory=function(){_hasUnsavedChanges=true;_origPushHistory();};
+// Réinitialiser après sauvegarde
+const _origSaveProject=saveProject;
+saveProject=async function(){await _origSaveProject();_hasUnsavedChanges=false;};
+
 if('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent')){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js')
