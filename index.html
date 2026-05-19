@@ -34,24 +34,24 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
-  .hrow{display:flex;align-items:center;gap:6px;padding:4px 10px;flex-wrap:nowrap;overflow:visible;}
-  .hrow:first-child{border-bottom:1px solid var(--border);}
-  .hrow::-webkit-scrollbar{height:3px;}
-  .hrow::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .hrow{display:flex;align-items:center;gap:4px;padding:2px 8px;flex-wrap:nowrap;overflow:visible;}
+  .hrow:not(:last-child){border-bottom:1px solid rgba(46,51,77,.4);}
   #header{display:flex;flex-direction:column;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;overflow:visible;}
-  .hgroup{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-  .hgroup-label{font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;padding:0 2px;opacity:.7;}
-  .hgroup-body{display:flex;align-items:center;gap:3px;}
-  #logo{font-weight:700;font-size:15px;color:var(--accent);white-space:nowrap;}
+  .hgroup{display:flex;flex-direction:column;gap:1px;flex-shrink:0;}
+  .hgroup-label{font-size:8px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:0 2px;opacity:.55;text-align:center;}
+  .hgroup-body{display:flex;align-items:center;gap:2px;}
+  #logo{font-weight:700;font-size:13px;color:var(--accent);white-space:nowrap;}
+  #size-wrap{display:flex;align-items:center;gap:4px;padding:2px 5px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);}
+  #reseau-wrap{display:flex;align-items:center;gap:3px;}
   .sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
-  .tool-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius);border:1.5px solid transparent;background:var(--surface2);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .tool-btn{display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:var(--radius);border:1.5px solid transparent;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
   .tool-btn:hover{background:var(--border);color:var(--text);}
   .tool-btn.active{border-color:var(--tool-color,var(--accent));color:var(--tool-color,var(--accent));background:color-mix(in srgb,var(--tool-color,var(--accent)) 12%,transparent);}
   .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
   #btn-import{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius);border:1.5px solid var(--accent);background:rgba(59,130,246,.1);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
   #btn-import:hover{background:rgba(59,130,246,.22);}
   #upload,#upload-save{display:none;}
-  .action-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .action-btn{display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap;}
   .action-btn:hover{background:var(--surface2);color:var(--text);}
   .action-btn.danger:hover{border-color:#ef4444;color:#ef4444;}
   .action-btn.save{border-color:#22c55e;color:#22c55e;}
@@ -335,110 +335,164 @@
   <input type="file" id="upload" accept="image/*,.pdf,application/pdf,.annotavmc">
   <input type="file" id="upload-save" accept=".annotavmc">
 
-  <!-- ══ LIGNE 1 : Documents · Annotations · Cotation · Actions ══ -->
+  <!-- ══ LIGNE 1 : Logo · Documents · Actions ══ -->
   <div class="hrow" id="hrow1">
+    <div id="logo">⊕ AnnotaVMC</div>
+    <div class="sep"></div>
 
-    <!-- DOCUMENTS -->
     <div class="hgroup">
       <div class="hgroup-label">Documents</div>
       <div class="hgroup-body">
         <label class="action-btn" for="upload" title="Importer image / PDF / projet">📥 Importer</label>
-        <label class="action-btn save" for="upload-save" title="Ouvrir un projet .annotavmc" style="cursor:pointer;">📂 Ouvrir</label>
-        <button class="action-btn save" onclick="saveProject()" title="Sauvegarder le projet">💾 Sauver</button>
+        <label class="action-btn save" for="upload-save" title="Ouvrir un projet" style="cursor:pointer;">📂 Ouvrir</label>
+        <button class="action-btn save" onclick="saveProject()" title="Sauvegarder (Ctrl+S)">💾 Sauver</button>
         <div id="bg-orient" style="display:none;align-items:center;gap:3px;">
           <div class="sep"></div>
           <span style="font-size:10px;color:var(--text2);font-weight:600;">Plan</span>
-          <button class="action-btn" onclick="rotateBg(-90)" title="Rotation −90°">↺</button>
-          <button class="action-btn" onclick="rotateBg(90)"  title="Rotation +90°">↻</button>
+          <button class="action-btn" onclick="rotateBg(-90)" title="↺ −90°">↺</button>
+          <button class="action-btn" onclick="rotateBg(90)"  title="↻ +90°">↻</button>
           <button class="action-btn" onclick="flipBg('h')"   title="Miroir H">⇔</button>
           <button class="action-btn" onclick="flipBg('v')"   title="Miroir V">⇕</button>
-          <button class="action-btn" onclick="resetBg()"     title="Reset">↺</button>
+          <button class="action-btn" onclick="resetBg()"     title="Reset">↺↩</button>
         </div>
       </div>
     </div>
 
     <div class="sep"></div>
 
-    <!-- ANNOTATIONS -->
-    <div class="hgroup">
-      <div class="hgroup-label">Annotations</div>
-      <div class="hgroup-body">
-        <button class="tool-btn" id="btn-annot-zone"  style="--tool-color:#6366f1" onclick="setTool('annot-zone')">⬡ Zone</button>
-        <button class="tool-btn" id="btn-annot-text"  style="--tool-color:#f472b6" onclick="setTool('annot-text')">𝐓 Texte</button>
-        <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')">↗ Flèche</button>
-      </div>
-    </div>
-
-    <div class="sep"></div>
-
-    <!-- COTATION -->
-    <div class="hgroup">
-      <div class="hgroup-label">Cotation</div>
-      <div class="hgroup-body">
-        <button class="tool-btn" id="btn-calibration" style="--tool-color:#00e0ff" onclick="setTool('calibration')" title="Calibrer l'échelle">📏 Calib.</button>
-        <button class="tool-btn" id="btn-mesure"      style="--tool-color:#00e0ff" onclick="setTool('mesure')"      title="Mesurer une distance">📐 Mesure</button>
-        <button class="action-btn" id="btn-toggle-labels" onclick="toggleLinkLabels()" title="Afficher/masquer les longueurs" style="font-size:11px;">📏 m</button>
-      </div>
-    </div>
-
-    <div class="sep"></div>
-
-    <!-- ACTIONS -->
     <div class="hgroup">
       <div class="hgroup-label">Actions</div>
       <div class="hgroup-body">
-        <button class="action-btn" onclick="undo()" title="Annuler (Ctrl+Z)">↩ Annuler</button>
-        <button class="action-btn" onclick="redo()" title="Restaurer (Ctrl+Y)">↪ Restaurer</button>
-        <button class="action-btn danger" onclick="clearAll()" title="Tout effacer">🗑 Effacer</button>
+        <button class="action-btn" onclick="undo()" title="Annuler (Ctrl+Z)">↩</button>
+        <button class="action-btn" onclick="redo()" title="Restaurer (Ctrl+Y)">↪</button>
+        <button class="action-btn danger" onclick="clearAll()" title="Effacer le niveau">🗑</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- ANNOTATIONS inline ligne 1 -->
+    <div class="hgroup">
+      <div class="hgroup-label">Annotations</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-annot-zone"  style="--tool-color:#6366f1" onclick="setTool('annot-zone')" title="Zone">⬡</button>
+        <button class="tool-btn" id="btn-annot-text"  style="--tool-color:#f472b6" onclick="setTool('annot-text')" title="Texte">𝐓</button>
+        <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')" title="Flèche">↗</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- COTATION inline ligne 1 -->
+    <div class="hgroup">
+      <div class="hgroup-label">Cotation</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-calibration" style="--tool-color:#00e0ff" onclick="setTool('calibration')" title="Calibrer l'échelle">📏</button>
+        <button class="tool-btn" id="btn-mesure"      style="--tool-color:#00e0ff" onclick="setTool('mesure')"      title="Mesurer">📐</button>
+        <button class="action-btn" id="btn-toggle-labels" onclick="toggleLinkLabels()" title="Afficher/masquer longueurs">m</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Config</div>
+      <div class="hgroup-body">
+        <button class="action-btn" onclick="openConfig()" title="Configurer conduits et icônes">⚙</button>
       </div>
     </div>
 
   </div><!-- /hrow1 -->
 
-  <!-- ══ LIGNE 2 : Navigation · Éléments · Liaisons · Taille · Config ══ -->
+  <!-- ══ LIGNE 2 : Navigation · Éléments · Taille ══ -->
   <div class="hrow" id="hrow2">
 
-    <!-- NAVIGATION -->
     <div class="hgroup">
       <div class="hgroup-label">Navigation</div>
       <div class="hgroup-body">
-        <button class="tool-btn active" id="btn-none" style="--tool-color:#8891aa" onclick="setTool('none')">✥ Nav.</button>
+        <button class="tool-btn active" id="btn-none" style="--tool-color:#8891aa" onclick="setTool('none')" title="Naviguer / Sélectionner">✥</button>
       </div>
     </div>
 
     <div class="sep"></div>
 
-    <!-- ÉLÉMENTS VMC -->
     <div class="hgroup">
-      <div class="hgroup-label">Éléments</div>
+      <div class="hgroup-label">Soufflage</div>
       <div class="hgroup-body">
-        <!-- Soufflage avec variantes -->
         <div class="tool-dropdown" id="dd-soufflage">
-          <button class="tool-btn" id="btn-soufflage" style="--tool-color:var(--soufflage)" onclick="toggleDropdown('dd-soufflage',event)"><span class="tool-icon" id="ti-soufflage"></span>Soufflage ▾</button>
+          <button class="tool-btn" id="btn-soufflage" style="--tool-color:var(--soufflage)" onclick="toggleDropdown('dd-soufflage',event)"><span class="tool-icon" id="ti-soufflage"></span>▾</button>
           <div class="tool-submenu" id="sub-soufflage">
             <button onclick="setTool('soufflage');closeDropdowns()">⊙ Rond</button>
             <button onclick="setTool('soufflage-rect');closeDropdowns()">▭ Rectangulaire</button>
           </div>
         </div>
-        <!-- Extraction avec variantes -->
+        <button class="tool-btn" id="btn-soufflage-rect" style="--tool-color:var(--soufflage);display:none" onclick="setTool('soufflage-rect')"></button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Extraction</div>
+      <div class="hgroup-body">
         <div class="tool-dropdown" id="dd-extraction">
-          <button class="tool-btn" id="btn-extraction" style="--tool-color:var(--extraction)" onclick="toggleDropdown('dd-extraction',event)"><span class="tool-icon" id="ti-extraction"></span>Extraction ▾</button>
+          <button class="tool-btn" id="btn-extraction" style="--tool-color:var(--extraction)" onclick="toggleDropdown('dd-extraction',event)"><span class="tool-icon" id="ti-extraction"></span>▾</button>
           <div class="tool-submenu" id="sub-extraction">
             <button onclick="setTool('extraction');closeDropdowns()">⊙ Ronde</button>
             <button onclick="setTool('extraction-rect');closeDropdowns()">▭ Rectangulaire</button>
           </div>
         </div>
-        <button class="tool-btn" id="btn-soufflage-rect"  style="--tool-color:var(--soufflage);display:none" onclick="setTool('soufflage-rect')"></button>
         <button class="tool-btn" id="btn-extraction-rect" style="--tool-color:var(--extraction);display:none" onclick="setTool('extraction-rect')"></button>
-        <button class="tool-btn" id="btn-prise-air-neuf"  style="--tool-color:var(--prise-air-neuf)" onclick="setTool('prise-air-neuf')" ><span class="tool-icon" id="ti-prise-air-neuf"></span>Prise AN</button>
-        <button class="tool-btn" id="btn-rejet-air-vicie" style="--tool-color:#ff8c00"               onclick="setTool('rejet-air-vicie')"><span class="tool-icon" id="ti-rejet-air-vicie"></span>Rejet AV</button>
-        <button class="tool-btn" id="btn-vmc"             style="--tool-color:var(--vmc)"            onclick="setTool('vmc')"            ><span class="tool-icon" id="ti-vmc"></span>VMC</button>
-        <button class="tool-btn" id="btn-caisson"         style="--tool-color:var(--caisson)"        onclick="setTool('caisson')"        ><span class="tool-icon" id="ti-caisson"></span>Caisson</button>
-        <button class="tool-btn" id="btn-coude"           style="--tool-color:var(--coude)"          onclick="setTool('coude')"          ><span class="tool-icon" id="ti-coude"></span>Coude</button>
-        <button class="tool-btn" id="btn-piquage"         style="--tool-color:var(--piquage)"        onclick="setTool('piquage')"        ><span class="tool-icon" id="ti-piquage"></span>Piquage</button>
-        <!-- Traversée -->
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Air Neuf</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-prise-air-neuf" style="--tool-color:var(--prise-air-neuf)" onclick="setTool('prise-air-neuf')"><span class="tool-icon" id="ti-prise-air-neuf"></span></button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Rejet AV</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-rejet-air-vicie" style="--tool-color:#ff8c00" onclick="setTool('rejet-air-vicie')"><span class="tool-icon" id="ti-rejet-air-vicie"></span></button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">VMC</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-vmc" style="--tool-color:var(--vmc)" onclick="setTool('vmc')"><span class="tool-icon" id="ti-vmc"></span></button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Caisson</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-caisson" style="--tool-color:var(--caisson)" onclick="setTool('caisson')"><span class="tool-icon" id="ti-caisson"></span></button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Coude</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-coude" style="--tool-color:var(--coude)" onclick="setTool('coude')"><span class="tool-icon" id="ti-coude"></span></button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Piquage</div>
+      <div class="hgroup-body">
+        <button class="tool-btn" id="btn-piquage" style="--tool-color:var(--piquage)" onclick="setTool('piquage')"><span class="tool-icon" id="ti-piquage"></span></button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Traversée</div>
+      <div class="hgroup-body">
         <div class="tool-dropdown" id="dd-traversee">
-          <button class="tool-btn" id="btn-traversee" style="--tool-color:#e879f9" onclick="toggleDropdown('dd-traversee',event)">⊕ Traversée ▾</button>
+          <button class="tool-btn" id="btn-traversee" style="--tool-color:#e879f9" onclick="toggleDropdown('dd-traversee',event)">⊕▾</button>
           <div class="tool-submenu" id="sub-traversee">
             <button onclick="setTool('traversee-soufflage');closeDropdowns()"><span style="color:#ff0101">●</span> Soufflage</button>
             <button onclick="setTool('traversee-extraction');closeDropdowns()"><span style="color:#0008fa">●</span> Extraction</button>
@@ -450,12 +504,18 @@
         <button class="tool-btn" id="btn-traversee-extraction" style="display:none" onclick="setTool('traversee-extraction')"></button>
         <button class="tool-btn" id="btn-traversee-air-neuf"   style="display:none" onclick="setTool('traversee-air-neuf')"></button>
         <button class="tool-btn" id="btn-traversee-rejet"      style="display:none" onclick="setTool('traversee-rejet')"></button>
-        <!-- Taille éléments -->
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Taille</div>
+      <div class="hgroup-body">
         <div id="size-wrap">
-          <span>Taille</span>
-          <input type="range" id="slider-global" min="1" max="50" value="7" step="1" oninput="onGlobalSlider(this.value)">
+          <input type="range" id="slider-global" min="1" max="50" value="7" step="1" oninput="onGlobalSlider(this.value)" style="width:70px;">
           <input type="number" id="size-input" value="0.7" min="0.1" max="5" step="0.1"
-            style="width:48px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
+            style="width:46px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
             oninput="onSizeInput(this.value)" onchange="onSizeInput(this.value)"
             onkeydown="if(event.key==='Enter')this.blur()">
           <span style="font-size:11px;color:var(--text2);">×</span>
@@ -463,49 +523,75 @@
       </div>
     </div>
 
-    <div class="sep"></div>
+  </div><!-- /hrow2 -->
 
-    <!-- LIAISONS -->
+  <!-- ══ LIGNE 3 : Liaisons ══ -->
+  <div class="hrow" id="hrow3">
+
     <div class="hgroup">
-      <div class="hgroup-label">Liaisons</div>
+      <div class="hgroup-label">Liaison</div>
       <div class="hgroup-body">
-        <button class="tool-btn" id="btn-liaison" onclick="setTool('liaison')">🔗 Liaison</button>
+        <button class="tool-btn" id="btn-liaison" onclick="setTool('liaison')" title="Tracer une liaison">🔗</button>
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Tracé</div>
+      <div class="hgroup-body">
         <select id="quick-tension" onchange="updateActiveTension()" title="Type de tracé" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
           <option value="0.35">〜 Courbe</option>
           <option value="0">╌ Linéaire</option>
         </select>
-        <!-- Contrainte angulaire — actif seulement en mode linéaire -->
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Angle</div>
+      <div class="hgroup-body">
         <select id="quick-angle" onchange="updateActiveAngle()" title="Contrainte angulaire" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;">
           <option value="0">∠ Libre</option>
-          <option value="90">↔ 90° ortho</option>
-          <option value="45">⤢ 45°/90°</option>
+          <option value="90">↔ 90°</option>
+          <option value="45">⤢ 45°</option>
         </select>
-        <select id="quick-mat" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:90px;">
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Matériau</div>
+      <div class="hgroup-body">
+        <select id="quick-mat" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:100px;">
           <option value="">— Mat. —</option>
         </select>
-        <select id="quick-dia" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:80px;">
+      </div>
+    </div>
+
+    <div class="hgroup">
+      <div class="hgroup-label">Diamètre</div>
+      <div class="hgroup-body">
+        <select id="quick-dia" onchange="updateActiveConduit()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;max-width:90px;">
           <option value="">— Ø —</option>
         </select>
-        <div id="reseau-wrap">
-          <span id="reseau-dot"></span>
-          <select id="quick-reseau" onchange="updateActiveReseau()"><option value="">— Réseau —</option></select>
-          <button id="btn-lock-reseau" onclick="toggleLockReseau()" title="Verrouiller réseau">🔓</button>
-        </div>
         <button id="btn-lock" onclick="toggleLock()" title="Verrouiller mat./Ø" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:4px 8px;cursor:pointer;">🔓</button>
       </div>
     </div>
 
     <div class="sep"></div>
 
-    <!-- CONFIG -->
     <div class="hgroup">
-      <div class="hgroup-label">Config</div>
+      <div class="hgroup-label">Réseau</div>
       <div class="hgroup-body">
-        <button class="action-btn" onclick="openConfig()">⚙ Conduits</button>
+        <span id="reseau-dot" style="width:10px;height:10px;border-radius:50%;display:inline-block;background:#444;flex-shrink:0;"></span>
+        <select id="quick-reseau" onchange="updateActiveReseau()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 6px;cursor:pointer;outline:none;">
+          <option value="">— Réseau —</option>
+        </select>
+        <button id="btn-lock-reseau" onclick="toggleLockReseau()" title="Verrouiller réseau" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:4px 8px;cursor:pointer;">🔓</button>
       </div>
     </div>
 
-  </div><!-- /hrow2 -->
+  </div><!-- /hrow3 -->
+
 </div><!-- /header -->
 
 <!-- BARRE DE NIVEAUX -->
