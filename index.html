@@ -2068,9 +2068,15 @@ function removeMeasure(grp){const idx=measures.findIndex(m=>m.grp===grp);if(idx!
 // ══════════════════════════════════════════════════════════════
 // HISTORY
 // ══════════════════════════════════════════════════════════════
+function getLevelHistory(){
+  const lv=curLevel();
+  if(!lv._history)lv._history=[];
+  return lv._history;
+}
 function pushHistory(){
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-  history.push({
+  const h=getLevelHistory();
+  h.push({
     placedElements:{...placedElements},
     elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null})),
     links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
@@ -2079,11 +2085,12 @@ function pushHistory(){
     annotations:annotations.map(a=>({id:a.id,type:a.type,data:JSON.parse(JSON.stringify(a.data))})),
     annotIdCounter:_annotIdCounter,
   });
-  if(history.length>MAX_HISTORY)history.shift();
+  if(h.length>MAX_HISTORY)h.shift();
 }
 function undo(){
-  if(!history.length)return;
-  const snap=history.pop();
+  const h=getLevelHistory();
+  if(!h.length){setStatus('Rien à annuler','ok');return;}
+  const snap=h.pop();
   clearAllSilent();
   scaleRatio=snap.scaleRatio;placedElements={...snap.placedElements};
   if(snap.reseauTypes){reseauTypes=snap.reseauTypes;syncReseauSelect();renderReseauxConfig();}
@@ -2100,10 +2107,9 @@ function undo(){
   });
   selectElement(null);hideDeleteBtn();refreshDeleteBtn();drawLayer.batchDraw();annotLayer.batchDraw();updateListe();updateAnnotList();setStatus('Annulation effectuée','ok');
 }
-
 function clearAllSilent(){
   links.forEach(l=>destroyLinkNodes(l));links=[];
-  measures.forEach(m=>{m.grp.destroy();m.p1.destroy();m.p2.destroy();});measures=[];
+  measures.forEach(m=>{try{m.grp.destroy();m.p1.destroy();m.p2.destroy();}catch(e){}});measures=[];
   annotations.forEach(a=>destroyAnnotNodes(a));annotations=[];
   drawLayer.getChildren().filter(n=>n.name()==='element'||n.getAttr('customType')==='link'||n.getAttr('customType')==='measure-group').forEach(n=>n.destroy());
   annotLayer.destroyChildren();
