@@ -436,6 +436,20 @@
         <button class="tool-btn" id="btn-caisson"         style="--tool-color:var(--caisson)"        onclick="setTool('caisson')"        ><span class="tool-icon" id="ti-caisson"></span>Caisson</button>
         <button class="tool-btn" id="btn-coude"           style="--tool-color:var(--coude)"          onclick="setTool('coude')"          ><span class="tool-icon" id="ti-coude"></span>Coude</button>
         <button class="tool-btn" id="btn-piquage"         style="--tool-color:var(--piquage)"        onclick="setTool('piquage')"        ><span class="tool-icon" id="ti-piquage"></span>Piquage</button>
+        <!-- Traversée -->
+        <div class="tool-dropdown" id="dd-traversee">
+          <button class="tool-btn" id="btn-traversee" style="--tool-color:#e879f9" onclick="toggleDropdown('dd-traversee',event)">⊕ Traversée ▾</button>
+          <div class="tool-submenu" id="sub-traversee">
+            <button onclick="setTool('traversee-soufflage');closeDropdowns()"><span style="color:#ff0101">●</span> Soufflage</button>
+            <button onclick="setTool('traversee-extraction');closeDropdowns()"><span style="color:#0008fa">●</span> Extraction</button>
+            <button onclick="setTool('traversee-air-neuf');closeDropdowns()"><span style="color:#00e1ff">●</span> Air Neuf</button>
+            <button onclick="setTool('traversee-rejet');closeDropdowns()"><span style="color:#ff8c00">●</span> Rejet Air Vicié</button>
+          </div>
+        </div>
+        <button class="tool-btn" id="btn-traversee-soufflage"  style="display:none" onclick="setTool('traversee-soufflage')"></button>
+        <button class="tool-btn" id="btn-traversee-extraction" style="display:none" onclick="setTool('traversee-extraction')"></button>
+        <button class="tool-btn" id="btn-traversee-air-neuf"   style="display:none" onclick="setTool('traversee-air-neuf')"></button>
+        <button class="tool-btn" id="btn-traversee-rejet"      style="display:none" onclick="setTool('traversee-rejet')"></button>
         <!-- Taille éléments -->
         <div id="size-wrap">
           <span>Taille</span>
@@ -729,6 +743,59 @@
   </div>
 </div>
 
+<!-- TRAVERSÉE POPUP -->
+<div id="traversee-popup" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:340px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,.7);">
+    <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">⊕ Traversée / Remontée</h3>
+
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Type</label>
+        <select id="tv-type" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;" onchange="updateTraverseePreview()">
+          <option value="dalle">↕ Traversée de dalle</option>
+          <option value="toiture">↑ Remontée en toiture</option>
+          <option value="cave">↓ Descente en cave / vide sanitaire</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Réseau</label>
+        <select id="tv-reseau" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;" onchange="updateTraverseePreview()">
+          <option value="soufflage">Soufflage</option>
+          <option value="extraction">Extraction</option>
+          <option value="air-neuf">Air Neuf</option>
+          <option value="rejet">Rejet Air Vicié</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Identifiant</label>
+        <input type="text" id="tv-id" placeholder="ex: T1, T2…" maxlength="6"
+          style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;font-weight:700;padding:6px 8px;outline:none;text-align:center;">
+        <span style="font-size:10px;color:var(--text2);">Lier entre niveaux</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Longueur (m)</label>
+        <input type="number" id="tv-length" placeholder="ex: 2.80" min="0" step="0.05"
+          style="width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;padding:6px 8px;outline:none;">
+        <span style="font-size:10px;color:var(--text2);">hauteur verticale</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Diamètre</label>
+        <select id="tv-dia" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+          <option value="">— optionnel —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Prévisualisation -->
+    <div id="tv-preview" style="margin:14px 0 0;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.6;"></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button onclick="closeTraverseePopup()" style="padding:7px 16px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">Annuler</button>
+      <button onclick="confirmTraversee()" style="padding:7px 16px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Placer</button>
+    </div>
+  </div>
+</div>
+
 <!-- INPUT POPUP -->
 <div id="input-popup">
   <div id="input-popup-box">
@@ -816,7 +883,10 @@ const SVG_ICONS = {
   'extraction-rect': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#00001a" stroke="#0008fa" stroke-width="2"/><line x1="20" y1="14" x2="20" y2="26" stroke="#0008fa" stroke-width="1.5"/><line x1="8" y1="20" x2="32" y2="20" stroke="#0008fa" stroke-width="1.5"/><circle cx="20" cy="20" r="2.5" fill="#0008fa"/><rect x="4" y="10" width="32" height="20" rx="2" fill="none" stroke="#0008fa" stroke-width="2" stroke-dasharray="3,2" opacity=".4"/></svg>`,
   'prise-air-neuf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="10" width="34" height="22" rx="2" fill="#001a1a" stroke="#00e1ff" stroke-width="2"/><line x1="8" y1="14" x2="8" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="13" y1="14" x2="13" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="18" y1="14" x2="18" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="23" y1="14" x2="23" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="28" y1="14" x2="28" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="33" y1="14" x2="33" y2="28" stroke="#00e1ff" stroke-width="1.2"/><line x1="3" y1="14" x2="37" y2="14" stroke="#00e1ff" stroke-width="1.5"/><line x1="3" y1="28" x2="37" y2="28" stroke="#00e1ff" stroke-width="1.5"/><polygon points="20,4 17,10 23,10" fill="#00e1ff"/></svg>`,
   'coude': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M8,32 L8,16 Q8,8 16,8 L32,8" fill="none" stroke="#a855f7" stroke-width="5" stroke-linecap="round"/><path d="M8,32 L8,16 Q8,8 16,8 L32,8" fill="none" stroke="#2a1a3a" stroke-width="2.5" stroke-linecap="round"/><circle cx="8" cy="32" r="3" fill="#a855f7"/><circle cx="32" cy="8" r="3" fill="#a855f7"/></svg>`,
-  'piquage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><line x1="4" y1="20" x2="36" y2="20" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/><line x1="4" y1="20" x2="36" y2="20" stroke="#001a2a" stroke-width="1.5" stroke-linecap="round"/><line x1="20" y1="20" x2="20" y2="6" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="20" r="4.5" fill="#001a2a" stroke="#06b6d4" stroke-width="2"/><circle cx="20" cy="6" r="3" fill="#06b6d4"/><circle cx="4" cy="20" r="3" fill="#06b6d4"/><circle cx="36" cy="20" r="3" fill="#06b6d4"/></svg>`,
+  'traversee-soufflage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff0101" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#ff0101" stroke-width="2"/><polygon points="20,8 16,16 24,16" fill="#ff0101"/><line x1="12" y1="20" x2="28" y2="20" stroke="#ff0101" stroke-width="1.5"/></svg>`,
+  'traversee-extraction': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#00001a" stroke="#0008fa" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#0008fa" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#0008fa" stroke-width="2"/><polygon points="20,8 16,16 24,16" fill="#0008fa"/><line x1="12" y1="20" x2="28" y2="20" stroke="#0008fa" stroke-width="1.5"/></svg>`,
+  'traversee-air-neuf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#001a1a" stroke="#00e1ff" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#00e1ff" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#00e1ff" stroke-width="2"/><polygon points="20,8 16,16 24,16" fill="#00e1ff"/><line x1="12" y1="20" x2="28" y2="20" stroke="#00e1ff" stroke-width="1.5"/></svg>`,
+  'traversee-rejet': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff8c00" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#ff8c00" stroke-width="2"/><polygon points="20,32 16,24 24,24" fill="#ff8c00"/><line x1="12" y1="20" x2="28" y2="20" stroke="#ff8c00" stroke-width="1.5"/></svg>`,
   'rejet-air-vicie': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="10" width="34" height="22" rx="2" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><line x1="8" y1="14" x2="8" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="13" y1="14" x2="13" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="18" y1="14" x2="18" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="23" y1="14" x2="23" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="28" y1="14" x2="28" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="33" y1="14" x2="33" y2="28" stroke="#ff8c00" stroke-width="1.2"/><line x1="3" y1="14" x2="37" y2="14" stroke="#ff8c00" stroke-width="1.5"/><line x1="3" y1="28" x2="37" y2="28" stroke="#ff8c00" stroke-width="1.5"/><polygon points="20,10 17,4 23,4" fill="#ff8c00"/></svg>`,
 };
 
@@ -849,7 +919,11 @@ const TOOLS={
   'vmc':               {label:'VMC',            color:'#29b000',shape:'rect'},
   'caisson':           {label:'Répartiteur',    color:'#f59e0b',shape:'diamond'},
   'coude':             {label:'Coude 90°',      color:'#a855f7',shape:'triangle'},
-  'piquage':           {label:'Piquage',        color:'#06b6d4',shape:'cross'},
+  'piquage':              {label:'Piquage',              color:'#06b6d4',shape:'cross'},
+  'traversee-soufflage':  {label:'Traversée soufflage',  color:'#ff0101',shape:'circle'},
+  'traversee-extraction': {label:'Traversée extraction',  color:'#0008fa',shape:'circle'},
+  'traversee-air-neuf':   {label:'Traversée air neuf',    color:'#00e1ff',shape:'circle'},
+  'traversee-rejet':      {label:'Traversée rejet',       color:'#ff8c00',shape:'circle'},
   'liaison':           {label:'Liaison',        color:'#94a3b8',shape:null},
 };
 
@@ -1011,7 +1085,7 @@ function switchLevel(idx){
 function _serializeLevelKonva(){
   const lv=curLevel();
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-  lv._elements=elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null}));
+  lv._elements=elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null,traverseeData:g.getAttr('traverseeData')||null}));
   lv._links=links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y})),bends90:l.bends90||0,bends45:l.bends45||0}));
   lv._measures=measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()}));
   lv._annotations=annotations.map(a=>({id:a.id,type:a.type,data:a.type==='text'?{...a.data,pos:a.nodes[0]?{x:a.nodes[0].x(),y:a.nodes[0].y()}:{x:0,y:0}}:{...a.data}}));
@@ -1030,7 +1104,7 @@ function _deserializeLevelKonva(idx){
   _annotIdCounter=lv.annotIdCounter||0;
   links=[];measures=[];annotations=[];
 
-  (lv._elements||[]).forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null);});
+  (lv._elements||[]).forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null,e.traverseeData||null);});
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
   (lv._links||[]).forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
   (lv._measures||[]).forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
@@ -2084,7 +2158,7 @@ function pushHistory(){
   const h=getLevelHistory();
   h.push({
     placedElements:{...placedElements},
-    elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null})),
+    elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null,traverseeData:g.getAttr('traverseeData')||null})),
     links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
     measures:measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()})),
     scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
@@ -2102,7 +2176,7 @@ function _restoreSnapshot(snap){
   if(snap.reseauTypes){reseauTypes=snap.reseauTypes;syncReseauSelect();renderReseauxConfig();}
   if(snap.customIcons){customIcons=snap.customIcons;refreshToolbarIcons();}
   if(snap.annotIdCounter)_annotIdCounter=snap.annotIdCounter;
-  snap.elements.forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null);});
+  snap.elements.forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null,e.traverseeData||null);});
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
   snap.links.forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
   snap.measures.forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
@@ -2118,7 +2192,7 @@ function _currentSnapshot(){
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
   return{
     placedElements:{...placedElements},
-    elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null})),
+    elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null,traverseeData:g.getAttr('traverseeData')||null})),
     links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
     measures:measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()})),
     scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
@@ -2160,12 +2234,13 @@ function clearAllSilent(){
   cancelLinkDrawing();cancelZoneDrawing();
   updateAnnotList();
 }
-function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY){
+function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY,traverseeData){
   const sX=scaleX||globalSize/10;
   const sY=(scaleY!==undefined&&scaleY!==null)?scaleY:sX;
   const g=new Konva.Group({x:pos.x,y:pos.y,rotation:rotation||0,draggable:true,name:'element'});
   g.setAttr('toolId',toolId);g.setAttr('toolLabel',conf.label);
   if(realDims)g.setAttr('realDims',realDims);
+  if(traverseeData)g.setAttr('traverseeData',traverseeData);
   _applyGroupClip(g);
   const B=ICON_BASE_PX;
   const txt=new Konva.Text({
@@ -2838,6 +2913,11 @@ function handleTap(e){
   if(clickedElNav){selectElement(clickedElNav);return;}
   selectElement(null);_selectedWaypoint=null;_selectedAnnotId=null;
   if(currentTool==='none')return;
+  // Traversée — ouvre le popup de config
+  if(isTraverseeTool(currentTool)){
+    if(pos)openTraverseePopup(pos);
+    return;
+  }
   const conf=TOOLS[currentTool];if(!conf||conf.shape===null)return;
   placeElement(currentTool,conf,pos);
 }
@@ -3031,7 +3111,56 @@ function updateListe(){
   const byReseau={};
   links.forEach(l=>{const key=l.reseau||'—';if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false,color:l.reseauColor||'#94a3b8',subnets:{},bends90:0,bends45:0};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}byReseau[key].bends90+=(l.bends90||0);byReseau[key].bends45+=(l.bends45||0);const sk=[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—';if(!byReseau[key].subnets[sk])byReseau[key].subnets[sk]={count:0,metres:0,hasLen:false};byReseau[key].subnets[sk].count++;if(l.lengthM!=null){byReseau[key].subnets[sk].metres+=l.lengthM;byReseau[key].subnets[sk].hasLen=true;}});
   const liaisonRows=Object.entries(byReseau).map(([reseau,v])=>`<div class="mat-item" style="border-left:3px solid ${v.color};flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;align-items:center;gap:8px;width:100%;"><span class="mat-dot" style="background:${v.color}"></span><span class="mat-name" style="font-size:12px;font-weight:600;">${reseau}</span><span class="mat-count" style="font-size:11px;">×${v.count}${v.hasLen?' — '+v.metres.toFixed(1)+' m':''}</span></div>${Object.entries(v.subnets).map(([sk,sv])=>`<div style="display:flex;width:100%;padding-left:18px;font-size:11px;color:var(--text2);"><span style="flex:1;">${sk}</span><span>×${sv.count}${sv.hasLen?' ('+sv.metres.toFixed(1)+' m)':''}</span></div>`).join('')}${v.bends90>0?`<div style="padding-left:18px;font-size:11px;color:#a855f7;">↩ Coudes 90° : ${v.bends90}</div>`:''}${v.bends45>0?`<div style="padding-left:18px;font-size:11px;color:#a78bfa;">⤢ Coudes 45° : ${v.bends45}</div>`:''}</div>`).join('');
-  document.getElementById('material-list').innerHTML=entries.length===0&&links.length===0?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div>':entries.map(([l,q])=>`<div class="mat-item"><span class="mat-dot" style="background:${colorMap[l]||'#888'}"></span><span class="mat-name">${l}</span><span class="mat-count">×${q}</span></div>`).join('')+liaisonRows;
+  // Traversées — regroupées par identifiant
+  const traversees=[];
+  drawLayer.getChildren().filter(n=>n.name()==='element'&&n.getAttr('traverseeData')).forEach(g=>{
+    const d=g.getAttr('traverseeData');
+    if(d)traversees.push(d);
+  });
+  let traverseeRows='';
+  if(traversees.length){
+    const byId={};
+    traversees.forEach(t=>{
+      if(!byId[t.id])byId[t.id]={id:t.id,items:[]};
+      byId[t.id].items.push(t);
+    });
+    // Chercher aussi dans les autres niveaux
+    levels.forEach((lv,li)=>{
+      if(li===_currentLevelIdx)return;
+      (lv._elements||[]).forEach(e=>{
+        if(e.traverseeData){
+          const t=e.traverseeData;
+          if(!byId[t.id])byId[t.id]={id:t.id,items:[]};
+          byId[t.id].items.push({...t,_otherLevel:lv.name});
+        }
+      });
+    });
+    traverseeRows='<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">';
+    traverseeRows+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Traversées</div>';
+    Object.entries(byId).forEach(([id,grp])=>{
+      const allLevels=[...new Set(grp.items.map(t=>t._otherLevel||curLevel().name))];
+      const linked=allLevels.length>1;
+      const color=TRAVERSEE_COLORS[grp.items[0].reseau]||'#e879f9';
+      const totalLen=grp.items.reduce((s,t)=>s+(t.length||0),0);
+      traverseeRows+=`<div class="mat-item" style="border-left:3px solid ${color};flex-direction:column;align-items:flex-start;gap:2px;">
+        <div style="display:flex;align-items:center;gap:6px;width:100%;">
+          <span style="font-weight:700;color:${color};font-size:12px;">[${id}]</span>
+          <span style="font-size:11px;color:var(--text);">${TRAVERSEE_TYPES[grp.items[0].type]||'Traversée'}</span>
+          ${linked?`<span style="font-size:9px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:3px;padding:1px 5px;">⇅ multi-niveaux</span>`:''}
+          <span style="margin-left:auto;font-size:11px;color:var(--text2);">${totalLen>0?totalLen.toFixed(2)+' m':''}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text2);padding-left:4px;">${TRAVERSEE_LABELS[grp.items[0].reseau]}${grp.items[0].dia?' · '+grp.items[0].dia:''}</div>
+        ${linked?`<div style="font-size:10px;color:#818cf8;padding-left:4px;">${allLevels.join(' ↕ ')}</div>`:''}
+      </div>`;
+    });
+    traverseeRows+='</div>';
+  }
+
+  document.getElementById('material-list').innerHTML=
+    entries.length===0&&links.length===0&&traversees.length===0
+    ?'<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px 10px;opacity:.5">Les éléments placés<br>apparaissent ici</div>'
+    :entries.map(([l,q])=>`<div class="mat-item"><span class="mat-dot" style="background:${colorMap[l]||'#888'}"></span><span class="mat-name">${l}</span><span class="mat-count">×${q}</span></div>`).join('')
+    +liaisonRows+traverseeRows;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3310,7 +3439,141 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
-// ── SERVICE WORKER (PWA) ──
+// ══════════════════════════════════════════════════════════════
+// TRAVERSÉE DE DALLE / REMONTÉE
+// ══════════════════════════════════════════════════════════════
+const TRAVERSEE_COLORS={
+  'soufflage':'#ff0101','extraction':'#0008fa',
+  'air-neuf':'#00e1ff','rejet':'#ff8c00'
+};
+const TRAVERSEE_LABELS={
+  'soufflage':'Soufflage','extraction':'Extraction',
+  'air-neuf':'Air Neuf','rejet':'Rejet Air Vicié'
+};
+const TRAVERSEE_TYPES={
+  'dalle':'↕ Traversée de dalle',
+  'toiture':'↑ Remontée en toiture',
+  'cave':'↓ Descente cave / vide sanitaire'
+};
+
+let _pendingTraverseePos=null;
+let _traverseeIdCounter=1;
+
+function openTraverseePopup(pos){
+  _pendingTraverseePos=pos;
+  // Pré-remplir le réseau depuis le toolId courant
+  const reseau=currentTool.replace('traversee-','');
+  document.getElementById('tv-reseau').value=reseau;
+  // Pré-remplir les diamètres
+  const diaSel=document.getElementById('tv-dia');
+  diaSel.innerHTML='<option value="">— optionnel —</option>'+
+    conduitConfig.diametres.map(d=>`<option value="${d}">${d}</option>`).join('');
+  // Proposer un identifiant auto
+  document.getElementById('tv-id').value='T'+_traverseeIdCounter;
+  document.getElementById('tv-length').value='';
+  document.getElementById('tv-type').value='dalle';
+  updateTraverseePreview();
+  document.getElementById('traversee-popup').style.display='flex';
+  setTimeout(()=>document.getElementById('tv-length').focus(),100);
+}
+function closeTraverseePopup(){
+  document.getElementById('traversee-popup').style.display='none';
+  _pendingTraverseePos=null;
+}
+function updateTraverseePreview(){
+  const type=document.getElementById('tv-type').value;
+  const reseau=document.getElementById('tv-reseau').value;
+  const id=document.getElementById('tv-id').value||'?';
+  const len=document.getElementById('tv-length').value;
+  const dia=document.getElementById('tv-dia').value;
+  const color=TRAVERSEE_COLORS[reseau]||'#888';
+  const typeLabel=TRAVERSEE_TYPES[type];
+  const reseauLabel=TRAVERSEE_LABELS[reseau];
+  let html=`<span style="color:${color};font-weight:700;">[${id}]</span> ${typeLabel}<br>`;
+  html+=`Réseau : <span style="color:${color}">${reseauLabel}</span>`;
+  if(len)html+=` · <strong>${len} m</strong> vertical`;
+  if(dia)html+=` · ${dia}`;
+  document.getElementById('tv-preview').innerHTML=html;
+}
+function confirmTraversee(){
+  const type=document.getElementById('tv-type').value;
+  const reseau=document.getElementById('tv-reseau').value;
+  const id=document.getElementById('tv-id').value.trim()||('T'+_traverseeIdCounter);
+  const lenVal=parseFloat(document.getElementById('tv-length').value);
+  const length=isNaN(lenVal)||lenVal<=0?null:lenVal;
+  const dia=document.getElementById('tv-dia').value;
+  const pos=_pendingTraverseePos;
+  closeTraverseePopup();
+  if(!pos)return;
+  _traverseeIdCounter++;
+  placeTraversee(pos,{type,reseau,id,length,dia});
+}
+
+function placeTraversee(pos,cfg){
+  pushHistory();
+  const color=TRAVERSEE_COLORS[cfg.reseau]||'#e879f9';
+  const toolId='traversee-'+cfg.reseau;
+  const s=globalSize/10;
+  const B=ICON_BASE_PX;
+
+  const g=new Konva.Group({x:pos.x,y:pos.y,draggable:true,name:'element'});
+  g.setAttr('toolId',toolId);
+  g.setAttr('toolLabel',TOOLS[toolId]?.label||'Traversée');
+  g.setAttr('traverseeData',{...cfg});
+
+  // Icône SVG
+  const img=new window.Image();
+  img.onload=function(){
+    const ki=new Konva.Image({image:img,x:-B/2,y:-B/2,width:B,height:B});
+    g.add(ki);ki.moveToBottom();
+    // Badge identifiant
+    const badge=new Konva.Label({x:B/2-4,y:-B/2-2});
+    const tag=new Konva.Tag({fill:color,cornerRadius:3,opacity:.9});
+    const txt=new Konva.Text({text:cfg.id,fontSize:7,fill:'#fff',fontStyle:'bold',fontFamily:'monospace',padding:2});
+    badge.add(tag);badge.add(txt);
+    g.add(badge);
+    // Longueur si renseignée
+    if(cfg.length){
+      const lenTxt=new Konva.Text({x:-B/2,y:B/2+2,text:cfg.length+'m',fontSize:7,fill:color,fontStyle:'bold',fontFamily:'monospace',width:B,align:'center'});
+      lenTxt.scale({x:1/s,y:1/s});
+      g.add(lenTxt);
+    }
+    drawLayer.batchDraw();
+  };
+  img.src=svgToDataURL(SVG_ICONS[toolId]||SVG_ICONS['soufflage']);
+
+  g.scale({x:s,y:s});
+  g.on('dragstart',()=>{clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;isPanning=false;g.setAttr('_dragOrigin',{x:g.x(),y:g.y()});});
+  g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
+  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);updateLinks();updateListe();});
+  g.on('click tap',()=>selectElement(g));
+
+  drawLayer.add(g);drawLayer.batchDraw();
+
+  // Comptabiliser
+  const lbl=TOOLS[toolId]?.label||'Traversée';
+  placedElements[lbl]=(placedElements[lbl]||0)+1;
+  // Ajouter la longueur verticale dans le réseau si renseignée
+  if(cfg.length){
+    const reseauName=TRAVERSEE_LABELS[cfg.reseau]||cfg.reseau;
+    if(!window._traverseeLengths)window._traverseeLengths=[];
+    window._traverseeLengths.push({id:cfg.id,type:cfg.type,reseau:reseauName,color,length:cfg.length,dia:cfg.dia,levelName:curLevel().name});
+  }
+  updateListe();
+  updateTraverseeListe();
+}
+
+function updateTraverseeListe(){
+  // Met à jour l'affichage des traversées dans la liste matériel
+  // Elles sont déjà comptées via placedElements
+  // On affiche les longueurs verticales en supplément
+}
+
+// Intégration dans handleTap — intercepter les outils traversée
+function isTraverseeTool(tool){
+  return tool&&tool.startsWith('traversee-');
+}
+
 if('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent')){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js')
