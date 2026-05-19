@@ -2126,7 +2126,7 @@ function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY){
   g.setAttr('toolId',toolId);g.setAttr('toolLabel',conf.label);
   if(realDims)g.setAttr('realDims',realDims);
   _applyGroupClip(g);
-
+  const B=ICON_BASE_PX;
   const txt=new Konva.Text({
     x:B/2+2,y:-6,
     text:conf.label,fontSize:11,fill:'#e8eaf2',fontStyle:'bold',
