@@ -1,4 +1,4 @@
-const CACHE_NAME = 'annotavmc-v19';
+const CACHE_NAME = 'annotavmc-v20';
 const ASSETS = [
   './index.html',
   './manifest.json',

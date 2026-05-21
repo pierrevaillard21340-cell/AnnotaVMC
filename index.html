@@ -840,7 +840,7 @@
 </div>
 
 <!-- INPUT CAMÉRA (mobile) -->
-<input type="file" id="photo-capture" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="photo-capture" accept="image/*" style="display:none">
 
 <!-- POPUP MARQUEUR PHOTO — création -->
 <div id="photo-popup" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.65);align-items:center;justify-content:center;">
@@ -4058,19 +4058,13 @@ function _createPhotoKonva(marker){
   const grp=new Konva.Group({x:pos.x,y:pos.y,draggable:true,name:'photo-marker'});
   grp.setAttr('photoId',id);
 
-  // Épingle : cercle + triangle pointant vers le bas
-  const pin=new Konva.Circle({x:0,y:-16,radius:11,fill:color,stroke:'#fff',strokeWidth:1.5});
-  const stem=new Konva.Line({points:[0,-5,0,4],stroke:color,strokeWidth:3,lineCap:'round'});
-
-  // Icône caméra
-  const icon=new Konva.Text({x:-6,y:-23,text:'📷',fontSize:11,listening:false});
-
-  // Badge numéro
-  const badge=new Konva.Text({x:0,y:-20,text:'P'+id,fontSize:7,fill:'#fff',fontStyle:'bold',fontFamily:'monospace',align:'center',offsetX:0,listening:false});
+  // Épingle compacte
+  const pin=new Konva.Circle({x:0,y:-8,radius:6,fill:color,stroke:'#fff',strokeWidth:1});
+  const stem=new Konva.Line({points:[0,-2,0,3],stroke:color,strokeWidth:2,lineCap:'round'});
+  const icon=new Konva.Text({x:-4,y:-12,text:'📷',fontSize:6,listening:false});
+  const badge=new Konva.Text({x:0,y:-10,text:'P'+id,fontSize:4.5,fill:'#fff',fontStyle:'bold',fontFamily:'monospace',align:'center',offsetX:0,listening:false});
   badge.offsetX(badge.width()/2);
-
-  // Zone de hit transparente
-  const hit=new Konva.Rect({x:-14,y:-30,width:28,height:34,fill:'transparent',listening:true});
+  const hit=new Konva.Rect({x:-8,y:-16,width:16,height:20,fill:'transparent',listening:true});
 
   grp.add(stem);grp.add(pin);grp.add(icon);grp.add(badge);grp.add(hit);
 
