@@ -1071,41 +1071,41 @@
 // ══════════════════════════════════════════════════════════════
 const SVG_ICONS = {
   'vmc': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <!-- VMC Double flux — boîtier + 4 connexions aux coins -->
-    <rect x="6" y="10" width="28" height="20" rx="2" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
-    <!-- Échangeur croisé interne -->
-    <line x1="6" y1="14" x2="34" y2="26" stroke="#29b000" stroke-width="1.2" opacity=".7"/>
-    <line x1="6" y1="26" x2="34" y2="14" stroke="#29b000" stroke-width="1.2" opacity=".7"/>
-    <!-- 4 connexions aux coins — couleurs réseau -->
-    <circle cx="6"  cy="10" r="3" fill="#00e1ff" stroke="#0d1a0d" stroke-width=".8"/>
-    <circle cx="34" cy="10" r="3" fill="#ff8c00" stroke="#0d1a0d" stroke-width=".8"/>
-    <circle cx="6"  cy="30" r="3" fill="#0008fa" stroke="#0d1a0d" stroke-width=".8"/>
-    <circle cx="34" cy="30" r="3" fill="#ff0101" stroke="#0d1a0d" stroke-width=".8"/>
+    <!-- VMC Double flux — plein cadre -->
+    <rect x="1" y="1" width="38" height="38" rx="3" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
+    <!-- Échangeur croisé -->
+    <line x1="1" y1="1"  x2="39" y2="39" stroke="#29b000" stroke-width="1.5" opacity=".6"/>
+    <line x1="1" y1="39" x2="39" y2="1"  stroke="#29b000" stroke-width="1.5" opacity=".6"/>
+    <!-- 4 connexions neutres aux coins -->
+    <circle cx="1"  cy="1"  r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <circle cx="39" cy="1"  r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <circle cx="1"  cy="39" r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <circle cx="39" cy="39" r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
     <!-- Label -->
-    <text x="20" y="22" text-anchor="middle" font-size="5.5" fill="#29b000" font-family="monospace" font-weight="bold">DF</text>
+    <text x="20" y="24" text-anchor="middle" font-size="8" fill="#29b000" font-family="monospace" font-weight="bold">DF</text>
   </svg>`,
   'vmc-sf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <!-- VMC Simple flux — extraction seule -->
-    <rect x="6" y="10" width="28" height="20" rx="2" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
+    <!-- VMC Simple flux — plein cadre -->
+    <rect x="1" y="1" width="38" height="38" rx="3" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
     <!-- Flèche extraction -->
-    <line x1="12" y1="20" x2="28" y2="20" stroke="#29b000" stroke-width="1.5"/>
-    <polygon points="28,17 33,20 28,23" fill="#0008fa"/>
-    <!-- 2 connexions -->
-    <circle cx="6"  cy="20" r="3" fill="#0008fa" stroke="#0d1a0d" stroke-width=".8"/>
-    <circle cx="34" cy="20" r="3" fill="#ff8c00" stroke="#0d1a0d" stroke-width=".8"/>
-    <text x="20" y="33" text-anchor="middle" font-size="5" fill="#29b000" font-family="monospace" font-weight="bold">SF</text>
+    <line x1="8" y1="20" x2="30" y2="20" stroke="#29b000" stroke-width="2"/>
+    <polygon points="30,16 38,20 30,24" fill="#29b000"/>
+    <!-- 2 connexions neutres -->
+    <circle cx="1"  cy="20" r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <circle cx="39" cy="20" r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <text x="20" y="34" text-anchor="middle" font-size="7" fill="#29b000" font-family="monospace" font-weight="bold">SF</text>
   </svg>`,
   'vmc-hygro': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <!-- VMC Hygro -->
-    <rect x="6" y="10" width="28" height="20" rx="2" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
-    <!-- Symbole H -->
-    <text x="20" y="24" text-anchor="middle" font-size="12" fill="#29b000" font-family="monospace" font-weight="bold">H</text>
-    <!-- Goutte eau = hygro -->
-    <path d="M32,12 Q34,8 36,12 Q36,16 32,16 Z" fill="#00e1ff" opacity=".8"/>
-    <!-- 2 connexions extraction -->
-    <circle cx="6"  cy="20" r="3" fill="#0008fa" stroke="#0d1a0d" stroke-width=".8"/>
-    <circle cx="34" cy="20" r="3" fill="#ff8c00" stroke="#0d1a0d" stroke-width=".8"/>
-    <text x="20" y="36" text-anchor="middle" font-size="4.5" fill="#29b000" font-family="monospace">HYGRO</text>
+    <!-- VMC Hygro — plein cadre -->
+    <rect x="1" y="1" width="38" height="38" rx="3" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
+    <!-- H centré -->
+    <text x="20" y="26" text-anchor="middle" font-size="18" fill="#29b000" font-family="monospace" font-weight="bold">H</text>
+    <!-- Goutte hygro coin haut droit -->
+    <path d="M33,5 Q36,1 39,5 Q39,10 33,10 Z" fill="#29b000" opacity=".7"/>
+    <!-- 2 connexions neutres -->
+    <circle cx="1"  cy="20" r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <circle cx="39" cy="20" r="4" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+    <text x="20" y="37" text-anchor="middle" font-size="6" fill="#29b000" font-family="monospace">HYGRO</text>
   </svg>`,
   'caisson': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#2a1e00" stroke="#f59e0b" stroke-width="2"/><line x1="4" y1="20" x2="36" y2="20" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity=".6"/><circle cx="12" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="12" y1="12.5" x2="12" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="8.5" y1="16" x2="15.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="20" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="20" y1="12.5" x2="20" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="16.5" y1="16" x2="23.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="28" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="28" y1="12.5" x2="28" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="24.5" y1="16" x2="31.5" y2="16" stroke="#f59e0b" stroke-width="1"/><text x="20" y="29" text-anchor="middle" font-size="4.5" fill="#f59e0b" font-family="monospace">RÉPARTITEUR</text></svg>`,
   'soufflage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff0101" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="10" x2="20" y2="18" stroke="#ff0101" stroke-width="1.5"/><line x1="20" y1="30" x2="20" y2="22" stroke="#ff0101" stroke-width="1.5"/><line x1="10" y1="20" x2="18" y2="20" stroke="#ff0101" stroke-width="1.5"/><line x1="30" y1="20" x2="22" y2="20" stroke="#ff0101" stroke-width="1.5"/><circle cx="20" cy="20" r="3" fill="#ff0101"/></svg>`,
@@ -2127,12 +2127,13 @@ function resetIcon(evt,toolId){evt.stopPropagation();delete customIcons[toolId];
 function refreshKonvaIcons(toolId){if(!drawLayer)return;drawLayer.getChildren().filter(n=>n.name()==='element'&&n.getAttr('toolId')===toolId).forEach(g=>{const children=g.getChildren().filter(c=>c.getClassName()!=='Text');children.forEach(c=>c.destroy());addVisualToGroup(g,toolId,g.scaleX());});drawLayer.batchDraw();}
 function addVisualToGroup(g,toolId,s){
   const conf=TOOLS[toolId];if(!conf)return;
-  const B=ICON_BASE_PX; // 28px — toutes les formes s'inscrivent dans ±B/2 = ±14px
+  const B=ICON_BASE_PX;
+  const FULL=B+2; // icône plein cadre — déborde légèrement pour remplir le rectangle de sélection
   if(customIcons[toolId]||SVG_ICONS[toolId]){
     const img=new window.Image();
     img.onload=function(){
       g.getChildren().filter(c=>c.getClassName()==='Image').forEach(c=>c.destroy());
-      const ki=new Konva.Image({image:img,x:-B/2,y:-B/2,width:B,height:B});
+      const ki=new Konva.Image({image:img,x:-FULL/2,y:-FULL/2,width:FULL,height:FULL});
       const txt=g.getChildren().find(c=>c.getClassName()==='Text');
       g.add(ki);if(txt)ki.moveToBottom();drawLayer&&drawLayer.batchDraw();
     };
