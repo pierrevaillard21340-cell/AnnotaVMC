@@ -378,6 +378,7 @@
         <button class="tool-btn" id="btn-annot-zone"  style="--tool-color:#6366f1" onclick="setTool('annot-zone')" title="Zone">⬡</button>
         <button class="tool-btn" id="btn-annot-text"  style="--tool-color:#f472b6" onclick="setTool('annot-text')" title="Texte">𝐓</button>
         <button class="tool-btn" id="btn-annot-arrow" style="--tool-color:#fb923c" onclick="setTool('annot-arrow')" title="Flèche">↗</button>
+        <button class="tool-btn" id="btn-photo"       style="--tool-color:#f59e0b" onclick="setTool('photo')" title="Marqueur photo">📷</button>
       </div>
     </div>
 
@@ -838,6 +839,57 @@
   </div>
 </div>
 
+<!-- INPUT CAMÉRA (mobile) -->
+<input type="file" id="photo-capture" accept="image/*" capture="environment" style="display:none">
+
+<!-- POPUP MARQUEUR PHOTO — création -->
+<div id="photo-popup" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.65);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:360px;max-width:94vw;box-shadow:0 16px 48px rgba(0,0,0,.7);">
+    <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">📷 Marqueur photo</h3>
+    <!-- Aperçu photo -->
+    <div id="photo-preview-wrap" style="width:100%;height:160px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;cursor:pointer;" onclick="triggerPhotoCapture()" title="Cliquer pour prendre/choisir une photo">
+      <img id="photo-preview-img" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px;">
+      <div id="photo-preview-hint" style="text-align:center;color:var(--text2);font-size:12px;">
+        <div style="font-size:32px;margin-bottom:6px;">📷</div>
+        <div>Cliquer pour prendre une photo<br>ou importer depuis la galerie</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11px;color:var(--text2);min-width:60px;">Titre</label>
+        <input type="text" id="photo-title" placeholder="ex: Point singulier cuisine…" maxlength="60"
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11px;color:var(--text2);min-width:60px;">Réseau</label>
+        <select id="photo-reseau" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:12px;padding:6px 8px;outline:none;">
+          <option value="">— optionnel —</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11px;color:var(--text2);min-width:60px;">Note</label>
+        <textarea id="photo-note" placeholder="Remarque, contrainte, côte à prendre…" rows="2"
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button onclick="closePhotoPopup()" style="padding:7px 16px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">Annuler</button>
+      <button onclick="confirmPhotoMarker()" id="photo-confirm-btn" style="padding:7px 16px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Placer</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP VISIONNEUSE PHOTO -->
+<div id="photo-viewer" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.88);align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <div style="position:absolute;top:12px;right:12px;display:flex;gap:8px;">
+    <button onclick="editPhotoMarker()" style="padding:6px 14px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;cursor:pointer;">✏ Modifier</button>
+    <button onclick="closePhotoViewer()" style="padding:6px 14px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;cursor:pointer;">✕ Fermer</button>
+  </div>
+  <div id="photo-viewer-header" style="color:#fff;font-size:14px;font-weight:700;text-align:center;padding:0 50px;"></div>
+  <img id="photo-viewer-img" src="" alt="" style="max-width:90vw;max-height:70vh;border-radius:8px;object-fit:contain;border:2px solid rgba(255,255,255,.1);">
+  <div id="photo-viewer-meta" style="color:rgba(255,255,255,.7);font-size:12px;text-align:center;max-width:500px;padding:0 20px;line-height:1.6;"></div>
+</div>
+
 <!-- TRAVERSÉE POPUP -->
 <div id="traversee-popup" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:340px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,.7);">
@@ -1020,6 +1072,7 @@ const TOOLS={
   'traversee-air-neuf':   {label:'Traversée air neuf',    color:'#00e1ff',shape:'circle'},
   'traversee-rejet':      {label:'Traversée rejet',       color:'#ff8c00',shape:'circle'},
   'liaison':           {label:'Liaison',        color:'#94a3b8',shape:null},
+  'photo':             {label:'Photo',           color:'#f59e0b',shape:null},
 };
 
 let customIcons={};
@@ -1184,9 +1237,9 @@ function _serializeLevelKonva(){
   lv._links=links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y})),bends90:l.bends90||0,bends45:l.bends45||0}));
   lv._measures=measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()}));
   lv._annotations=annotations.map(a=>({id:a.id,type:a.type,data:a.type==='text'?{...a.data,pos:a.nodes[0]?{x:a.nodes[0].x(),y:a.nodes[0].y()}:{x:0,y:0}}:{...a.data}}));
-  lv.placedElements={...placedElements};
-  lv.scaleRatio=scaleRatio;
-  lv.annotIdCounter=_annotIdCounter;
+  lv._photoMarkers=_serializePhotoMarkers();
+  lv._photoIdCounter=_photoIdCounter;
+  lv._annotIdCounter=_annotIdCounter;
   lv.bgImage=_bgToBase64();
   lv.bgRotation=_bgRotation;lv.bgFlipH=_bgFlipH;lv.bgFlipV=_bgFlipV;
 }
@@ -1208,6 +1261,8 @@ function _deserializeLevelKonva(idx){
     else if(a.type==='text'&&a.data.text)rehydrateTextAnnot(a);
     else if(a.type==='arrow'&&a.data.p1)rehydrateArrowAnnot(a);
   });
+  _deserializePhotoMarkers(lv._photoMarkers||[]);
+  if(lv._photoIdCounter)_photoIdCounter=lv._photoIdCounter;
 
   drawLayer.batchDraw();annotLayer.batchDraw();
   updateListe();updateAnnotList();
@@ -1366,22 +1421,37 @@ function loadNotes(data){
 // ══════════════════════════════════════════════════════════════
 function updateAnnotList(){
   const list=document.getElementById('annot-list');
-  if(!annotations.length){
-    list.innerHTML='<div class="annot-empty">Aucune annotation<br>Utilise les outils Zone, Texte ou Flèche</div>';
+  const allItems=[
+    ...annotations.map(a=>({
+      type:'annot',id:a.id,
+      typeLabel:{zone:'Zone',text:'Texte',arrow:'Flèche'}[a.type]||'?',
+      label:a.data.label||a.data.text||'—',
+      color:a.type==='zone'?a.data.color:'',
+      icon:a.type==='text'?(a.data.styleIcon||'📝'):a.type==='arrow'?'↗':'⬡',
+    })),
+    ..._photoMarkers.map(m=>({
+      type:'photo',id:m.id,
+      typeLabel:'Photo',
+      label:m.title||('P'+m.id),
+      color:'#f59e0b',
+      icon:'📷',
+    })),
+  ];
+  if(!allItems.length){
+    list.innerHTML='<div class="annot-empty">Aucune annotation<br>Utilise les outils Zone, Texte, Flèche ou Photo</div>';
     return;
   }
-  list.innerHTML=annotations.map(a=>{
-    const typeLabel={zone:'Zone',text:'Texte',arrow:'Flèche'}[a.type]||'?';
-    const swatch=a.type==='zone'?`<span class="annot-swatch" style="background:${a.data.color};opacity:0.8;"></span>`:
-                  a.type==='text'?`<span style="font-size:14px;flex-shrink:0;line-height:1;">${a.data.styleIcon||'📝'}</span>`:
-                  `<span style="font-size:14px;flex-shrink:0;line-height:1;">↗</span>`;
-    return`<div class="annot-item${a.id===_selectedAnnotId?' selected':''}" onclick="selectAnnotById(${a.id})">
-      ${swatch}
-      <span class="annot-name">${a.data.label||a.data.text||'—'}</span>
-      <span class="annot-type">${typeLabel}</span>
-      <button class="annot-del" onclick="event.stopPropagation();deleteAnnotById(${a.id})">✕</button>
-    </div>`;
-  }).join('');
+  list.innerHTML=allItems.map(a=>`
+    <div class="annot-item${(a.type==='annot'&&a.id===_selectedAnnotId)||a.type==='photo'?' selected':''}"
+      onclick="${a.type==='photo'?`openPhotoViewer(${a.id})`:`selectAnnotById(${a.id})`}">
+      ${a.type==='photo'?
+        `<span style="font-size:14px;flex-shrink:0;">📷</span>`:
+        a.typeLabel==='Zone'?`<span class="annot-swatch" style="background:${a.color};opacity:0.8;"></span>`:
+        `<span style="font-size:14px;flex-shrink:0;">${a.icon}</span>`}
+      <span class="annot-name">${a.label}</span>
+      <span class="annot-type">${a.typeLabel}</span>
+      <button class="annot-del" onclick="event.stopPropagation();${a.type==='photo'?`deletePhotoMarker(${a.id})`:`deleteAnnotById(${a.id})`}">✕</button>
+    </div>`).join('');
 }
 function selectAnnotById(id){
   _selectedAnnotId=id;
@@ -2017,6 +2087,8 @@ async function saveProject(){
     links:lv._links||[],
     measures:lv._measures||[],
     annotations:lv._annotations||[],
+    photoMarkers:lv._photoMarkers||[],
+    photoIdCounter:lv._photoIdCounter||1,
   }));
   const data={version:7,currentLevelIdx:_currentLevelIdx,levels:levelsData,conduitConfig,reseauTypes,customIcons,chantierNotes};
   const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
@@ -2048,6 +2120,8 @@ function loadProject(file){
           _links:lv.links||[],
           _measures:lv.measures||[],
           _annotations:lv.annotations||[],
+          _photoMarkers:lv.photoMarkers||[],
+          _photoIdCounter:lv.photoIdCounter||1,
         }));
         _currentLevelIdx=data.currentLevelIdx||0;
         clearAllSilent();
@@ -2259,6 +2333,8 @@ function pushHistory(){
     scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
     annotations:annotations.map(a=>({id:a.id,type:a.type,data:JSON.parse(JSON.stringify(a.data))})),
     annotIdCounter:_annotIdCounter,
+    photoMarkers:_serializePhotoMarkers(),
+    photoIdCounter:_photoIdCounter,
   });
   if(h.length>MAX_HISTORY)h.shift();
   // Toute nouvelle action efface le futur (redo)
@@ -2271,6 +2347,8 @@ function _restoreSnapshot(snap){
   if(snap.reseauTypes){reseauTypes=snap.reseauTypes;syncReseauSelect();renderReseauxConfig();}
   if(snap.customIcons){customIcons=snap.customIcons;refreshToolbarIcons();}
   if(snap.annotIdCounter)_annotIdCounter=snap.annotIdCounter;
+  if(snap.photoIdCounter)_photoIdCounter=snap.photoIdCounter;
+  _deserializePhotoMarkers(snap.photoMarkers||[]);
   snap.elements.forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null,e.traverseeData||null);});
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
   snap.links.forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
@@ -2321,6 +2399,9 @@ function clearAllSilent(){
   links.forEach(l=>destroyLinkNodes(l));links=[];
   measures.forEach(m=>{try{m.grp.destroy();m.p1.destroy();m.p2.destroy();}catch(e){}});measures=[];
   annotations.forEach(a=>destroyAnnotNodes(a));annotations=[];
+  // Vider les marqueurs photo
+  _photoMarkers.forEach(m=>{if(m.konvaGroup)try{m.konvaGroup.destroy();}catch(e){}});
+  _photoMarkers=[];
   drawLayer.getChildren().filter(n=>n.name()==='element'||n.getAttr('customType')==='link'||n.getAttr('customType')==='measure-group').forEach(n=>n.destroy());
   annotLayer.destroyChildren();
   transformer=new Konva.Transformer({rotateEnabled:true,enabledAnchors:[],borderStroke:'#3b82f6',borderStrokeWidth:1.5,rotateAnchorOffset:18,rotationSnaps:[0,45,90,135,180,225,270,315],rotationSnapTolerance:8});
@@ -3008,11 +3089,10 @@ function handleTap(e){
   if(clickedElNav){selectElement(clickedElNav);return;}
   selectElement(null);_selectedWaypoint=null;_selectedAnnotId=null;
   if(currentTool==='none')return;
-  // Traversée — ouvre le popup de config
-  if(isTraverseeTool(currentTool)){
-    if(pos)openTraverseePopup(pos);
-    return;
-  }
+  // Photo — ouvre le popup
+  if(isPhotoTool(currentTool)){if(pos)openPhotoPopup(pos);return;}
+  // Traversée
+  if(isTraverseeTool(currentTool)){if(pos)openTraverseePopup(pos);return;}
   const conf=TOOLS[currentTool];if(!conf||conf.shape===null)return;
   placeElement(currentTool,conf,pos);
 }
@@ -3864,7 +3944,228 @@ function isTraverseeTool(tool){
   return tool&&tool.startsWith('traversee-');
 }
 
-// ── RAPPEL SAUVEGARDE À LA FERMETURE ──
+// ══════════════════════════════════════════════════════════════
+// MARQUEURS PHOTO
+// ══════════════════════════════════════════════════════════════
+let _photoMarkers=[];      // [{id,pos,title,note,reseau,date,imgBase64,konvaGroup}]
+let _photoIdCounter=1;
+let _pendingPhotoPos=null;
+let _pendingPhotoBase64=null;
+let _editingPhotoId=null;
+let _viewingPhotoId=null;
+
+// Compresse une image en JPEG base64 max 900px
+function _compressPhotoImg(file){
+  return new Promise(res=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const img=new Image();
+      img.onload=function(){
+        const MAX=900;
+        const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+        const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        res(c.toDataURL('image/jpeg',0.72));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openPhotoPopup(pos){
+  _pendingPhotoPos=pos;
+  _pendingPhotoBase64=null;
+  _editingPhotoId=null;
+  document.getElementById('photo-title').value='';
+  document.getElementById('photo-note').value='';
+  document.getElementById('photo-preview-img').style.display='none';
+  document.getElementById('photo-preview-hint').style.display='block';
+  document.getElementById('photo-confirm-btn').textContent='Placer';
+  // Remplir les réseaux
+  const sel=document.getElementById('photo-reseau');
+  sel.innerHTML='<option value="">— optionnel —</option>'+
+    reseauTypes.map(r=>`<option value="${r.label}">${r.label}</option>`).join('');
+  document.getElementById('photo-popup').style.display='flex';
+  setTimeout(()=>document.getElementById('photo-title').focus(),100);
+}
+
+function closePhotoPopup(){
+  document.getElementById('photo-popup').style.display='none';
+  _pendingPhotoPos=null;_pendingPhotoBase64=null;_editingPhotoId=null;
+}
+
+function triggerPhotoCapture(){
+  document.getElementById('photo-capture').click();
+}
+
+// Listener sur l'input caméra
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('photo-capture').addEventListener('change',async function(e){
+    const file=e.target.files[0];if(!file)return;
+    this.value='';
+    setStatus('Compression de la photo…','loading');
+    _pendingPhotoBase64=await _compressPhotoImg(file);
+    const img=document.getElementById('photo-preview-img');
+    img.src=_pendingPhotoBase64;
+    img.style.display='block';
+    document.getElementById('photo-preview-hint').style.display='none';
+    setStatus('Photo prête','ok');
+  });
+});
+
+function confirmPhotoMarker(){
+  const title=document.getElementById('photo-title').value.trim()||('Photo P'+_photoIdCounter);
+  const note=document.getElementById('photo-note').value.trim();
+  const reseau=document.getElementById('photo-reseau').value;
+
+  if(_editingPhotoId!==null){
+    // Mode édition — mettre à jour
+    const m=_photoMarkers.find(p=>p.id===_editingPhotoId);
+    if(m){
+      m.title=title;m.note=note;m.reseau=reseau;
+      if(_pendingPhotoBase64)m.imgBase64=_pendingPhotoBase64;
+      _updatePhotoMarkerVisual(m);
+      updateAnnotList();
+    }
+    closePhotoPopup();return;
+  }
+
+  if(!_pendingPhotoPos){closePhotoPopup();return;}
+  pushHistory();
+
+  const id=_photoIdCounter++;
+  const marker={
+    id,pos:{..._pendingPhotoPos},
+    title,note,reseau,
+    date:new Date().toLocaleString('fr-FR'),
+    imgBase64:_pendingPhotoBase64||null,
+    konvaGroup:null,
+  };
+  _photoMarkers.push(marker);
+  _createPhotoKonva(marker);
+  closePhotoPopup();
+  updateAnnotList();
+  switchTab('annotations');
+  setStatus(`✓ Marqueur photo P${id} posé`,'ok');
+}
+
+function _createPhotoKonva(marker){
+  const {pos,id,title,reseau,imgBase64}=marker;
+  const color=reseau?getReseauColor(reseau):'#f59e0b';
+
+  const grp=new Konva.Group({x:pos.x,y:pos.y,draggable:true,name:'photo-marker'});
+  grp.setAttr('photoId',id);
+
+  // Épingle : cercle + triangle pointant vers le bas
+  const pin=new Konva.Circle({x:0,y:-16,radius:11,fill:color,stroke:'#fff',strokeWidth:1.5});
+  const stem=new Konva.Line({points:[0,-5,0,4],stroke:color,strokeWidth:3,lineCap:'round'});
+
+  // Icône caméra
+  const icon=new Konva.Text({x:-6,y:-23,text:'📷',fontSize:11,listening:false});
+
+  // Badge numéro
+  const badge=new Konva.Text({x:0,y:-20,text:'P'+id,fontSize:7,fill:'#fff',fontStyle:'bold',fontFamily:'monospace',align:'center',offsetX:0,listening:false});
+  badge.offsetX(badge.width()/2);
+
+  // Zone de hit transparente
+  const hit=new Konva.Rect({x:-14,y:-30,width:28,height:34,fill:'transparent',listening:true});
+
+  grp.add(stem);grp.add(pin);grp.add(icon);grp.add(badge);grp.add(hit);
+
+  grp.on('click tap',()=>openPhotoViewer(id));
+  grp.on('contextmenu',e=>{
+    e.evt.preventDefault();
+    _viewingPhotoId=id;
+    ['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(el=>document.getElementById(el).style.display='none');
+    document.getElementById('ctx-edit-annot').style.display='block';
+    openContextMenu(e.evt);
+  });
+  grp.on('dragend',()=>{
+    marker.pos={x:grp.x(),y:grp.y()};
+    pushHistory();
+  });
+  grp.on('dragstart',()=>{clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;isPanning=false;});
+
+  annotLayer.add(grp);annotLayer.batchDraw();
+  marker.konvaGroup=grp;
+}
+
+function _updatePhotoMarkerVisual(marker){
+  if(marker.konvaGroup){marker.konvaGroup.destroy();}
+  _createPhotoKonva(marker);
+  annotLayer.batchDraw();
+}
+
+function openPhotoViewer(id){
+  const m=_photoMarkers.find(p=>p.id===id);if(!m)return;
+  _viewingPhotoId=id;
+  document.getElementById('photo-viewer-header').textContent=`📷 ${m.title}`;
+  const img=document.getElementById('photo-viewer-img');
+  if(m.imgBase64){img.src=m.imgBase64;img.style.display='block';}
+  else{img.style.display='none';}
+  let meta=`${m.date}`;
+  if(m.reseau)meta+=` · Réseau : ${m.reseau}`;
+  if(m.note)meta+=`\n${m.note}`;
+  document.getElementById('photo-viewer-meta').textContent=meta;
+  document.getElementById('photo-viewer').style.display='flex';
+}
+
+function closePhotoViewer(){
+  document.getElementById('photo-viewer').style.display='none';
+  _viewingPhotoId=null;
+}
+
+function editPhotoMarker(){
+  closePhotoViewer();
+  const m=_photoMarkers.find(p=>p.id===_viewingPhotoId);if(!m)return;
+  _editingPhotoId=m.id;
+  _pendingPhotoPos=m.pos;
+  _pendingPhotoBase64=m.imgBase64||null;
+  document.getElementById('photo-title').value=m.title;
+  document.getElementById('photo-note').value=m.note||'';
+  const sel=document.getElementById('photo-reseau');
+  sel.innerHTML='<option value="">— optionnel —</option>'+
+    reseauTypes.map(r=>`<option value="${r.label}" ${r.label===m.reseau?'selected':''}>${r.label}</option>`).join('');
+  const img=document.getElementById('photo-preview-img');
+  if(m.imgBase64){img.src=m.imgBase64;img.style.display='block';document.getElementById('photo-preview-hint').style.display='none';}
+  else{img.style.display='none';document.getElementById('photo-preview-hint').style.display='block';}
+  document.getElementById('photo-confirm-btn').textContent='Mettre à jour';
+  document.getElementById('photo-popup').style.display='flex';
+}
+
+function deletePhotoMarker(id){
+  const idx=_photoMarkers.findIndex(p=>p.id===id);if(idx===-1)return;
+  pushHistory();
+  if(_photoMarkers[idx].konvaGroup)_photoMarkers[idx].konvaGroup.destroy();
+  _photoMarkers.splice(idx,1);
+  annotLayer.batchDraw();
+  updateAnnotList();
+}
+
+// Intégration handleTap
+function isPhotoTool(tool){return tool==='photo';}
+
+// Sérialisation pour save/undo
+function _serializePhotoMarkers(){
+  return _photoMarkers.map(m=>({
+    id:m.id,pos:m.pos,title:m.title,note:m.note,reseau:m.reseau,
+    date:m.date,imgBase64:m.imgBase64||null,
+  }));
+}
+function _deserializePhotoMarkers(data){
+  _photoMarkers.forEach(m=>{if(m.konvaGroup)m.konvaGroup.destroy();});
+  _photoMarkers=[];
+  if(!data||!data.length)return;
+  data.forEach(d=>{
+    const marker={...d,konvaGroup:null};
+    _photoMarkers.push(marker);
+    _createPhotoKonva(marker);
+  });
+  annotLayer.batchDraw();
+}
+
 let _hasUnsavedChanges=false;
 window.addEventListener('beforeunload',function(e){
   if(_hasUnsavedChanges){e.preventDefault();e.returnValue='';}
