@@ -1339,7 +1339,7 @@ function _deserializeLevelKonva(idx){
 
   (lv._elements||[]).forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null,e.traverseeData||null,e.elemInfo||null);});
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-  (lv._links||[]).forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
+  (lv._links||[]).forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null,l.aAnchor||null,l.bAnchor||null);});
   (lv._measures||[]).forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
   (lv._annotations||[]).forEach(a=>{
     if(a.type==='zone'&&a.data.points)rehydrateZoneAnnot(a);
@@ -2498,7 +2498,7 @@ function pushHistory(){
   h.push({
     placedElements:{...placedElements},
     elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null,traverseeData:g.getAttr('traverseeData')||null,elemInfo:g.getAttr('elemInfo')||null})),
-    links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
+    links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y})),aAnchor:l.aAnchor||null,bAnchor:l.bAnchor||null})),
     measures:measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()})),
     scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
     annotations:annotations.map(a=>({id:a.id,type:a.type,data:JSON.parse(JSON.stringify(a.data))})),
@@ -2521,7 +2521,7 @@ function _restoreSnapshot(snap){
   _deserializePhotoMarkers(snap.photoMarkers||[]);
   snap.elements.forEach(e=>{const conf=TOOLS[e.toolId];if(conf)placeElementSilent(e.toolId,conf,{x:e.x,y:e.y},e.scaleX,e.rotation||0,e.realDims||null,e.scaleY||null,e.traverseeData||null,e.elemInfo||null);});
   const elNodes=drawLayer.getChildren().filter(n=>n.name()==='element');
-  snap.links.forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null);});
+  snap.links.forEach(l=>{const a=elNodes[l.aIndex],b=elNodes[l.bIndex];if(a&&b)createLink(a,b,l.mat,l.dia,l.lengthM,l.reseau,l.reseauColor,l.waypoints||[],l.tension??0.35,l.diaMm||null,l.aAnchor||null,l.bAnchor||null);});
   snap.measures.forEach(m=>createMeasure(m.x1,m.y1,m.x2,m.y2));
   (snap.annotations||[]).forEach(a=>{
     if(a.type==='zone'&&a.data.points)rehydrateZoneAnnot(a);
@@ -2536,7 +2536,7 @@ function _currentSnapshot(){
   return{
     placedElements:{...placedElements},
     elements:elNodes.map(g=>({toolId:g.getAttr('toolId'),toolLabel:g.getAttr('toolLabel'),x:g.x(),y:g.y(),scaleX:g.scaleX(),scaleY:g.scaleY(),rotation:g.rotation(),realDims:g.getAttr('realDims')||null,traverseeData:g.getAttr('traverseeData')||null,elemInfo:g.getAttr('elemInfo')||null})),
-    links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y}))})),
+    links:links.map(l=>({aIndex:elNodes.indexOf(l.a),bIndex:elNodes.indexOf(l.b),mat:l.mat,dia:l.dia,diaMm:l.diaMm||null,lengthM:l.lengthM,reseau:l.reseau,reseauColor:l.reseauColor,tension:l.tension??0.35,waypoints:l.waypoints.map(wp=>({x:wp._x,y:wp._y})),aAnchor:l.aAnchor||null,bAnchor:l.bAnchor||null})),
     measures:measures.map(m=>({x1:m.p1.x(),y1:m.p1.y(),x2:m.p2.x(),y2:m.p2.y()})),
     scaleRatio,reseauTypes:JSON.parse(JSON.stringify(reseauTypes)),customIcons:{...customIcons},
     annotations:annotations.map(a=>({id:a.id,type:a.type,data:JSON.parse(JSON.stringify(a.data))})),
@@ -2737,7 +2737,7 @@ function openPicker(a,b){pendingLink={a,b};syncReseauSelect();document.getElemen
   const p=document.getElementById('link-picker');p.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%)';p.classList.add('open');
 }
 function cancelPicker(){document.getElementById('link-picker').classList.remove('open');pendingLink=null;cancelLinkDrawing();}
-function confirmPicker(){if(!pendingLink)return;const mat=document.getElementById('pk-materiau').value,dia=document.getElementById('pk-diametre').value;const reseauLabel=document.getElementById('pk-reseau').value,reseauColor=reseauLabel?getReseauColor(reseauLabel):'';const tension=parseFloat(document.getElementById('pk-tension').value);const diaMmInp=parseFloat(document.getElementById('pk-dia-mm').value);const diaMm=isNaN(diaMmInp)?extractDiaMm(dia):diaMmInp;document.getElementById('link-picker').classList.remove('open');pushHistory();const wps=_linkWaypoints.slice();cancelLinkDrawing();createLink(pendingLink.a,pendingLink.b,mat,dia,null,reseauLabel,reseauColor,wps,tension,diaMm);pendingLink=null;}
+function confirmPicker(){if(!pendingLink)return;const mat=document.getElementById('pk-materiau').value,dia=document.getElementById('pk-diametre').value;const reseauLabel=document.getElementById('pk-reseau').value,reseauColor=reseauLabel?getReseauColor(reseauLabel):'';const tension=parseFloat(document.getElementById('pk-tension').value);const diaMmInp=parseFloat(document.getElementById('pk-dia-mm').value);const diaMm=isNaN(diaMmInp)?extractDiaMm(dia):diaMmInp;document.getElementById('link-picker').classList.remove('open');pushHistory();const wps=_linkWaypoints.slice();cancelLinkDrawing();createLink(pendingLink.a,pendingLink.b,mat,dia,null,reseauLabel,reseauColor,wps,tension,diaMm,pendingLink.aAnchor||null,pendingLink.bAnchor||null);pendingLink=null;}
 
 function getScenePos(){
   const ptr=stage.getPointerPosition();
@@ -2799,33 +2799,150 @@ function setTool(tool){
 // ══════════════════════════════════════════════════════════════
 // LINK DRAWING
 // ══════════════════════════════════════════════════════════════
-function cancelLinkDrawing(){_linkDrawing=false;_linkWaypoints=[];linkStart=null;if(_linkPreviewLine){_linkPreviewLine.destroy();_linkPreviewLine=null;}if(_linkPreviewDot){_linkPreviewDot.destroy();_linkPreviewDot=null;}tempMarkers.forEach(m=>m.destroy());tempMarkers=[];drawLayer&&drawLayer.batchDraw();}
-function startLinkDrawing(startEl){linkStart=startEl;_linkDrawing=true;_linkWaypoints=[];_linkPreviewLine=new Konva.Line({points:[startEl.x(),startEl.y(),startEl.x(),startEl.y()],stroke:'#94a3b8',strokeWidth:2,dash:[6,3],opacity:.7,tension:.4,listening:false});_linkPreviewDot=new Konva.Circle({radius:4,fill:'#94a3b8',opacity:.7,listening:false});drawLayer.add(_linkPreviewLine);drawLayer.add(_linkPreviewDot);drawLayer.batchDraw();showHint('Liaison en cours — cliquez dans le vide pour poser un point — arrivée sur un élément — Échap pour annuler');}
 function updateLinkPreview(pos){
   if(!_linkDrawing||!_linkPreviewLine)return;
-  const base=[linkStart.x(),linkStart.y()];
+  const startPt=_linkStartAnchor?anchorToPoint(linkStart,_linkStartAnchor):{x:linkStart.x(),y:linkStart.y()};
+  const base=[startPt.x,startPt.y];
   _linkWaypoints.forEach(wp=>{base.push(wp.x,wp.y);});
-  // Snap angulaire depuis le dernier point
-  const lastPt=_linkWaypoints.length?{x:_linkWaypoints[_linkWaypoints.length-1].x,y:_linkWaypoints[_linkWaypoints.length-1].y}:{x:linkStart.x(),y:linkStart.y()};
+  const lastPt=_linkWaypoints.length?{x:_linkWaypoints[_linkWaypoints.length-1].x,y:_linkWaypoints[_linkWaypoints.length-1].y}:startPt;
   const snapped=snapToAngle(lastPt,pos);
   base.push(snapped.x,snapped.y);
   _linkPreviewLine.points(base);_linkPreviewDot.x(snapped.x);_linkPreviewDot.y(snapped.y);
   drawLayer.batchDraw();
 }
 function addWaypointToDrawing(pos){
-  // Snap depuis le dernier point posé
-  const lastPt=_linkWaypoints.length?{x:_linkWaypoints[_linkWaypoints.length-1].x,y:_linkWaypoints[_linkWaypoints.length-1].y}:{x:linkStart.x(),y:linkStart.y()};
+  const startPt=_linkStartAnchor?anchorToPoint(linkStart,_linkStartAnchor):{x:linkStart.x(),y:linkStart.y()};
+  const lastPt=_linkWaypoints.length?{x:_linkWaypoints[_linkWaypoints.length-1].x,y:_linkWaypoints[_linkWaypoints.length-1].y}:startPt;
   const snapped=snapToAngle(lastPt,pos);
   const m=new Konva.Circle({x:snapped.x,y:snapped.y,radius:4,fill:'#94a3b8',stroke:'#fff',strokeWidth:1,opacity:.8,listening:false});
   drawLayer.add(m);tempMarkers.push(m);_linkWaypoints.push({x:snapped.x,y:snapped.y});drawLayer.batchDraw();
 }
-function finishLinkDrawing(endEl){
-  if(!_linkDrawing)return;
-  const wps=_linkWaypoints.slice();const a=linkStart,b=endEl;cancelLinkDrawing();
-  if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){
-    pushHistory();createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps,activeTension);
-  }else{pendingLink={a,b};_linkWaypoints=wps;openPicker(a,b);}
+function cancelLinkDrawing(){
+  _linkDrawing=false;_linkWaypoints=[];linkStart=null;
+  _linkStartAnchor=null;_linkEndAnchor=null;
+  hideConnectionDots();
+  if(_linkPreviewLine){_linkPreviewLine.destroy();_linkPreviewLine=null;}
+  if(_linkPreviewDot){_linkPreviewDot.destroy();_linkPreviewDot=null;}
+  tempMarkers.forEach(m=>m.destroy());tempMarkers=[];
+  drawLayer&&drawLayer.batchDraw();
 }
+// ══════════════════════════════════════════════════════════════
+// POINTS DE CONNEXION
+// ══════════════════════════════════════════════════════════════
+let _connDots=[];          // cercles Konva affichés au survol
+let _hoveredEl=null;       // élément survolé en mode liaison
+let _linkStartAnchor=null; // {x,y} offset relatif au centre de l'élément A
+let _linkEndAnchor=null;   // idem pour B
+
+const B_CONN=ICON_BASE_PX/2; // demi-taille icône = rayon de la zone
+
+// Retourne les 8 points de connexion d'un élément en coordonnées scène
+function getConnectionPoints(el){
+  const cx=el.x(), cy=el.y();
+  const sc=el.scaleX(); // scaleX ≈ scaleY pour la taille
+  const scY=el.scaleY();
+  const hw=B_CONN*sc,  hh=B_CONN*scY; // demi-largeur, demi-hauteur
+  return[
+    {x:cx,      y:cy-hh,  label:'top'},
+    {x:cx+hw,   y:cy-hh,  label:'top-right'},
+    {x:cx+hw,   y:cy,     label:'right'},
+    {x:cx+hw,   y:cy+hh,  label:'bottom-right'},
+    {x:cx,      y:cy+hh,  label:'bottom'},
+    {x:cx-hw,   y:cy+hh,  label:'bottom-left'},
+    {x:cx-hw,   y:cy,     label:'left'},
+    {x:cx-hw,   y:cy-hh,  label:'top-left'},
+  ];
+}
+
+// Offset relatif au centre de l'élément (pour ancrage au déplacement)
+function anchorFromPoint(el, pt){
+  return{dx:pt.x-el.x(), dy:pt.y-el.y()};
+}
+// Position absolue depuis ancre
+function anchorToPoint(el, anchor){
+  return{x:el.x()+anchor.dx, y:el.y()+anchor.dy};
+}
+
+// Trouve le point de connexion le plus proche d'une position scène
+function nearestConnectionPoint(el, pos){
+  const pts=getConnectionPoints(el);
+  let best=pts[0], bestD=Infinity;
+  pts.forEach(p=>{
+    const d=Math.hypot(p.x-pos.x,p.y-pos.y);
+    if(d<bestD){bestD=d;best=p;}
+  });
+  return best;
+}
+
+// Affiche les points de connexion sur un élément
+function showConnectionDots(el){
+  hideConnectionDots();
+  _hoveredEl=el;
+  const pts=getConnectionPoints(el);
+  pts.forEach(p=>{
+    const dot=new Konva.Circle({
+      x:p.x,y:p.y,radius:4,
+      fill:'#fff',stroke:'#3b82f6',strokeWidth:1.5,
+      opacity:.9,listening:false,
+    });
+    drawLayer.add(dot);
+    _connDots.push(dot);
+  });
+  drawLayer.batchDraw();
+}
+
+// Cache les points de connexion
+function hideConnectionDots(){
+  _connDots.forEach(d=>d.destroy());
+  _connDots=[];
+  _hoveredEl=null;
+  drawLayer&&drawLayer.batchDraw();
+}
+
+// Remplace startLinkDrawing pour partir d'un point précis
+function startLinkDrawingFromPoint(el, pt){
+  _linkStartAnchor=anchorFromPoint(el,pt);
+  linkStart=el;_linkDrawing=true;_linkWaypoints=[];
+  _linkPreviewLine=new Konva.Line({
+    points:[pt.x,pt.y,pt.x,pt.y],
+    stroke:'#94a3b8',strokeWidth:2,dash:[6,3],opacity:.7,tension:activeTension,listening:false,
+  });
+  _linkPreviewDot=new Konva.Circle({radius:4,fill:'#94a3b8',opacity:.7,listening:false});
+  drawLayer.add(_linkPreviewLine);drawLayer.add(_linkPreviewDot);
+  hideConnectionDots();
+  drawLayer.batchDraw();
+  showHint('Liaison en cours — cliquez dans le vide pour poser un point — clic sur un élément pour terminer — Échap pour annuler');
+}
+
+function startLinkDrawing(startEl){
+  // Fallback sans point précis : utilise le centre
+  const pt={x:startEl.x(),y:startEl.y()};
+  startLinkDrawingFromPoint(startEl,pt);
+}
+
+function finishLinkDrawingAtPoint(endEl, pt){
+  if(!_linkDrawing)return;
+  _linkEndAnchor=anchorFromPoint(endEl,pt);
+  const wps=_linkWaypoints.slice();
+  const a=linkStart,b=endEl;
+  const aAnchor=_linkStartAnchor;
+  const bAnchor=_linkEndAnchor;
+  cancelLinkDrawing();
+  hideConnectionDots();
+  if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){
+    pushHistory();
+    createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps,activeTension,null,aAnchor,bAnchor);
+  }else{
+    pendingLink={a,b,aAnchor,bAnchor};_linkWaypoints=wps;openPicker(a,b);
+  }
+}
+
+function finishLinkDrawing(endEl){
+  // Fallback : chercher le point le plus proche du curseur
+  const pt=_lastScenePos?nearestConnectionPoint(endEl,_lastScenePos):{x:endEl.x(),y:endEl.y()};
+  finishLinkDrawingAtPoint(endEl,pt);
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // FOND DE PLAN — état global
@@ -2970,6 +3087,22 @@ function initEvents(){
     _lastScenePos=scenePos;
     if(isPanning&&lastPointer){stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);}
     if(_linkDrawing){updateLinkPreview(scenePos);}
+    // Survol en mode liaison — afficher points de connexion
+    if(currentTool==='liaison'&&!_linkDrawing){
+      const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
+      const hovEl=hovered?findElementGroup(hovered):null;
+      if(hovEl!==_hoveredEl){
+        if(hovEl)showConnectionDots(hovEl);
+        else hideConnectionDots();
+      }
+    }
+    // Survol en mode liaison en cours — snap sur point de connexion
+    if(currentTool==='liaison'&&_linkDrawing){
+      const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
+      const hovEl=hovered?findElementGroup(hovered):null;
+      if(hovEl&&hovEl!==linkStart){showConnectionDots(hovEl);}
+      else if(!hovEl){hideConnectionDots();}
+    }
     if(_annotDrawing){updateZonePreviewLine(scenePos);}
     if(_arrowDrawing&&_arrowStart){
       const sp=scenePos;
@@ -3243,8 +3376,18 @@ function handleTap(e){
   // LIAISON
   if(currentTool==='liaison'){
     const clickedEl=findElementGroup(target);
-    if(!_linkDrawing){if(clickedEl){startLinkDrawing(clickedEl);}return;}
-    if(clickedEl&&clickedEl!==linkStart){finishLinkDrawing(clickedEl);}else if(!clickedEl){addWaypointToDrawing(pos);}
+    if(!_linkDrawing){
+      if(clickedEl&&pos){
+        const pt=nearestConnectionPoint(clickedEl,pos);
+        showConnectionDots(clickedEl);
+        startLinkDrawingFromPoint(clickedEl,pt);
+      }
+      return;
+    }
+    if(clickedEl&&clickedEl!==linkStart&&pos){
+      const pt=nearestConnectionPoint(clickedEl,pos);
+      finishLinkDrawingAtPoint(clickedEl,pt);
+    }else if(!clickedEl){addWaypointToDrawing(pos);}
     return;
   }
 
@@ -3374,7 +3517,14 @@ function deleteSelected(){
 // LIENS MULTI-SEGMENTS
 // ══════════════════════════════════════════════════════════════
 function linkTotalLength(l){const pts=buildLinkPoints(l);let total=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];total+=Math.sqrt(dx*dx+dy*dy);}return total;}
-function buildLinkPoints(l){const pts=[l.a.x(),l.a.y()];l.waypoints.forEach(wp=>{pts.push(wp._x,wp._y);});pts.push(l.b.x(),l.b.y());return pts;}
+function buildLinkPoints(l){
+  const startPt=l.aAnchor?anchorToPoint(l.a,l.aAnchor):{x:l.a.x(),y:l.a.y()};
+  const endPt=l.bAnchor?anchorToPoint(l.b,l.bAnchor):{x:l.b.x(),y:l.b.y()};
+  const pts=[startPt.x,startPt.y];
+  l.waypoints.forEach(wp=>{pts.push(wp._x,wp._y);});
+  pts.push(endPt.x,endPt.y);
+  return pts;
+}
 function createWaypointDot(linkObj,index){
   const wp=linkObj.waypoints[index];
   const dot=new Konva.Circle({
@@ -3416,7 +3566,7 @@ function findNearestWaypoint(scenePos,maxDist=20){
   });
   return best;
 }
-function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',waypointData=[],tension=0.35,diaMm=null){
+function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',waypointData=[],tension=0.35,diaMm=null,aAnchor=null,bAnchor=null){
   const matColorMap={'Galva':'#94a3b8','PVC':'#60a5fa','Flex':'#f59e0b','ComfoPipe':'#c0bfbf','ComfoTube':'#bfbdbd'};
   const lineColor=reseauColorParam||(reseau?getReseauColor(reseau):'')||matColorMap[mat]||'#94a3b8';
   const resolvedDiaMm=diaMm||extractDiaMm(dia);
@@ -3431,7 +3581,7 @@ function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',
     const label=new Konva.Text({x:mid.x-tw/2,y:mid.y-4,text:txt,fontSize:5,fill:lineColor,fontStyle:'bold',fontFamily:'monospace',visible:txt!==''&&_showLinkLabels});
     label.setAttr('customType','linkLabel');labelBg.setAttr('customType','linkLabel');
     drawLayer.add(line);drawLayer.add(labelBg);drawLayer.add(label);line.moveToBottom();
-    const linkObj={a,b,line,label,labelBg,waypoints,waypointDots:[],lengthM,mat:mat||'',dia:dia||'',diaMm:resolvedDiaMm,reseau:reseau||'',reseauColor:lineColor,lineColor,tension};
+    const linkObj={a,b,line,label,labelBg,waypoints,waypointDots:[],lengthM,mat:mat||'',dia:dia||'',diaMm:resolvedDiaMm,reseau:reseau||'',reseauColor:lineColor,lineColor,tension,aAnchor:aAnchor||null,bAnchor:bAnchor||null};
     const bends=countBendsInLink(waypoints,a,b);
     linkObj.bends90=bends.bends90;linkObj.bends45=bends.bends45;
     waypointData.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));
