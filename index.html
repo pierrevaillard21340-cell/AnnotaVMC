@@ -467,7 +467,16 @@
     <div class="hgroup">
       <div class="hgroup-label">VMC</div>
       <div class="hgroup-body">
-        <button class="tool-btn" id="btn-vmc" style="--tool-color:var(--vmc)" onclick="setTool('vmc')"><span class="tool-icon" id="ti-vmc"></span></button>
+        <div class="tool-dropdown" id="dd-vmc">
+          <button class="tool-btn" id="btn-vmc" style="--tool-color:var(--vmc)" onclick="toggleDropdown('dd-vmc',event)"><span class="tool-icon" id="ti-vmc"></span>▾</button>
+          <div class="tool-submenu" id="sub-vmc">
+            <button onclick="setTool('vmc');closeDropdowns()"><span class="tool-icon" style="width:20px;height:20px;display:inline-flex;" id="ti-vmc-dd"></span> Double flux</button>
+            <button onclick="setTool('vmc-sf');closeDropdowns()"><span class="tool-icon" style="width:20px;height:20px;display:inline-flex;" id="ti-vmc-sf-dd"></span> Simple flux</button>
+            <button onclick="setTool('vmc-hygro');closeDropdowns()"><span class="tool-icon" style="width:20px;height:20px;display:inline-flex;" id="ti-vmc-hygro-dd"></span> Hygroréglable</button>
+          </div>
+        </div>
+        <button class="tool-btn" id="btn-vmc-sf"    style="--tool-color:var(--vmc);display:none" onclick="setTool('vmc-sf')"><span class="tool-icon" id="ti-vmc-sf"></span></button>
+        <button class="tool-btn" id="btn-vmc-hygro" style="--tool-color:var(--vmc);display:none" onclick="setTool('vmc-hygro')"><span class="tool-icon" id="ti-vmc-hygro"></span></button>
       </div>
     </div>
 
@@ -1060,7 +1069,43 @@
 // SVG ICONS
 // ══════════════════════════════════════════════════════════════
 const SVG_ICONS = {
-  'vmc': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="8" width="36" height="24" rx="3" fill="#1a2a1a" stroke="#29b000" stroke-width="2"/><circle cx="20" cy="20" r="7" fill="none" stroke="#29b000" stroke-width="1.5"/><line x1="20" y1="13" x2="20" y2="27" stroke="#29b000" stroke-width="1.2"/><line x1="13" y1="20" x2="27" y2="20" stroke="#29b000" stroke-width="1.2"/><line x1="15" y1="15" x2="25" y2="25" stroke="#29b000" stroke-width="1.2"/><line x1="25" y1="15" x2="15" y2="25" stroke="#29b000" stroke-width="1.2"/><circle cx="20" cy="20" r="2.5" fill="#29b000"/><rect x="5" y="11" width="4" height="4" rx="1" fill="#29b000" opacity=".5"/><rect x="31" y="11" width="4" height="4" rx="1" fill="#29b000" opacity=".5"/><text x="20" y="37" text-anchor="middle" font-size="5" fill="#29b000" font-family="monospace">VMC</text></svg>`,
+  'vmc': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+    <!-- VMC Double flux — boîtier + 4 connexions aux coins -->
+    <rect x="6" y="10" width="28" height="20" rx="2" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
+    <!-- Échangeur croisé interne -->
+    <line x1="6" y1="14" x2="34" y2="26" stroke="#29b000" stroke-width="1.2" opacity=".7"/>
+    <line x1="6" y1="26" x2="34" y2="14" stroke="#29b000" stroke-width="1.2" opacity=".7"/>
+    <!-- 4 connexions aux coins — couleurs réseau -->
+    <circle cx="6"  cy="10" r="3" fill="#00e1ff" stroke="#0d1a0d" stroke-width=".8"/>
+    <circle cx="34" cy="10" r="3" fill="#ff8c00" stroke="#0d1a0d" stroke-width=".8"/>
+    <circle cx="6"  cy="30" r="3" fill="#0008fa" stroke="#0d1a0d" stroke-width=".8"/>
+    <circle cx="34" cy="30" r="3" fill="#ff0101" stroke="#0d1a0d" stroke-width=".8"/>
+    <!-- Label -->
+    <text x="20" y="22" text-anchor="middle" font-size="5.5" fill="#29b000" font-family="monospace" font-weight="bold">DF</text>
+  </svg>`,
+  'vmc-sf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+    <!-- VMC Simple flux — extraction seule -->
+    <rect x="6" y="10" width="28" height="20" rx="2" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
+    <!-- Flèche extraction -->
+    <line x1="12" y1="20" x2="28" y2="20" stroke="#29b000" stroke-width="1.5"/>
+    <polygon points="28,17 33,20 28,23" fill="#0008fa"/>
+    <!-- 2 connexions -->
+    <circle cx="6"  cy="20" r="3" fill="#0008fa" stroke="#0d1a0d" stroke-width=".8"/>
+    <circle cx="34" cy="20" r="3" fill="#ff8c00" stroke="#0d1a0d" stroke-width=".8"/>
+    <text x="20" y="33" text-anchor="middle" font-size="5" fill="#29b000" font-family="monospace" font-weight="bold">SF</text>
+  </svg>`,
+  'vmc-hygro': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+    <!-- VMC Hygro -->
+    <rect x="6" y="10" width="28" height="20" rx="2" fill="#0d1a0d" stroke="#29b000" stroke-width="2"/>
+    <!-- Symbole H -->
+    <text x="20" y="24" text-anchor="middle" font-size="12" fill="#29b000" font-family="monospace" font-weight="bold">H</text>
+    <!-- Goutte eau = hygro -->
+    <path d="M32,12 Q34,8 36,12 Q36,16 32,16 Z" fill="#00e1ff" opacity=".8"/>
+    <!-- 2 connexions extraction -->
+    <circle cx="6"  cy="20" r="3" fill="#0008fa" stroke="#0d1a0d" stroke-width=".8"/>
+    <circle cx="34" cy="20" r="3" fill="#ff8c00" stroke="#0d1a0d" stroke-width=".8"/>
+    <text x="20" y="36" text-anchor="middle" font-size="4.5" fill="#29b000" font-family="monospace">HYGRO</text>
+  </svg>`,
   'caisson': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#2a1e00" stroke="#f59e0b" stroke-width="2"/><line x1="4" y1="20" x2="36" y2="20" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity=".6"/><circle cx="12" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="12" y1="12.5" x2="12" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="8.5" y1="16" x2="15.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="20" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="20" y1="12.5" x2="20" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="16.5" y1="16" x2="23.5" y2="16" stroke="#f59e0b" stroke-width="1"/><circle cx="28" cy="16" r="3.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/><line x1="28" y1="12.5" x2="28" y2="19.5" stroke="#f59e0b" stroke-width="1"/><line x1="24.5" y1="16" x2="31.5" y2="16" stroke="#f59e0b" stroke-width="1"/><text x="20" y="29" text-anchor="middle" font-size="4.5" fill="#f59e0b" font-family="monospace">RÉPARTITEUR</text></svg>`,
   'soufflage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff0101" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="10" x2="20" y2="18" stroke="#ff0101" stroke-width="1.5"/><line x1="20" y1="30" x2="20" y2="22" stroke="#ff0101" stroke-width="1.5"/><line x1="10" y1="20" x2="18" y2="20" stroke="#ff0101" stroke-width="1.5"/><line x1="30" y1="20" x2="22" y2="20" stroke="#ff0101" stroke-width="1.5"/><circle cx="20" cy="20" r="3" fill="#ff0101"/></svg>`,
   'soufflage-rect': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="32" height="20" rx="2" fill="#2a0000" stroke="#ff0101" stroke-width="2"/><line x1="20" y1="14" x2="20" y2="26" stroke="#ff0101" stroke-width="1.5"/><line x1="8" y1="20" x2="32" y2="20" stroke="#ff0101" stroke-width="1.5"/><circle cx="20" cy="20" r="2.5" fill="#ff0101"/><rect x="4" y="10" width="32" height="20" rx="2" fill="none" stroke="#ff0101" stroke-width="2" stroke-dasharray="3,2" opacity=".4"/></svg>`,
@@ -1101,7 +1146,9 @@ const TOOLS={
   'extraction-rect':   {label:'Extraction ▭',  color:'#0008fa',shape:'rect'},
   'prise-air-neuf':    {label:'PriseAN',        color:'#00e1ff',shape:'rect'},
   'rejet-air-vicie':   {label:'RejetAirVicié',  color:'#ff8c00',shape:'rect'},
-  'vmc':               {label:'VMC',            color:'#29b000',shape:'rect'},
+  'vmc':               {label:'VMC Double flux',  color:'#29b000',shape:'rect'},
+  'vmc-sf':            {label:'VMC Simple flux',   color:'#29b000',shape:'rect'},
+  'vmc-hygro':         {label:'VMC Hygroréglable', color:'#29b000',shape:'rect'},
   'caisson':           {label:'Répartiteur',    color:'#f59e0b',shape:'diamond'},
   'coude':             {label:'Coude 90°',      color:'#a855f7',shape:'triangle'},
   'piquage':              {label:'Piquage',              color:'#06b6d4',shape:'cross'},
@@ -2049,10 +2096,22 @@ function getIconHTML(toolId){
   const c=TOOLS[toolId]?.color||'#888';
   return`<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${c}" opacity=".8"/></svg>`;
 }
-function refreshToolbarIcons(){Object.keys(TOOLS).filter(id=>id!=='liaison').forEach(id=>{const el=document.getElementById('ti-'+id);if(el)el.innerHTML=getIconHTML(id);});}
+function refreshToolbarIcons(){
+  Object.keys(TOOLS).filter(id=>id!=='liaison'&&id!=='photo').forEach(id=>{
+    const el=document.getElementById('ti-'+id);
+    if(el)el.innerHTML=getIconHTML(id);
+  });
+  // Icônes dans les sous-menus dropdown
+  const ddMap={'vmc-dd':'vmc','vmc-sf-dd':'vmc-sf','vmc-hygro-dd':'vmc-hygro'};
+  Object.entries(ddMap).forEach(([elId,toolId])=>{
+    const el=document.getElementById('ti-'+elId);
+    if(el)el.innerHTML=getIconHTML(toolId);
+  });
+}
 function renderIconGrid(){
   const grid=document.getElementById('icon-grid');
-  grid.innerHTML=Object.keys(TOOLS).filter(id=>id!=='liaison').map(id=>{
+  const EXCLUDED_FROM_GRID=['liaison','photo','vmc-sf','vmc-hygro','soufflage-rect','extraction-rect','traversee-soufflage','traversee-extraction','traversee-air-neuf','traversee-rejet'];
+  grid.innerHTML=Object.keys(TOOLS).filter(id=>!EXCLUDED_FROM_GRID.includes(id)).map(id=>{
     const hasCustom=!!customIcons[id];
     return`<div class="icon-item" id="ii-${id}" onclick="triggerIconUpload('${id}')" title="Cliquer pour importer">
       <div class="icon-preview">${getIconHTML(id)}</div>
@@ -2712,7 +2771,12 @@ function setTool(tool){
   currentTool=tool;
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
   // Pour les variantes rect, activer le bouton parent dropdown
-  const btnId=tool==='soufflage-rect'?'btn-soufflage':tool==='extraction-rect'?'btn-extraction':'btn-'+tool;
+  const btnId=
+    tool==='soufflage-rect'?'btn-soufflage':
+    tool==='extraction-rect'?'btn-extraction':
+    tool==='vmc-sf'||tool==='vmc-hygro'?'btn-vmc':
+    (tool.startsWith('traversee-'))?'btn-traversee':
+    'btn-'+tool;
   const btn=document.getElementById(btnId);if(btn)btn.classList.add('active');
   const cw=document.getElementById('canvas-wrap');
   cw.className='';
