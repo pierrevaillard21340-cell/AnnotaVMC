@@ -2356,23 +2356,51 @@ function _loadLevelBgAndElements(idx){
 }
 
 // ── EXPORT PNG ──
+// Retourne la bounding box à exporter (fond de plan ou tous éléments)
+function _getExportRect(){
+  if(_bgKonva){
+    // Bounding box du fond de plan en coordonnées scène
+    const cr=_bgKonva.getClientRect({relativeTo:stage});
+    return{x:cr.x,y:cr.y,w:cr.width,h:cr.height};
+  }
+  // Fallback : bounding box de tous les noeuds visibles
+  const all=[...drawLayer.getChildren(),...annotLayer.getChildren()].filter(n=>n.visible()&&n.name()!=='photo-marker');
+  if(!all.length){const sw=stage.width(),sh=stage.height();return{x:0,y:0,w:sw,h:sh};}
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  all.forEach(n=>{
+    const r=n.getClientRect({relativeTo:stage});
+    minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
+    maxX=Math.max(maxX,r.x+r.width);maxY=Math.max(maxY,r.y+r.height);
+  });
+  const PAD=20;
+  return{x:minX-PAD,y:minY-PAD,w:maxX-minX+PAD*2,h:maxY-minY+PAD*2};
+}
+
 function exportPNG(){
+  if(!_bgKonva&&links.length===0&&drawLayer.getChildren().filter(n=>n.name()==='element').length===0){
+    setStatus('Rien à exporter','err');return;
+  }
   setStatus('Export PNG en cours…','loading');
-  // Réinitialiser la vue pour capturer tout le stage
-  const oldScale=stage.scaleX();const oldX=stage.x();const oldY=stage.y();
-  stage.scale({x:1,y:1});stage.position({x:0,y:0});
-  const uri=stage.toDataURL({pixelRatio:2,mimeType:'image/png'});
-  stage.scale({x:oldScale,y:oldScale});stage.position({x:oldX,y:oldY});
+  const rect=_getExportRect();
+  const RATIO=2; // résolution ×2
+  const uri=stage.toDataURL({
+    x:rect.x,y:rect.y,
+    width:rect.w,height:rect.h,
+    pixelRatio:RATIO,
+    mimeType:'image/png',
+  });
   const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
   Object.assign(document.createElement('a'),{href:uri,download:`plan_vmc_${d}.png`}).click();
-  setStatus('✓ Export PNG','ok');
+  setStatus('✓ Export PNG — '+Math.round(rect.w)+'×'+Math.round(rect.h)+' px','ok');
 }
 
 // ── EXPORT PDF ──
 async function exportPDF(){
+  if(!_bgKonva&&links.length===0&&drawLayer.getChildren().filter(n=>n.name()==='element').length===0){
+    setStatus('Rien à exporter','err');return;
+  }
   setStatus('Export PDF en cours…','loading');
   try{
-    // Utiliser la lib jsPDF via CDN
     if(!window.jspdf){
       await new Promise((res,rej)=>{
         const s=document.createElement('script');
@@ -2380,28 +2408,56 @@ async function exportPDF(){
         s.onload=res;s.onerror=rej;document.head.appendChild(s);
       });
     }
-    const oldScale=stage.scaleX();const oldX=stage.x();const oldY=stage.y();
-    stage.scale({x:1,y:1});stage.position({x:0,y:0});
-    const uri=stage.toDataURL({pixelRatio:2,mimeType:'image/jpeg',quality:0.92});
-    stage.scale({x:oldScale,y:oldScale});stage.position({x:oldX,y:oldY});
+
+    const rect=_getExportRect();
+    const RATIO=2;
+
+    // Capturer uniquement la zone du plan
+    const uri=stage.toDataURL({
+      x:rect.x,y:rect.y,
+      width:rect.w,height:rect.h,
+      pixelRatio:RATIO,
+      mimeType:'image/jpeg',quality:0.92,
+    });
 
     const {jsPDF}=window.jspdf;
-    const sw=stage.width(),sh=stage.height();
-    const isLandscape=sw>sh;
-    const pdf=new jsPDF({orientation:isLandscape?'landscape':'portrait',unit:'px',format:[sw,sh],compress:true});
+    const isLandscape=rect.w>rect.h;
 
-    // Infos chantier en entête
-    pdf.setFontSize(9);pdf.setTextColor(80,80,80);
+    // Format A4 en points (pt) — on ajuste l'image pour remplir la page
+    const pdf=new jsPDF({
+      orientation:isLandscape?'landscape':'portrait',
+      unit:'mm',
+      format:'a4',
+      compress:true,
+    });
+
+    const pageW=pdf.internal.pageSize.getWidth();
+    const pageH=pdf.internal.pageSize.getHeight();
+
+    // Entête chantier
+    const HEADER_H=8;
+    pdf.setFontSize(8);pdf.setTextColor(80,80,80);
     const cn=chantierNotes;
     let header=`Plan VMC — ${new Date().toLocaleDateString('fr-FR')}`;
     if(cn.client)header+=`  |  ${cn.client}`;
     if(cn.adresse)header+=`  |  ${cn.adresse}`;
-    pdf.text(header,10,10);
+    if(cn.tel)header+=`  |  ${cn.tel}`;
+    const lvName=curLevel().name;
+    header+=`  |  Niveau : ${lvName}`;
+    pdf.text(header,5,6);
 
-    pdf.addImage(uri,'JPEG',0,14,sw,sh-14,undefined,'FAST');
+    // Image plein page sous l'entête — respecte le ratio
+    const imgW=pageW-10;
+    const imgH=(rect.h/rect.w)*imgW;
+    const availH=pageH-HEADER_H-4;
+    let finalW=imgW,finalH=imgH;
+    if(imgH>availH){finalH=availH;finalW=(rect.w/rect.h)*finalH;}
+
+    pdf.addImage(uri,'JPEG',5,HEADER_H+2,finalW,finalH,undefined,'FAST');
+
     const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
-    pdf.save(`plan_vmc_${d}.pdf`);
-    setStatus('✓ Export PDF','ok');
+    pdf.save(`plan_vmc_${d}_${lvName.replace(/\s/g,'_')}.pdf`);
+    setStatus('✓ Export PDF A4','ok');
   }catch(err){
     console.error(err);
     setStatus('✗ Erreur export PDF','err');
@@ -2829,80 +2885,59 @@ function cancelLinkDrawing(){
   drawLayer&&drawLayer.batchDraw();
 }
 // ══════════════════════════════════════════════════════════════
-// POINTS DE CONNEXION
+// CONNEXION PAR INTERSECTION DE PÉRIMÈTRE
 // ══════════════════════════════════════════════════════════════
-let _connDots=[];          // cercles Konva affichés au survol
-let _hoveredEl=null;       // élément survolé en mode liaison
-let _linkStartAnchor=null; // {x,y} offset relatif au centre de l'élément A
+let _linkStartAnchor=null; // {dx,dy} offset relatif au centre de l'élément A
 let _linkEndAnchor=null;   // idem pour B
+let _hoveredEl=null;       // élément survolé — pour surlignage visuel
+let _hoverRect=null;       // rectangle de surlignage Konva
 
-const B_CONN=ICON_BASE_PX/2; // demi-taille icône = rayon de la zone
-
-// Retourne les 8 points de connexion d'un élément en coordonnées scène
-function getConnectionPoints(el){
-  const cx=el.x(), cy=el.y();
-  const sc=el.scaleX(); // scaleX ≈ scaleY pour la taille
-  const scY=el.scaleY();
-  const hw=B_CONN*sc,  hh=B_CONN*scY; // demi-largeur, demi-hauteur
-  return[
-    {x:cx,      y:cy-hh,  label:'top'},
-    {x:cx+hw,   y:cy-hh,  label:'top-right'},
-    {x:cx+hw,   y:cy,     label:'right'},
-    {x:cx+hw,   y:cy+hh,  label:'bottom-right'},
-    {x:cx,      y:cy+hh,  label:'bottom'},
-    {x:cx-hw,   y:cy+hh,  label:'bottom-left'},
-    {x:cx-hw,   y:cy,     label:'left'},
-    {x:cx-hw,   y:cy-hh,  label:'top-left'},
-  ];
-}
-
-// Offset relatif au centre de l'élément (pour ancrage au déplacement)
-function anchorFromPoint(el, pt){
-  return{dx:pt.x-el.x(), dy:pt.y-el.y()};
-}
+// Offset relatif au centre de l'élément
+function anchorFromPoint(el,pt){return{dx:pt.x-el.x(),dy:pt.y-el.y()};}
 // Position absolue depuis ancre
-function anchorToPoint(el, anchor){
-  return{x:el.x()+anchor.dx, y:el.y()+anchor.dy};
+function anchorToPoint(el,anchor){return{x:el.x()+anchor.dx,y:el.y()+anchor.dy};}
+
+// Calcule l'intersection entre la ligne (centre→curseur) et le périmètre du rectangle
+function perimeterIntersection(el,cursorPos){
+  const cx=el.x(), cy=el.y();
+  const hw=(ICON_BASE_PX/2)*el.scaleX();
+  const hh=(ICON_BASE_PX/2)*el.scaleY();
+  const dx=cursorPos.x-cx, dy=cursorPos.y-cy;
+  if(Math.abs(dx)<0.01&&Math.abs(dy)<0.01)return{x:cx,y:cy+hh}; // fallback bas
+  // Intersection avec les 4 bords du rectangle ±hw, ±hh
+  let t=Infinity;
+  if(Math.abs(dx)>0.01){
+    t=Math.min(t,Math.abs(hw/dx));
+  }
+  if(Math.abs(dy)>0.01){
+    t=Math.min(t,Math.abs(hh/dy));
+  }
+  return{x:cx+dx*t, y:cy+dy*t};
 }
 
-// Trouve le point de connexion le plus proche d'une position scène
-function nearestConnectionPoint(el, pos){
-  const pts=getConnectionPoints(el);
-  let best=pts[0], bestD=Infinity;
-  pts.forEach(p=>{
-    const d=Math.hypot(p.x-pos.x,p.y-pos.y);
-    if(d<bestD){bestD=d;best=p;}
-  });
-  return best;
-}
-
-// Affiche les points de connexion sur un élément
-function showConnectionDots(el){
-  hideConnectionDots();
+// Surligne l'élément survolé en mode liaison
+function showHoverHighlight(el){
+  if(_hoveredEl===el)return;
+  hideHoverHighlight();
   _hoveredEl=el;
-  const pts=getConnectionPoints(el);
-  pts.forEach(p=>{
-    const dot=new Konva.Circle({
-      x:p.x,y:p.y,radius:4,
-      fill:'#fff',stroke:'#3b82f6',strokeWidth:1.5,
-      opacity:.9,listening:false,
-    });
-    drawLayer.add(dot);
-    _connDots.push(dot);
+  const hw=(ICON_BASE_PX/2)*el.scaleX();
+  const hh=(ICON_BASE_PX/2)*el.scaleY();
+  _hoverRect=new Konva.Rect({
+    x:el.x()-hw-2, y:el.y()-hh-2,
+    width:hw*2+4, height:hh*2+4,
+    fill:'none', stroke:'#3b82f6', strokeWidth:1.5,
+    dash:[4,3], opacity:.8, listening:false, cornerRadius:3,
   });
-  drawLayer.batchDraw();
+  drawLayer.add(_hoverRect);drawLayer.batchDraw();
 }
-
-// Cache les points de connexion
-function hideConnectionDots(){
-  _connDots.forEach(d=>d.destroy());
-  _connDots=[];
+function hideHoverHighlight(){
+  if(_hoverRect){_hoverRect.destroy();_hoverRect=null;}
   _hoveredEl=null;
   drawLayer&&drawLayer.batchDraw();
 }
 
-// Remplace startLinkDrawing pour partir d'un point précis
-function startLinkDrawingFromPoint(el, pt){
+// Démarre une liaison depuis l'intersection périmètre
+function startLinkDrawingFromPoint(el,pt){
   _linkStartAnchor=anchorFromPoint(el,pt);
   linkStart=el;_linkDrawing=true;_linkWaypoints=[];
   _linkPreviewLine=new Konva.Line({
@@ -2911,18 +2946,17 @@ function startLinkDrawingFromPoint(el, pt){
   });
   _linkPreviewDot=new Konva.Circle({radius:4,fill:'#94a3b8',opacity:.7,listening:false});
   drawLayer.add(_linkPreviewLine);drawLayer.add(_linkPreviewDot);
-  hideConnectionDots();
+  hideHoverHighlight();
   drawLayer.batchDraw();
   showHint('Liaison en cours — cliquez dans le vide pour poser un point — clic sur un élément pour terminer — Échap pour annuler');
 }
 
 function startLinkDrawing(startEl){
-  // Fallback sans point précis : utilise le centre
   const pt={x:startEl.x(),y:startEl.y()};
   startLinkDrawingFromPoint(startEl,pt);
 }
 
-function finishLinkDrawingAtPoint(endEl, pt){
+function finishLinkDrawingAtPoint(endEl,pt){
   if(!_linkDrawing)return;
   _linkEndAnchor=anchorFromPoint(endEl,pt);
   const wps=_linkWaypoints.slice();
@@ -2930,7 +2964,7 @@ function finishLinkDrawingAtPoint(endEl, pt){
   const aAnchor=_linkStartAnchor;
   const bAnchor=_linkEndAnchor;
   cancelLinkDrawing();
-  hideConnectionDots();
+  hideHoverHighlight();
   if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){
     pushHistory();
     createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps,activeTension,null,aAnchor,bAnchor);
@@ -2940,10 +2974,25 @@ function finishLinkDrawingAtPoint(endEl, pt){
 }
 
 function finishLinkDrawing(endEl){
-  // Fallback : chercher le point le plus proche du curseur
-  const pt=_lastScenePos?nearestConnectionPoint(endEl,_lastScenePos):{x:endEl.x(),y:endEl.y()};
+  const pt=_lastScenePos?perimeterIntersection(endEl,_lastScenePos):{x:endEl.x(),y:endEl.y()};
   finishLinkDrawingAtPoint(endEl,pt);
 }
+
+// Compatibilité avec _connDots (réancrage)
+const _connDots=[];
+function hideConnectionDots(){hideHoverHighlight();}
+function getConnectionPoints(el){
+  const cx=el.x(),cy=el.y();
+  const hw=(ICON_BASE_PX/2)*el.scaleX(),hh=(ICON_BASE_PX/2)*el.scaleY();
+  return[
+    {x:cx,y:cy-hh},{x:cx+hw,y:cy-hh},{x:cx+hw,y:cy},{x:cx+hw,y:cy+hh},
+    {x:cx,y:cy+hh},{x:cx-hw,y:cy+hh},{x:cx-hw,y:cy},{x:cx-hw,y:cy-hh},
+  ];
+}
+function nearestConnectionPoint(el,pos){
+  return perimeterIntersection(el,pos);
+}
+
 
 
 // ══════════════════════════════════════════════════════════════
@@ -3089,21 +3138,29 @@ function initEvents(){
     _lastScenePos=scenePos;
     if(isPanning&&lastPointer){stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);}
     if(_linkDrawing){updateLinkPreview(scenePos);}
-    // Survol en mode liaison — afficher points de connexion
+    // Survol en mode réancrage
+    if(_reanchorLink&&!_linkDrawing){
+      const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
+      const hovEl=hovered?findElementGroup(hovered):null;
+      const targetEl=_reanchorStep===0?_reanchorLink.a:_reanchorLink.b;
+      if(hovEl===targetEl)showHoverHighlight(hovEl);
+      else hideHoverHighlight();
+    }
+    // Survol en mode liaison — surligner l'élément
     if(currentTool==='liaison'&&!_linkDrawing){
       const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
       const hovEl=hovered?findElementGroup(hovered):null;
       if(hovEl!==_hoveredEl){
-        if(hovEl)showConnectionDots(hovEl);
-        else hideConnectionDots();
+        if(hovEl)showHoverHighlight(hovEl);
+        else hideHoverHighlight();
       }
     }
-    // Survol en mode liaison en cours — snap sur point de connexion
+    // Survol en mode liaison en cours — surligner la cible potentielle
     if(currentTool==='liaison'&&_linkDrawing){
       const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
       const hovEl=hovered?findElementGroup(hovered):null;
-      if(hovEl&&hovEl!==linkStart){showConnectionDots(hovEl);}
-      else if(!hovEl){hideConnectionDots();}
+      if(hovEl&&hovEl!==linkStart){showHoverHighlight(hovEl);}
+      else if(!hovEl){hideHoverHighlight();}
     }
     if(_annotDrawing){updateZonePreviewLine(scenePos);}
     if(_arrowDrawing&&_arrowStart){
@@ -3382,14 +3439,13 @@ function handleTap(e){
     const clickedEl=findElementGroup(target);
     if(!_linkDrawing){
       if(clickedEl&&pos){
-        const pt=nearestConnectionPoint(clickedEl,pos);
-        showConnectionDots(clickedEl);
+        const pt=perimeterIntersection(clickedEl,pos);
         startLinkDrawingFromPoint(clickedEl,pt);
       }
       return;
     }
     if(clickedEl&&clickedEl!==linkStart&&pos){
-      const pt=nearestConnectionPoint(clickedEl,pos);
+      const pt=perimeterIntersection(clickedEl,pos);
       finishLinkDrawingAtPoint(clickedEl,pt);
     }else if(!clickedEl){addWaypointToDrawing(pos);}
     return;
@@ -3411,7 +3467,16 @@ function handleTap(e){
   const clickedElNav=findElementGroup(target);
   if(clickedElNav){selectElement(clickedElNav);return;}
   selectElement(null);_selectedWaypoint=null;_selectedAnnotId=null;
-  if(currentTool==='none')return;
+  // MODE RÉANCRAGE
+  if(_reanchorLink&&pos){
+    const clickedEl=findElementGroup(target);
+    if(clickedEl===_reanchorLink.a&&_reanchorStep===0){
+      _pickReanchorPoint('a',perimeterIntersection(_reanchorLink.a,pos));
+    }else if(clickedEl===_reanchorLink.b&&_reanchorStep===1){
+      _pickReanchorPoint('b',perimeterIntersection(_reanchorLink.b,pos));
+    }
+    return;
+  }
   // Photo — ouvre le popup
   if(isPhotoTool(currentTool)){if(pos)openPhotoPopup(pos);return;}
   // Traversée
@@ -4501,70 +4566,50 @@ function startReanchorMode(){
   if(!_selectedLinkObj)return;
   _reanchorLink=_selectedLinkObj;
   _reanchorStep=0;
-  _showReanchorDots();
-  showHint('↔ Clic sur un nouveau point de départ (bleu) — Échap pour annuler');
-  setStatus('Réancrage : choisissez le point de départ','loading');
+  _showReanchorHighlight();
+  showHint('↔ Cliquez sur l\'élément de départ pour choisir le nouveau point — Échap pour annuler');
+  setStatus('Réancrage : cliquez sur l\'élément A','loading');
 }
 
-function _showReanchorDots(){
+function _showReanchorHighlight(){
   _clearReanchorDots();
   if(!_reanchorLink)return;
   const l=_reanchorLink;
-  const colorA=_reanchorStep===0?'#3b82f6':'#22c55e'; // bleu=A, vert=B
-  const colorB=_reanchorStep===1?'#3b82f6':'#94a3b8';
+  // Surligner les deux éléments différemment selon l'étape
+  const elA=l.a, elB=l.b;
+  const hwA=(ICON_BASE_PX/2)*elA.scaleX(), hhA=(ICON_BASE_PX/2)*elA.scaleY();
+  const hwB=(ICON_BASE_PX/2)*elB.scaleX(), hhB=(ICON_BASE_PX/2)*elB.scaleY();
 
-  // Points sur élément A
-  getConnectionPoints(l.a).forEach(p=>{
-    const dot=new Konva.Circle({
-      x:p.x,y:p.y,radius:5,
-      fill:_reanchorStep===0?'#3b82f6':'#94a3b8',
-      stroke:'#fff',strokeWidth:1.5,
-      opacity:.9,listening:_reanchorStep===0,cursor:'pointer',
-    });
-    if(_reanchorStep===0){
-      dot.on('click tap',()=>_pickReanchorPoint('a',p));
-      dot.on('mouseover',()=>{dot.radius(7);drawLayer.batchDraw();});
-      dot.on('mouseout',()=>{dot.radius(5);drawLayer.batchDraw();});
-    }
-    drawLayer.add(dot);_reanchorDots.push(dot);
+  const rectA=new Konva.Rect({
+    x:elA.x()-hwA-2,y:elA.y()-hhA-2,width:hwA*2+4,height:hhA*2+4,
+    fill:'none',stroke:_reanchorStep===0?'#3b82f6':'#22c55e',strokeWidth:2,
+    dash:[4,3],listening:false,cornerRadius:3,
   });
-
-  // Points sur élément B
-  getConnectionPoints(l.b).forEach(p=>{
-    const dot=new Konva.Circle({
-      x:p.x,y:p.y,radius:5,
-      fill:_reanchorStep===1?'#3b82f6':'#94a3b8',
-      stroke:'#fff',strokeWidth:1.5,
-      opacity:.9,listening:_reanchorStep===1,cursor:'pointer',
-    });
-    if(_reanchorStep===1){
-      dot.on('click tap',()=>_pickReanchorPoint('b',p));
-      dot.on('mouseover',()=>{dot.radius(7);drawLayer.batchDraw();});
-      dot.on('mouseout',()=>{dot.radius(5);drawLayer.batchDraw();});
-    }
-    drawLayer.add(dot);_reanchorDots.push(dot);
+  const rectB=new Konva.Rect({
+    x:elB.x()-hwB-2,y:elB.y()-hhB-2,width:hwB*2+4,height:hhB*2+4,
+    fill:'none',stroke:_reanchorStep===1?'#3b82f6':'#94a3b8',strokeWidth:2,
+    dash:[4,3],listening:false,cornerRadius:3,opacity:_reanchorStep===1?1:.5,
   });
 
   // Marquer les ancres actuelles
-  const curA=_reanchorLink.aAnchor?anchorToPoint(l.a,l.aAnchor):{x:l.a.x(),y:l.a.y()};
-  const curB=_reanchorLink.bAnchor?anchorToPoint(l.b,l.bAnchor):{x:l.b.x(),y:l.b.y()};
-  [curA,curB].forEach(p=>{
-    const marker=new Konva.Circle({x:p.x,y:p.y,radius:4,fill:'none',stroke:'#f59e0b',strokeWidth:2,listening:false});
-    drawLayer.add(marker);_reanchorDots.push(marker);
-  });
+  const curA=l.aAnchor?anchorToPoint(elA,l.aAnchor):{x:elA.x(),y:elA.y()};
+  const curB=l.bAnchor?anchorToPoint(elB,l.bAnchor):{x:elB.x(),y:elB.y()};
+  const dotA=new Konva.Circle({x:curA.x,y:curA.y,radius:4,fill:'#f59e0b',stroke:'#fff',strokeWidth:1,listening:false});
+  const dotB=new Konva.Circle({x:curB.x,y:curB.y,radius:4,fill:'#f59e0b',stroke:'#fff',strokeWidth:1,listening:false});
 
+  [rectA,rectB,dotA,dotB].forEach(n=>{drawLayer.add(n);_reanchorDots.push(n);});
   drawLayer.batchDraw();
 }
 
-function _pickReanchorPoint(side, pt){
+function _pickReanchorPoint(side,pt){
   if(!_reanchorLink)return;
   pushHistory();
   if(side==='a'){
     _reanchorLink.aAnchor=anchorFromPoint(_reanchorLink.a,pt);
     _reanchorStep=1;
-    _showReanchorDots();
-    showHint('↔ Maintenant clic sur le nouveau point d\'arrivée (bleu) — Échap pour terminer');
-    setStatus('Réancrage : choisissez le point d\'arrivée','loading');
+    _showReanchorHighlight();
+    showHint('↔ Maintenant cliquez sur l\'élément d\'arrivée — Échap pour terminer');
+    setStatus('Réancrage : cliquez sur l\'élément B','loading');
   }else{
     _reanchorLink.bAnchor=anchorFromPoint(_reanchorLink.b,pt);
     _finishReanchor();
