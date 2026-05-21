@@ -696,6 +696,7 @@
   <button id="ctx-rot-ccw" onclick="rotateSelected(-90)" style="display:none;">↺ Rotation −90°</button>
   <button id="ctx-rot-cw"  onclick="rotateSelected(90)"  style="display:none;">↻ Rotation +90°</button>
   <button id="ctx-edit-link" onclick="openLinkEditPopup()" style="display:none;">✏ Modifier la liaison</button>
+  <button id="ctx-reanchor-link" onclick="startReanchorMode()" style="display:none;">↔ Points de connexion</button>
   <button id="ctx-dims" onclick="openDimsPopup()" style="display:none;">📐 Dimensions réelles</button>
   <button id="ctx-del-waypoint" onclick="deleteSelectedWaypoint()" style="display:none;" class="danger">✕ Supprimer ce point</button>
   <button id="ctx-edit-annot" onclick="editSelectedAnnot()" style="display:none;">✏ Modifier annotation</button>
@@ -3226,6 +3227,8 @@ function initEvents(){
   });
   window.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
+      // Annuler réancrage si actif
+      if(_reanchorLink){cancelReanchorMode();return;}
       // Annuler un déplacement en cours
       if(selectedShape&&selectedShape.name()==='element'){
         const origin=selectedShape.getAttr('_dragOrigin');
@@ -3282,7 +3285,7 @@ function handleLongPress(target){
   const annotNode=findAnnotNode(target);
   if(annotNode!==null){_selectedAnnotId=annotNode;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenuTouch();return;}
   let t=target;while(t&&t.getParent){if(t.getAttr&&t.getAttr('customType')==='link')break;t=t.getParent();}
-  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';openContextMenuTouch();return;}
+  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenuTouch();return;}
   const elLp=findElementGroup(target);
   if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');openContextMenuTouch();}
 }
@@ -3421,14 +3424,14 @@ function handleTap(e){
 // ══════════════════════════════════════════════════════════════
 function handleContextMenu(e){
   let target=e.target;
-  if(target.getAttr&&target.getAttr('customType')==='waypoint'){_selectedWaypoint=target.getAttr('waypointInfo');['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-del-waypoint').style.display='block';openContextMenu(e.evt);return;}
+  if(target.getAttr&&target.getAttr('customType')==='waypoint'){_selectedWaypoint=target.getAttr('waypointInfo');['ctx-resize','ctx-edit-link','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-del-waypoint').style.display='block';openContextMenu(e.evt);return;}
   let mg=target;while(mg){if(mg.getAttr&&mg.getAttr('customType')==='measure-group')break;mg=mg.getParent?.();if(!mg||mg===stage){mg=null;break;}}
   if(!mg&&target.name&&typeof target.name==='function'&&target.name()==='measure-point'){const mObj=measures.find(m=>m.p1===target||m.p2===target);if(mObj)mg=mObj.grp;}
   if(mg){selectedShape=mg;hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');openContextMenu(e.evt);return;}
   const annotId=findAnnotNode(target);
   if(annotId!==null){_selectedAnnotId=annotId;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenu(e.evt);return;}
   let g2=target;while(g2&&g2.getParent){if(g2.getAttr&&g2.getAttr('customType')==='link')break;g2=g2.getParent();}
-  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';openContextMenu(e.evt);return;}
+  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenu(e.evt);return;}
   const elCtx=findElementGroup(e.target);
   if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');openContextMenu(e.evt);}
 }
@@ -3547,7 +3550,7 @@ function createWaypointDot(linkObj,index){
   dot.on('contextmenu',e=>{
     e.evt.preventDefault();
     _selectedWaypoint={linkObj,index};
-    ['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');
+    ['ctx-resize','ctx-edit-link','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');
     document.getElementById('ctx-del-waypoint').style.display='block';
     openContextMenu(e.evt);
   });
@@ -4487,7 +4490,109 @@ function _deserializePhotoMarkers(data){
   annotLayer.batchDraw();
 }
 
-// ── INFOS ÉLÉMENT ──
+// ── RÉANCRAGE DE LIAISON ──
+let _reanchorLink=null;   // liaison en cours de réancrage
+let _reanchorStep=0;      // 0=choisir A, 1=choisir B
+let _reanchorDots=[];     // points affichés
+
+function startReanchorMode(){
+  document.getElementById('contextMenu').style.display='none';
+  if(!_selectedLinkObj)return;
+  _reanchorLink=_selectedLinkObj;
+  _reanchorStep=0;
+  _showReanchorDots();
+  showHint('↔ Clic sur un nouveau point de départ (bleu) — Échap pour annuler');
+  setStatus('Réancrage : choisissez le point de départ','loading');
+}
+
+function _showReanchorDots(){
+  _clearReanchorDots();
+  if(!_reanchorLink)return;
+  const l=_reanchorLink;
+  const colorA=_reanchorStep===0?'#3b82f6':'#22c55e'; // bleu=A, vert=B
+  const colorB=_reanchorStep===1?'#3b82f6':'#94a3b8';
+
+  // Points sur élément A
+  getConnectionPoints(l.a).forEach(p=>{
+    const dot=new Konva.Circle({
+      x:p.x,y:p.y,radius:5,
+      fill:_reanchorStep===0?'#3b82f6':'#94a3b8',
+      stroke:'#fff',strokeWidth:1.5,
+      opacity:.9,listening:_reanchorStep===0,cursor:'pointer',
+    });
+    if(_reanchorStep===0){
+      dot.on('click tap',()=>_pickReanchorPoint('a',p));
+      dot.on('mouseover',()=>{dot.radius(7);drawLayer.batchDraw();});
+      dot.on('mouseout',()=>{dot.radius(5);drawLayer.batchDraw();});
+    }
+    drawLayer.add(dot);_reanchorDots.push(dot);
+  });
+
+  // Points sur élément B
+  getConnectionPoints(l.b).forEach(p=>{
+    const dot=new Konva.Circle({
+      x:p.x,y:p.y,radius:5,
+      fill:_reanchorStep===1?'#3b82f6':'#94a3b8',
+      stroke:'#fff',strokeWidth:1.5,
+      opacity:.9,listening:_reanchorStep===1,cursor:'pointer',
+    });
+    if(_reanchorStep===1){
+      dot.on('click tap',()=>_pickReanchorPoint('b',p));
+      dot.on('mouseover',()=>{dot.radius(7);drawLayer.batchDraw();});
+      dot.on('mouseout',()=>{dot.radius(5);drawLayer.batchDraw();});
+    }
+    drawLayer.add(dot);_reanchorDots.push(dot);
+  });
+
+  // Marquer les ancres actuelles
+  const curA=_reanchorLink.aAnchor?anchorToPoint(l.a,l.aAnchor):{x:l.a.x(),y:l.a.y()};
+  const curB=_reanchorLink.bAnchor?anchorToPoint(l.b,l.bAnchor):{x:l.b.x(),y:l.b.y()};
+  [curA,curB].forEach(p=>{
+    const marker=new Konva.Circle({x:p.x,y:p.y,radius:4,fill:'none',stroke:'#f59e0b',strokeWidth:2,listening:false});
+    drawLayer.add(marker);_reanchorDots.push(marker);
+  });
+
+  drawLayer.batchDraw();
+}
+
+function _pickReanchorPoint(side, pt){
+  if(!_reanchorLink)return;
+  pushHistory();
+  if(side==='a'){
+    _reanchorLink.aAnchor=anchorFromPoint(_reanchorLink.a,pt);
+    _reanchorStep=1;
+    _showReanchorDots();
+    showHint('↔ Maintenant clic sur le nouveau point d\'arrivée (bleu) — Échap pour terminer');
+    setStatus('Réancrage : choisissez le point d\'arrivée','loading');
+  }else{
+    _reanchorLink.bAnchor=anchorFromPoint(_reanchorLink.b,pt);
+    _finishReanchor();
+  }
+}
+
+function _finishReanchor(){
+  _clearReanchorDots();
+  if(_reanchorLink){
+    refreshLinkLine(_reanchorLink);
+    updateListe();
+  }
+  _reanchorLink=null;_reanchorStep=0;
+  showHint('');
+  setStatus('✓ Points de connexion mis à jour','ok');
+}
+
+function _clearReanchorDots(){
+  _reanchorDots.forEach(d=>d.destroy());
+  _reanchorDots=[];
+  drawLayer&&drawLayer.batchDraw();
+}
+
+function cancelReanchorMode(){
+  _clearReanchorDots();
+  _reanchorLink=null;_reanchorStep=0;
+  showHint('');
+}
+
 function openElemInfoPopup(){
   document.getElementById('contextMenu').style.display='none';
   if(!selectedShape||selectedShape.name()!=='element')return;
