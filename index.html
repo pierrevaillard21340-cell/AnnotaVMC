@@ -979,6 +979,19 @@
           <option value="">— optionnel —</option>
         </select>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Taille</label>
+        <input type="range" id="tv-size" min="0.2" max="3" step="0.1" value="1"
+          style="flex:1;" oninput="document.getElementById('tv-size-val').textContent=parseFloat(this.value).toFixed(1)+'×'">
+        <span id="tv-size-val" style="font-size:11px;color:var(--accent);font-weight:700;min-width:28px;">1.0×</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;"></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);cursor:pointer;">
+          <input type="checkbox" id="tv-show-label" checked style="accent-color:var(--accent);">
+          Afficher la longueur sur le plan
+        </label>
+      </div>
     </div>
 
     <!-- Prévisualisation -->
@@ -3464,19 +3477,21 @@ function handleTap(e){
   if(target&&target.name&&target.name()==='measure-point')return;
   let mg=target;while(mg){if(mg.getAttr&&mg.getAttr('customType')==='measure-group')break;mg=mg.getParent?.();if(!mg||mg===stage){mg=null;break;}}
   if(mg){selectedShape=mg;refreshDeleteBtn();return;}
-  const clickedElNav=findElementGroup(target);
-  if(clickedElNav){selectElement(clickedElNav);return;}
-  selectElement(null);_selectedWaypoint=null;_selectedAnnotId=null;
-  // MODE RÉANCRAGE
+
+  // MODE RÉANCRAGE — prioritaire sur la navigation
   if(_reanchorLink&&pos){
     const clickedEl=findElementGroup(target);
     if(clickedEl===_reanchorLink.a&&_reanchorStep===0){
-      _pickReanchorPoint('a',perimeterIntersection(_reanchorLink.a,pos));
+      _pickReanchorPoint('a',perimeterIntersection(_reanchorLink.a,pos));return;
     }else if(clickedEl===_reanchorLink.b&&_reanchorStep===1){
-      _pickReanchorPoint('b',perimeterIntersection(_reanchorLink.b,pos));
+      _pickReanchorPoint('b',perimeterIntersection(_reanchorLink.b,pos));return;
     }
-    return;
+    return; // clic ailleurs = on reste en mode réancrage
   }
+
+  const clickedElNav=findElementGroup(target);
+  if(clickedElNav){selectElement(clickedElNav);return;}
+  selectElement(null);_selectedWaypoint=null;_selectedAnnotId=null;
   // Photo — ouvre le popup
   if(isPhotoTool(currentTool)){if(pos)openPhotoPopup(pos);return;}
   // Traversée
@@ -4237,6 +4252,9 @@ function openTraverseePopup(pos){
   document.getElementById('tv-id').value='T'+_traverseeIdCounter;
   document.getElementById('tv-length').value='';
   document.getElementById('tv-type').value='dalle';
+  document.getElementById('tv-size').value=1;
+  document.getElementById('tv-size-val').textContent='1.0×';
+  document.getElementById('tv-show-label').checked=true;
   updateTraverseePreview();
   document.getElementById('traversee-popup').style.display='flex';
   setTimeout(()=>document.getElementById('tv-length').focus(),100);
@@ -4267,18 +4285,20 @@ function confirmTraversee(){
   const lenVal=parseFloat(document.getElementById('tv-length').value);
   const length=isNaN(lenVal)||lenVal<=0?null:lenVal;
   const dia=document.getElementById('tv-dia').value;
+  const size=parseFloat(document.getElementById('tv-size').value)||1;
+  const showLabel=document.getElementById('tv-show-label').checked;
   const pos=_pendingTraverseePos;
   closeTraverseePopup();
   if(!pos)return;
   _traverseeIdCounter++;
-  placeTraversee(pos,{type,reseau,id,length,dia});
+  placeTraversee(pos,{type,reseau,id,length,dia,size,showLabel});
 }
 
 function placeTraversee(pos,cfg){
   pushHistory();
   const color=TRAVERSEE_COLORS[cfg.reseau]||'#e879f9';
   const toolId='traversee-'+cfg.reseau;
-  const s=globalSize/10;
+  const s=(cfg.size||1)*(globalSize/10);
   const B=ICON_BASE_PX;
 
   const g=new Konva.Group({x:pos.x,y:pos.y,draggable:true,name:'element'});
@@ -4298,7 +4318,7 @@ function placeTraversee(pos,cfg){
     badge.add(tag);badge.add(txt);
     g.add(badge);
     // Longueur si renseignée
-    if(cfg.length){
+    if(cfg.length&&cfg.showLabel!==false){
       const lenTxt=new Konva.Text({x:-B/2,y:B/2+2,text:cfg.length+'m',fontSize:7,fill:color,fontStyle:'bold',fontFamily:'monospace',width:B,align:'center'});
       lenTxt.scale({x:1/s,y:1/s});
       g.add(lenTxt);
