@@ -302,7 +302,6 @@
   #dims-popup.open{display:block;}
 
   /* ── MOBILE ── */
-  #mobile-bar{display:none;}#mobile-more{display:none;}
   @media(max-width:768px){
     #header{display:none!important;}#mobile-bar{display:flex!important;}
     #main{flex-direction:column;}
@@ -310,8 +309,6 @@
     #canvas-wrap{flex:1;margin-top:64px;}
     #delete-btn-overlay{width:36px;height:36px;font-size:16px;}
     #mobile-bar{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:6px 4px;justify-content:space-around;flex-wrap:nowrap;}
-    #mobile-more{display:none;position:fixed;top:70px;left:8px;right:8px;z-index:199;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 4px 24px rgba(0,0,0,.5);}
-    #mobile-more.open{display:block;}
     .mm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
     .mb-btn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:1.5px solid transparent;border-radius:var(--radius);padding:6px 4px;color:var(--text2);font-size:18px;cursor:pointer;min-width:44px;transition:all .15s;}
     .mb-btn span:last-child{font-size:10px;font-weight:500;}
@@ -1132,6 +1129,7 @@ const SVG_ICONS = {
   'traversee-air-neuf': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#001a1a" stroke="#00e1ff" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#00e1ff" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#00e1ff" stroke-width="2"/><polygon points="20,8 16,16 24,16" fill="#00e1ff"/><line x1="12" y1="20" x2="28" y2="20" stroke="#00e1ff" stroke-width="1.5"/></svg>`,
   'traversee-rejet': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff8c00" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#ff8c00" stroke-width="2"/><polygon points="20,32 16,24 24,24" fill="#ff8c00"/><line x1="12" y1="20" x2="28" y2="20" stroke="#ff8c00" stroke-width="1.5"/></svg>`,
   'rejet-air-vicie': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="38" height="38" rx="2" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><line x1="8" y1="5" x2="8" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="14" y1="5" x2="14" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="20" y1="5" x2="20" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="26" y1="5" x2="26" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="32" y1="5" x2="32" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="1" y1="5" x2="39" y2="5" stroke="#ff8c00" stroke-width="2"/><line x1="1" y1="35" x2="39" y2="35" stroke="#ff8c00" stroke-width="2"/><polygon points="20,39 16,32 24,32" fill="#ff8c00"/></svg>`,
+  'piquage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><line x1="1" y1="20" x2="39" y2="20" stroke="#06b6d4" stroke-width="5" stroke-linecap="round"/><line x1="1" y1="20" x2="39" y2="20" stroke="#001a2a" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="20" x2="20" y2="4" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/><circle cx="20" cy="20" r="5" fill="#001a2a" stroke="#06b6d4" stroke-width="2"/><circle cx="20" cy="4" r="3.5" fill="#06b6d4"/><circle cx="1" cy="20" r="3.5" fill="#06b6d4"/><circle cx="39" cy="20" r="3.5" fill="#06b6d4"/></svg>`,
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -2238,7 +2236,6 @@ function confirmLinkEdit(){if(!_selectedLinkObj){closeLinkEditPopup();return;}co
 // ══════════════════════════════════════════════════════════════
 // MOBILE
 // ══════════════════════════════════════════════════════════════
-function toggleMobileMore(){document.getElementById('mobile-more')?.classList.toggle('open');}
 function refreshDeleteBtn(){const btn=document.getElementById('mb-delete');if(!btn)return;(selectedShape||_selectedAnnotId!==null)?btn.classList.add('has-selection'):btn.classList.remove('has-selection');}
 
 // ══════════════════════════════════════════════════════════════
@@ -2279,6 +2276,7 @@ async function saveProject(){
   const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
   const uri='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data));
   Object.assign(document.createElement('a'),{href:uri,download:`projet_vmc_${d}.annotavmc`}).click();
+  _hasUnsavedChanges=false;
   setStatus('✓ Projet sauvegardé','ok');
 }
 
@@ -2580,6 +2578,7 @@ function pushHistory(){
   if(h.length>MAX_HISTORY)h.shift();
   // Toute nouvelle action efface le futur (redo)
   getLevelFuture().length=0;
+  _hasUnsavedChanges=true;
 }
 
 function _restoreSnapshot(snap){
@@ -4345,14 +4344,8 @@ function placeTraversee(pos,cfg){
     window._traverseeLengths.push({id:cfg.id,type:cfg.type,reseau:reseauName,color,length:cfg.length,dia:cfg.dia,levelName:curLevel().name});
   }
   updateListe();
-  updateTraverseeListe();
 }
 
-function updateTraverseeListe(){
-  // Met à jour l'affichage des traversées dans la liste matériel
-  // Elles sont déjà comptées via placedElements
-  // On affiche les longueurs verticales en supplément
-}
 
 // Intégration dans handleTap — intercepter les outils traversée
 function isTraverseeTool(tool){
@@ -4692,11 +4685,7 @@ window.addEventListener('beforeunload',function(e){
   if(_hasUnsavedChanges){e.preventDefault();e.returnValue='';}
 });
 // Marquer changements non sauvegardés à chaque pushHistory
-const _origPushHistory=pushHistory;
-pushHistory=function(){_hasUnsavedChanges=true;_origPushHistory();};
-// Réinitialiser après sauvegarde
-const _origSaveProject=saveProject;
-saveProject=async function(){await _origSaveProject();_hasUnsavedChanges=false;};
+// _hasUnsavedChanges est mis à jour directement dans pushHistory et saveProject
 
 if('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent')){
   window.addEventListener('load',()=>{
