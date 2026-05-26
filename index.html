@@ -3151,14 +3151,6 @@ function initEvents(){
     _lastScenePos=scenePos;
     if(isPanning&&lastPointer){stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);}
     if(_linkDrawing){updateLinkPreview(scenePos);}
-    // Survol en mode réancrage
-    if(_reanchorLink&&!_linkDrawing){
-      const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
-      const hovEl=hovered?findElementGroup(hovered):null;
-      const targetEl=_reanchorStep===0?_reanchorLink.a:_reanchorLink.b;
-      if(hovEl===targetEl)showHoverHighlight(hovEl);
-      else hideHoverHighlight();
-    }
     // Survol en mode liaison — surligner l'élément
     if(currentTool==='liaison'&&!_linkDrawing){
       const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
@@ -3478,16 +3470,8 @@ function handleTap(e){
   let mg=target;while(mg){if(mg.getAttr&&mg.getAttr('customType')==='measure-group')break;mg=mg.getParent?.();if(!mg||mg===stage){mg=null;break;}}
   if(mg){selectedShape=mg;refreshDeleteBtn();return;}
 
-  // MODE RÉANCRAGE — prioritaire sur la navigation
-  if(_reanchorLink&&pos){
-    const clickedEl=findElementGroup(target);
-    if(clickedEl===_reanchorLink.a&&_reanchorStep===0){
-      _pickReanchorPoint('a',perimeterIntersection(_reanchorLink.a,pos));return;
-    }else if(clickedEl===_reanchorLink.b&&_reanchorStep===1){
-      _pickReanchorPoint('b',perimeterIntersection(_reanchorLink.b,pos));return;
-    }
-    return; // clic ailleurs = on reste en mode réancrage
-  }
+  // MODE RÉANCRAGE — les poignées gèrent leur propre drag, on ignore les clics
+  if(_reanchorLink){return;}
 
   const clickedElNav=findElementGroup(target);
   if(clickedElNav){selectElement(clickedElNav);return;}
@@ -4617,87 +4601,112 @@ function _deserializePhotoMarkers(data){
 }
 
 // ── RÉANCRAGE DE LIAISON ──
-let _reanchorLink=null;   // liaison en cours de réancrage
-let _reanchorStep=0;      // 0=choisir A, 1=choisir B
-let _reanchorDots=[];     // points affichés
+// ══════════════════════════════════════════════════════════════
+// RÉANCRAGE — POIGNÉES DRAGGABLES AUX EXTRÉMITÉS
+// ══════════════════════════════════════════════════════════════
+let _reanchorLink=null;
+let _reanchorDots=[];
+let _reanchorHandles=[]; // poignées Konva draggables
 
 function startReanchorMode(){
   document.getElementById('contextMenu').style.display='none';
   if(!_selectedLinkObj)return;
   _reanchorLink=_selectedLinkObj;
-  _reanchorStep=0;
-  _showReanchorHighlight();
-  showHint('↔ Cliquez sur l\'élément de départ pour choisir le nouveau point — Échap pour annuler');
-  setStatus('Réancrage : cliquez sur l\'élément A','loading');
+  _createReanchorHandles();
+  showHint('↔ Glissez la poignée orange (départ) ou verte (arrivée) vers le nouveau point — Échap pour terminer');
+  setStatus('Réancrage actif — glissez une poignée','loading');
 }
 
-function _showReanchorHighlight(){
+function _createReanchorHandles(){
   _clearReanchorDots();
   if(!_reanchorLink)return;
   const l=_reanchorLink;
-  // Surligner les deux éléments différemment selon l'étape
-  const elA=l.a, elB=l.b;
-  const hwA=(ICON_BASE_PX/2)*elA.scaleX(), hhA=(ICON_BASE_PX/2)*elA.scaleY();
-  const hwB=(ICON_BASE_PX/2)*elB.scaleX(), hhB=(ICON_BASE_PX/2)*elB.scaleY();
 
-  const rectA=new Konva.Rect({
-    x:elA.x()-hwA-2,y:elA.y()-hhA-2,width:hwA*2+4,height:hhA*2+4,
-    fill:'none',stroke:_reanchorStep===0?'#3b82f6':'#22c55e',strokeWidth:2,
-    dash:[4,3],listening:false,cornerRadius:3,
+  // Désactiver temporairement le drag des éléments connectés
+  l.a.draggable(false);
+  l.b.draggable(false);
+
+  const ptA=l.aAnchor?anchorToPoint(l.a,l.aAnchor):{x:l.a.x(),y:l.a.y()};
+  const ptB=l.bAnchor?anchorToPoint(l.b,l.bAnchor):{x:l.b.x(),y:l.b.y()};
+
+  // Surligner les éléments
+  [l.a,l.b].forEach((el,i)=>{
+    const hw=(ICON_BASE_PX/2)*el.scaleX(), hh=(ICON_BASE_PX/2)*el.scaleY();
+    const r=new Konva.Rect({
+      x:el.x()-hw-2,y:el.y()-hh-2,width:hw*2+4,height:hh*2+4,
+      fill:'none',stroke:i===0?'#f59e0b':'#22c55e',strokeWidth:2,
+      dash:[4,3],listening:false,cornerRadius:3,opacity:.8,
+    });
+    drawLayer.add(r);_reanchorDots.push(r);
   });
-  const rectB=new Konva.Rect({
-    x:elB.x()-hwB-2,y:elB.y()-hhB-2,width:hwB*2+4,height:hhB*2+4,
-    fill:'none',stroke:_reanchorStep===1?'#3b82f6':'#94a3b8',strokeWidth:2,
-    dash:[4,3],listening:false,cornerRadius:3,opacity:_reanchorStep===1?1:.5,
-  });
 
-  // Marquer les ancres actuelles
-  const curA=l.aAnchor?anchorToPoint(elA,l.aAnchor):{x:elA.x(),y:elA.y()};
-  const curB=l.bAnchor?anchorToPoint(elB,l.bAnchor):{x:elB.x(),y:elB.y()};
-  const dotA=new Konva.Circle({x:curA.x,y:curA.y,radius:4,fill:'#f59e0b',stroke:'#fff',strokeWidth:1,listening:false});
-  const dotB=new Konva.Circle({x:curB.x,y:curB.y,radius:4,fill:'#f59e0b',stroke:'#fff',strokeWidth:1,listening:false});
+  // Créer les poignées draggables
+  function makeHandle(pt, color, side){
+    const handle=new Konva.Circle({
+      x:pt.x,y:pt.y,radius:8,
+      fill:color,stroke:'#fff',strokeWidth:2,
+      draggable:true,listening:true,
+    });
+    // Curseur sur la poignée
+    handle.on('mouseover',()=>{document.body.style.cursor='grab';handle.radius(10);drawLayer.batchDraw();});
+    handle.on('mouseout',()=>{document.body.style.cursor='';handle.radius(8);drawLayer.batchDraw();});
+    handle.on('dragstart',()=>{document.body.style.cursor='grabbing';});
+    handle.on('dragmove',()=>{
+      // Mettre à jour la liaison en temps réel
+      const el=side==='a'?l.a:l.b;
+      const pos={x:handle.x(),y:handle.y()};
+      // Snapper au périmètre de l'élément si on est proche
+      const hw=(ICON_BASE_PX/2)*el.scaleX(), hh=(ICON_BASE_PX/2)*el.scaleY();
+      const dist=Math.hypot(pos.x-el.x(), pos.y-el.y());
+      const maxDist=Math.max(hw,hh)*2;
+      if(dist<maxDist){
+        const snapped=perimeterIntersection(el,pos);
+        if(side==='a')l.aAnchor=anchorFromPoint(el,snapped);
+        else l.bAnchor=anchorFromPoint(el,snapped);
+      }
+      refreshLinkLine(l);
+    });
+    handle.on('dragend',()=>{
+      document.body.style.cursor='';
+      // Finaliser l'ancre à la position finale
+      const el=side==='a'?l.a:l.b;
+      const pos={x:handle.x(),y:handle.y()};
+      const snapped=perimeterIntersection(el,pos);
+      pushHistory();
+      if(side==='a')l.aAnchor=anchorFromPoint(el,snapped);
+      else l.bAnchor=anchorFromPoint(el,snapped);
+      refreshLinkLine(l);
+      updateListe();
+      setStatus('✓ Point de connexion mis à jour','ok');
+    });
+    drawLayer.add(handle);
+    _reanchorHandles.push(handle);
+    return handle;
+  }
 
-  [rectA,rectB,dotA,dotB].forEach(n=>{drawLayer.add(n);_reanchorDots.push(n);});
+  makeHandle(ptA,'#f59e0b','a');
+  makeHandle(ptB,'#22c55e','b');
   drawLayer.batchDraw();
 }
 
-function _pickReanchorPoint(side,pt){
-  if(!_reanchorLink)return;
-  pushHistory();
-  if(side==='a'){
-    _reanchorLink.aAnchor=anchorFromPoint(_reanchorLink.a,pt);
-    _reanchorStep=1;
-    _showReanchorHighlight();
-    showHint('↔ Maintenant cliquez sur l\'élément d\'arrivée — Échap pour terminer');
-    setStatus('Réancrage : cliquez sur l\'élément B','loading');
-  }else{
-    _reanchorLink.bAnchor=anchorFromPoint(_reanchorLink.b,pt);
-    _finishReanchor();
-  }
-}
-
-function _finishReanchor(){
-  _clearReanchorDots();
-  if(_reanchorLink){
-    refreshLinkLine(_reanchorLink);
-    updateListe();
-  }
-  _reanchorLink=null;_reanchorStep=0;
-  showHint('');
-  setStatus('✓ Points de connexion mis à jour','ok');
-}
-
 function _clearReanchorDots(){
-  _reanchorDots.forEach(d=>d.destroy());
-  _reanchorDots=[];
+  _reanchorDots.forEach(d=>d.destroy());_reanchorDots=[];
+  _reanchorHandles.forEach(h=>h.destroy());_reanchorHandles=[];
+  // Réactiver le drag des éléments
+  if(_reanchorLink){
+    _reanchorLink.a.draggable(true);
+    _reanchorLink.b.draggable(true);
+  }
   drawLayer&&drawLayer.batchDraw();
 }
 
 function cancelReanchorMode(){
   _clearReanchorDots();
-  _reanchorLink=null;_reanchorStep=0;
+  _reanchorLink=null;
   showHint('');
+  setStatus('Réancrage annulé','ok');
 }
+
 
 function openElemInfoPopup(){
   document.getElementById('contextMenu').style.display='none';
