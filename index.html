@@ -381,6 +381,7 @@
       <div class="hgroup-body">
         <button class="action-btn" onclick="undo()" title="Annuler (Ctrl+Z)">↩</button>
         <button class="action-btn" onclick="redo()" title="Restaurer (Ctrl+Y)">↪</button>
+        <button class="action-btn" id="btn-grid" onclick="toggleGrid()" title="Grille d'alignement">⊞</button>
         <button class="action-btn danger" onclick="clearAll()" title="Effacer le niveau">🗑</button>
       </div>
     </div>
@@ -707,6 +708,7 @@
   <button id="ctx-resize" onclick="openResizePopup()">⤢ Redimensionner</button>
   <button id="ctx-elem-info" onclick="openElemInfoPopup()" style="display:none;">ℹ Informations</button>
   <button id="ctx-edit-traversee" onclick="openEditTraverseePopup()" style="display:none;">✏ Modifier traversée</button>
+  <button id="ctx-lock" onclick="toggleLockElement()" style="display:none;">🔒 Verrouiller</button>
   <button id="ctx-rot-ccw" onclick="rotateSelected(-90)" style="display:none;">↺ Rotation −90°</button>
   <button id="ctx-rot-cw"  onclick="rotateSelected(90)"  style="display:none;">↻ Rotation +90°</button>
   <button id="ctx-edit-link" onclick="openLinkEditPopup()" style="display:none;">✏ Modifier la liaison</button>
@@ -2793,9 +2795,10 @@ function placeElementSilent(toolId,conf,pos,scaleX,rotation,realDims,scaleY,trav
     g.setAttr('_dragOrigin',{x:g.x(),y:g.y()});
   });
   g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
-  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);updateLinks();updateListe();});
+  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);const sp=snapToGrid({x:g.x(),y:g.y()});g.position(sp);updateLinks();updateListe();});
   g.on('click tap',()=>selectElement(g));
   drawLayer.add(g);
+  _restoreLockState(g);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3387,6 +3390,7 @@ function initEvents(){
     const ns=Math.max(.15,Math.min(10,e.evt.deltaY<0?old*by:old/by));
     stage.scale({x:ns,y:ns});stage.position({x:ptr.x-mp.x*ns,y:ptr.y-mp.y*ns});stage.batchDraw();
     if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);
+    _onStageTransform();
   });
   stage.on('mousedown',function(e){
     // Toujours capturer la position scène au mousedown (disponible dans le click suivant)
@@ -3445,7 +3449,7 @@ function initEvents(){
       window._measurePreview=[pl,pb,pt];window._measurePreview.forEach(n=>drawLayer.add(n));drawLayer.batchDraw();
     }
   });
-  stage.on('mouseup',()=>{isPanning=false;lastPointer=null;document.getElementById('canvas-wrap').classList.remove('panning');});
+  stage.on('mouseup',()=>{isPanning=false;lastPointer=null;document.getElementById('canvas-wrap').classList.remove('panning');_onStageTransform();});
 
   let lastDist=null;
   stage.on('touchstart',function(e){
@@ -3575,6 +3579,30 @@ function initEvents(){
     }
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
     if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))){e.preventDefault();redo();}
+    // Suppr — effacer l'élément sélectionné
+    if(e.key==='Delete'||e.key==='Backspace'){
+      if(document.activeElement&&['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;
+      if(selectedShape&&selectedShape.name()==='element'){
+        e.preventDefault();
+        pushHistory();
+        const lbl=selectedShape.getAttr('toolLabel')||'';
+        if(lbl&&placedElements[lbl]>0)placedElements[lbl]--;
+        links.filter(l=>l.a===selectedShape||l.b===selectedShape).forEach(l=>{
+          destroyLinkNodes(l);links.splice(links.indexOf(l),1);
+        });
+        selectedShape.destroy();selectedShape=null;
+        hideDeleteBtn();drawLayer.batchDraw();updateListe();
+        setStatus('Élément supprimé','ok');return;
+      }
+      if(_selectedLinkObj){
+        e.preventDefault();
+        pushHistory();
+        destroyLinkNodes(_selectedLinkObj);
+        links.splice(links.indexOf(_selectedLinkObj),1);
+        _selectedLinkObj=null;drawLayer.batchDraw();updateListe();
+        setStatus('Liaison supprimée','ok');return;
+      }
+    }
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveProject();}
     if(!document.activeElement.matches('input,select,textarea')){
       if(e.key==='['||e.key==='ArrowLeft'&&e.altKey){e.preventDefault();rotateSelected(-90);}
@@ -3607,7 +3635,7 @@ function handleLongPress(target){
   let t=target;while(t&&t.getParent){if(t.getAttr&&t.getAttr('customType')==='link')break;t=t.getParent();}
   if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenuTouch();return;}
   const elLp=findElementGroup(target);
-  if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elLp.getAttr('traverseeData')?'block':'none';openContextMenuTouch();}
+  if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elLp.getAttr('traverseeData')?'block':'none';const lockBtn2=document.getElementById('ctx-lock');lockBtn2.style.display='block';lockBtn2.textContent=elLp.getAttr('locked')?'🔓 Déverrouiller':'🔒 Verrouiller';openContextMenuTouch();}
 }
 
 function findAnnotNode(target){
@@ -3739,7 +3767,7 @@ function handleTap(e){
   // Traversée
   if(isTraverseeTool(currentTool)){if(pos)openTraverseePopup(pos);return;}
   const conf=TOOLS[currentTool];if(!conf||conf.shape===null)return;
-  placeElement(currentTool,conf,pos);
+  placeElement(currentTool,conf,snapToGrid(pos));
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3756,7 +3784,7 @@ function handleContextMenu(e){
   let g2=target;while(g2&&g2.getParent){if(g2.getAttr&&g2.getAttr('customType')==='link')break;g2=g2.getParent();}
   if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenu(e.evt);return;}
   const elCtx=findElementGroup(e.target);
-  if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elCtx.getAttr('traverseeData')?'block':'none';openContextMenu(e.evt);}
+  if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elCtx.getAttr('traverseeData')?'block':'none';const lockBtn1=document.getElementById('ctx-lock');lockBtn1.style.display='block';lockBtn1.textContent=elCtx.getAttr('locked')?'🔓 Déverrouiller':'🔒 Verrouiller';openContextMenu(e.evt);}
 }
 function resetLinkHighlight(){
   if(_selectedLinkObj&&_selectedLinkObj.line){
@@ -3786,7 +3814,7 @@ function placeElement(toolId,conf,pos){
     g.setAttr('_dragOrigin',{x:g.x(),y:g.y()});
   });
   g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
-  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);updateLinks();updateListe();});
+  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);const sp=snapToGrid({x:g.x(),y:g.y()});g.position(sp);updateLinks();updateListe();});
   g.on('click tap',()=>selectElement(g));
   pushHistory();drawLayer.add(g);drawLayer.batchDraw();
   placedElements[conf.label]=(placedElements[conf.label]||0)+1;updateListe();
@@ -3851,6 +3879,69 @@ function deleteSelected(){
 // LIENS MULTI-SEGMENTS
 // ══════════════════════════════════════════════════════════════
 function linkTotalLength(l){const pts=buildLinkPoints(l);let total=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];total+=Math.sqrt(dx*dx+dy*dy);}return total;}
+// ── ANCRAGE AVEC ROTATION ────────────────────────────────────
+function anchorFromPoint(el,pt){
+  // Stocker l'offset en coordonnées locales de l'élément (avant rotation)
+  const cx=el.x(), cy=el.y();
+  const rot=el.rotation()*Math.PI/180;
+  const dx=pt.x-cx, dy=pt.y-cy;
+  // Rotation inverse pour passer en coordonnées locales
+  const localX= dx*Math.cos(-rot)-dy*Math.sin(-rot);
+  const localY= dx*Math.sin(-rot)+dy*Math.cos(-rot);
+  return{dx:localX, dy:localY, rotated:true};
+}
+function anchorToPoint(el,anchor){
+  if(!anchor)return{x:el.x(),y:el.y()};
+  const cx=el.x(), cy=el.y();
+  // Rétro-compatibilité ancres non-rotées
+  if(!anchor.rotated){
+    return{x:cx+anchor.dx, y:cy+anchor.dy};
+  }
+  const rot=el.rotation()*Math.PI/180;
+  const wx= anchor.dx*Math.cos(rot)-anchor.dy*Math.sin(rot);
+  const wy= anchor.dx*Math.sin(rot)+anchor.dy*Math.cos(rot);
+  return{x:cx+wx, y:cy+wy};
+}
+
+// ── REFRESH LIENS — UN SEUL batchDraw ───────────────────────
+let _rafPending=false;
+function updateLinks(){
+  if(_rafPending)return;
+  _rafPending=true;
+  requestAnimationFrame(()=>{
+    _rafPending=false;
+    links.forEach(l=>_refreshLinkLineNoDraw(l));
+    drawLayer.batchDraw();
+  });
+}
+
+// Version sans batchDraw — pour usage interne
+function _refreshLinkLineNoDraw(l){
+  const pts=buildLinkPoints(l);
+  l.line.points(pts);
+  if(scaleRatio){
+    let len=0;
+    for(let i=0;i<pts.length-2;i+=2){
+      const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];
+      len+=Math.sqrt(dx*dx+dy*dy);
+    }
+    l.lengthM=parseFloat((len*scaleRatio).toFixed(2));
+  }
+  const mid=getPathMidpoint(pts);
+  const txt=buildLinkLabel(l.lengthM);
+  const cw=3.5,tw=txt.length*cw;
+  const show=_showLinkLabels&&txt!=='';
+  l.label.text(txt);
+  l.label.x(mid.x-tw/2);l.label.y(mid.y-4);l.label.visible(show);
+  l.labelBg.x(mid.x-tw/2-2);l.labelBg.y(mid.y-5);
+  l.labelBg.width(tw+4);l.labelBg.height(7);l.labelBg.visible(show);
+}
+
+function refreshLinkLine(l){
+  _refreshLinkLineNoDraw(l);
+  drawLayer.batchDraw();
+}
+
 function buildLinkPoints(l){
   const startPt=l.aAnchor?anchorToPoint(l.a,l.aAnchor):{x:l.a.x(),y:l.a.y()};
   const endPt=l.bAnchor?anchorToPoint(l.b,l.bAnchor):{x:l.b.x(),y:l.b.y()};
@@ -3929,12 +4020,10 @@ function insertWaypointOnLink(linkObj,pos){const pts=buildLinkPoints(linkObj);le
 function distToSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y;if(dx===0&&dy===0)return Math.hypot(p.x-a.x,p.y-a.y);const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function getPathMidpoint(pts){let maxLen=0,mx=pts[0],my=pts[1];for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];const len=Math.sqrt(dx*dx+dy*dy);if(len>maxLen){maxLen=len;mx=(pts[i]+pts[i+2])/2;my=(pts[i+1]+pts[i+3])/2;}}return{x:mx,y:my};}
 function deleteSelectedWaypoint(){document.getElementById('contextMenu').style.display='none';if(!_selectedWaypoint)return;const{linkObj,index}=_selectedWaypoint;pushHistory();linkObj.waypoints.splice(index,1);linkObj.waypointDots.forEach(d=>d.destroy());linkObj.waypointDots=[];linkObj.waypoints.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));refreshLinkLine(linkObj);_selectedWaypoint=null;}
-function refreshLinkLine(l){const pts=buildLinkPoints(l);l.line.points(pts);if(scaleRatio){let len=0;for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];len+=Math.sqrt(dx*dx+dy*dy);}l.lengthM=parseFloat((len*scaleRatio).toFixed(2));}const mid=getPathMidpoint(pts);const txt=buildLinkLabel(l.lengthM);const cw=3.5,tw=txt.length*cw;const show=_showLinkLabels&&txt!=='';l.label.text(txt);l.label.x(mid.x-tw/2);l.label.y(mid.y-4);l.label.visible(show);l.labelBg.x(mid.x-tw/2-2);l.labelBg.y(mid.y-5);l.labelBg.width(tw+4);l.labelBg.height(7);l.labelBg.visible(show);drawLayer.batchDraw();}
 function refreshLinkWaypointDots(l){l.waypointDots.forEach(d=>d.destroy());l.waypointDots=[];l.line.stroke(l.reseauColor||l.lineColor||'#94a3b8');l.label.fill(l.reseauColor||l.lineColor||'#94a3b8');l.waypoints.forEach((_,i)=>l.waypointDots.push(createWaypointDot(l,i)));drawLayer.batchDraw();}
 function destroyLinkNodes(l){l.line.destroy();l.label?.destroy();l.labelBg?.destroy();l.waypointDots.forEach(d=>d.destroy());}
 function buildLinkLabel(lengthM){return lengthM!=null?lengthM+' m':'';}
 
-function updateLinks(){links.forEach(l=>refreshLinkLine(l));}
 
 // ══════════════════════════════════════════════════════════════
 // LISTE MATÉRIEL
@@ -4509,7 +4598,105 @@ function openTraverseePopup(pos){
   document.getElementById('traversee-popup').style.display='flex';
   setTimeout(()=>document.getElementById('tv-length').focus(),100);
 }
-// ── MODIFICATION TRAVERSÉE ──
+// ══════════════════════════════════════════════════════════════
+// GRILLE D'ALIGNEMENT
+// ══════════════════════════════════════════════════════════════
+let _gridEnabled=false;
+let _gridSize=20;      // taille de la grille en px scène
+let _gridLayer=null;
+
+function toggleGrid(){
+  _gridEnabled=!_gridEnabled;
+  const btn=document.getElementById('btn-grid');
+  if(btn){
+    btn.style.background=_gridEnabled?'rgba(59,130,246,.15)':'';
+    btn.style.borderColor=_gridEnabled?'var(--accent)':'';
+    btn.style.color=_gridEnabled?'var(--accent)':'';
+    btn.title=_gridEnabled?'Grille active (clic pour désactiver)':'Grille désactivée';
+  }
+  if(_gridEnabled)_drawGrid();
+  else _clearGrid();
+}
+
+function _drawGrid(){
+  if(!_gridLayer){
+    _gridLayer=new Konva.Layer({listening:false});
+    stage.add(_gridLayer);
+    _gridLayer.moveToBottom();
+    bgLayer&&_gridLayer.moveToBottom();
+  }
+  _gridLayer.destroyChildren();
+  const sc=stage.scaleX();
+  const stx=stage.x(),sty=stage.y();
+  const sw=stage.width(),sh=stage.height();
+  const gs=_gridSize*sc;
+  // Décalage pour que la grille suive le pan
+  const offX=((stx%gs)+gs)%gs;
+  const offY=((sty%gs)+gs)%gs;
+  const lineStyle={stroke:'rgba(99,130,200,.18)',strokeWidth:1,listening:false};
+
+  for(let x=offX-gs;x<sw+gs;x+=gs){
+    _gridLayer.add(new Konva.Line({points:[x,0,x,sh],...lineStyle}));
+  }
+  for(let y=offY-gs;y<sh+gs;y+=gs){
+    _gridLayer.add(new Konva.Line({points:[0,y,sw,y],...lineStyle}));
+  }
+  _gridLayer.batchDraw();
+}
+
+function _clearGrid(){
+  if(_gridLayer){_gridLayer.destroyChildren();_gridLayer.batchDraw();}
+}
+
+// Snap à la grille — appliqué au placement et au dragend
+function snapToGrid(pos){
+  if(!_gridEnabled)return pos;
+  return{
+    x:Math.round(pos.x/_gridSize)*_gridSize,
+    y:Math.round(pos.y/_gridSize)*_gridSize,
+  };
+}
+
+// Redessiner la grille quand on pan/zoom
+function _onStageTransform(){
+  if(_gridEnabled)_drawGrid();
+}
+
+// ── VERROUILLAGE D'ÉLÉMENT ────────────────────────────────────
+function toggleLockElement(){
+  document.getElementById('contextMenu').style.display='none';
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  const locked=!selectedShape.getAttr('locked');
+  selectedShape.setAttr('locked',locked);
+  selectedShape.draggable(!locked);
+  _updateLockVisual(selectedShape);
+  setStatus(locked?'🔒 Élément verrouillé':'🔓 Élément déverrouillé','ok');
+  pushHistory();
+}
+
+function _updateLockVisual(g){
+  // Supprimer l'ancien indicateur
+  g.getChildren().filter(c=>c.getAttr('customType')==='lock-icon').forEach(c=>c.destroy());
+  if(!g.getAttr('locked'))return;
+  const B=ICON_BASE_PX/2*g.scaleX();
+  const lock=new Konva.Text({
+    x:B-7, y:-B-2,
+    text:'🔒', fontSize:9,
+    listening:false,
+  });
+  lock.setAttr('customType','lock-icon');
+  g.add(lock);
+  drawLayer.batchDraw();
+}
+
+// Restaurer le state lock après désérialisation
+function _restoreLockState(g){
+  if(g.getAttr('locked')){
+    g.draggable(false);
+    _updateLockVisual(g);
+  }
+}
+
 let _editingTraverseeEl=null;
 
 function openEditTraverseePopup(){
@@ -4626,7 +4813,7 @@ function placeTraversee(pos,cfg){
   g.scale({x:s,y:s});
   g.on('dragstart',()=>{clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;isPanning=false;g.setAttr('_dragOrigin',{x:g.x(),y:g.y()});});
   g.on('dragmove',()=>{updateLinks();if(selectedShape===g)showDeleteBtn(g);});
-  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);updateLinks();updateListe();});
+  g.on('dragend',()=>{g.setAttr('_dragOrigin',null);const sp=snapToGrid({x:g.x(),y:g.y()});g.position(sp);updateLinks();updateListe();});
   g.on('click tap',()=>selectElement(g));
 
   drawLayer.add(g);drawLayer.batchDraw();
