@@ -4698,13 +4698,23 @@ function showResizeBar(g){
   bar.style.display='flex';
   document.getElementById('resize-bar-label').textContent=g.getAttr('toolLabel')||'Élément';
   document.getElementById('rb-scale').value=g.scaleX().toFixed(2);
-  const dims=g.getAttr('realDims');
   const dimsGroup=document.getElementById('rb-dims-group');
-  if(dims&&scaleRatio){
+  if(scaleRatio){
     dimsGroup.style.display='flex';
-    document.getElementById('rb-w').value=dims.w||'';
-    document.getElementById('rb-h').value=dims.h||'';
-  }else{dimsGroup.style.display='none';}
+    const stored=g.getAttr('realDims');
+    if(stored){
+      document.getElementById('rb-w').value=Math.round(stored.w)||'';
+      document.getElementById('rb-h').value=Math.round(stored.h)||'';
+    }else{
+      // Calculer depuis le scale courant
+      const wMm=Math.round(g.scaleX()*ICON_BASE_PX*scaleRatio*1000);
+      const hMm=Math.round(g.scaleY()*ICON_BASE_PX*scaleRatio*1000);
+      document.getElementById('rb-w').value=wMm;
+      document.getElementById('rb-h').value=hMm;
+    }
+  }else{
+    dimsGroup.style.display='none';
+  }
 }
 function hideResizeBar(){const b=document.getElementById('resize-bar');if(b)b.style.display='none';}
 function applyResizeBar(){
