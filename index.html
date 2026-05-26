@@ -690,6 +690,7 @@
   <button onclick="duplicateSelected()">⧉ Dupliquer</button>
   <button id="ctx-resize" onclick="openResizePopup()">⤢ Redimensionner</button>
   <button id="ctx-elem-info" onclick="openElemInfoPopup()" style="display:none;">ℹ Informations</button>
+  <button id="ctx-edit-traversee" onclick="openEditTraverseePopup()" style="display:none;">✏ Modifier traversée</button>
   <button id="ctx-rot-ccw" onclick="rotateSelected(-90)" style="display:none;">↺ Rotation −90°</button>
   <button id="ctx-rot-cw"  onclick="rotateSelected(90)"  style="display:none;">↻ Rotation +90°</button>
   <button id="ctx-edit-link" onclick="openLinkEditPopup()" style="display:none;">✏ Modifier la liaison</button>
@@ -996,7 +997,7 @@
 
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
       <button onclick="closeTraverseePopup()" style="padding:7px 16px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">Annuler</button>
-      <button onclick="confirmTraversee()" style="padding:7px 16px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Placer</button>
+      <button onclick="confirmTraversee()" id="tv-confirm-btn" style="padding:7px 16px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Placer</button>
     </div>
   </div>
 </div>
@@ -3355,9 +3356,9 @@ function handleLongPress(target){
   const annotNode=findAnnotNode(target);
   if(annotNode!==null){_selectedAnnotId=annotNode;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenuTouch();return;}
   let t=target;while(t&&t.getParent){if(t.getAttr&&t.getAttr('customType')==='link')break;t=t.getParent();}
-  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenuTouch();return;}
+  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenuTouch();return;}
   const elLp=findElementGroup(target);
-  if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');openContextMenuTouch();}
+  if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elLp.getAttr('traverseeData')?'block':'none';openContextMenuTouch();}
 }
 
 function findAnnotNode(target){
@@ -3511,9 +3512,9 @@ function handleContextMenu(e){
   const annotId=findAnnotNode(target);
   if(annotId!==null){_selectedAnnotId=annotId;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenu(e.evt);return;}
   let g2=target;while(g2&&g2.getParent){if(g2.getAttr&&g2.getAttr('customType')==='link')break;g2=g2.getParent();}
-  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenu(e.evt);return;}
+  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenu(e.evt);return;}
   const elCtx=findElementGroup(e.target);
-  if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');openContextMenu(e.evt);}
+  if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elCtx.getAttr('traverseeData')?'block':'none';openContextMenu(e.evt);}
 }
 function openContextMenu(evt){const m=document.getElementById('contextMenu');m.style.display='block';m.style.transform='';m.style.left=evt.clientX+'px';m.style.top=evt.clientY+'px';m.style.minWidth='200px';m.querySelectorAll('button').forEach(b=>b.style.padding='7px 12px');}
 function openContextMenuTouch(){const m=document.getElementById('contextMenu');m.style.display='block';m.style.left='50%';m.style.top='50%';m.style.transform='translate(-50%,-50%)';m.style.minWidth='220px';m.querySelectorAll('button').forEach(b=>b.style.padding='12px 16px');m.dataset.justOpened='true';setTimeout(()=>{m.dataset.justOpened='';},400);}
@@ -4258,9 +4259,40 @@ function openTraverseePopup(pos){
   document.getElementById('traversee-popup').style.display='flex';
   setTimeout(()=>document.getElementById('tv-length').focus(),100);
 }
+// ── MODIFICATION TRAVERSÉE ──
+let _editingTraverseeEl=null;
+
+function openEditTraverseePopup(){
+  document.getElementById('contextMenu').style.display='none';
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  const cfg=selectedShape.getAttr('traverseeData');
+  if(!cfg)return;
+  _editingTraverseeEl=selectedShape;
+  _pendingTraverseePos=null;
+
+  document.getElementById('tv-type').value=cfg.type||'dalle';
+  document.getElementById('tv-reseau').value=cfg.reseau||'soufflage';
+  document.getElementById('tv-id').value=cfg.id||'T1';
+  document.getElementById('tv-length').value=cfg.length||'';
+  document.getElementById('tv-show-label').checked=cfg.showLabel!==false;
+  document.getElementById('tv-size').value=cfg.size||1;
+  document.getElementById('tv-size-val').textContent=parseFloat(cfg.size||1).toFixed(1)+'×';
+
+  const diaSel=document.getElementById('tv-dia');
+  diaSel.innerHTML='<option value="">— optionnel —</option>'+
+    conduitConfig.diametres.map(d=>`<option value="${d}"${d===cfg.dia?' selected':''}>${d}</option>`).join('');
+
+  updateTraverseePreview();
+  document.getElementById('traversee-popup').style.display='flex';
+  document.getElementById('tv-confirm-btn').textContent='Mettre à jour';
+}
+
 function closeTraverseePopup(){
   document.getElementById('traversee-popup').style.display='none';
   _pendingTraverseePos=null;
+  _editingTraverseeEl=null;
+  const btn=document.getElementById('tv-confirm-btn');
+  if(btn)btn.textContent='Placer';
 }
 function updateTraverseePreview(){
   const type=document.getElementById('tv-type').value;
@@ -4286,12 +4318,27 @@ function confirmTraversee(){
   const dia=document.getElementById('tv-dia').value;
   const size=parseFloat(document.getElementById('tv-size').value)||1;
   const showLabel=document.getElementById('tv-show-label').checked;
+  const cfg={type,reseau,id,length,dia,size,showLabel};
+
+  if(_editingTraverseeEl){
+    pushHistory();
+    const el=_editingTraverseeEl;
+    const pos={x:el.x(),y:el.y()};
+    const lbl=el.getAttr('toolLabel')||'';
+    if(lbl&&placedElements[lbl]>0)placedElements[lbl]--;
+    el.destroy();drawLayer.batchDraw();
+    closeTraverseePopup();
+    placeTraversee(pos,cfg);
+    return;
+  }
+
   const pos=_pendingTraverseePos;
   closeTraverseePopup();
   if(!pos)return;
   _traverseeIdCounter++;
-  placeTraversee(pos,{type,reseau,id,length,dia,size,showLabel});
+  placeTraversee(pos,cfg);
 }
+
 
 function placeTraversee(pos,cfg){
   pushHistory();
