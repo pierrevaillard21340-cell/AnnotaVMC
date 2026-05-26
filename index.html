@@ -1060,6 +1060,42 @@
   <div id="photo-viewer-meta" style="color:rgba(255,255,255,.7);font-size:12px;text-align:center;max-width:500px;padding:0 20px;line-height:1.6;"></div>
 </div>
 
+<!-- PANNEAU REDIMENSIONNEMENT RAPIDE -->
+<div id="resize-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--surface);border-top:1px solid var(--border);padding:6px 12px;display:none;align-items:center;gap:10px;backdrop-filter:blur(6px);">
+  <span id="resize-bar-label" style="font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;"></span>
+  <div class="sep"></div>
+  <!-- Taille uniforme -->
+  <div style="display:flex;align-items:center;gap:4px;">
+    <span style="font-size:10px;color:var(--text2);">Taille ×</span>
+    <input type="number" id="rb-scale" min="0.1" max="5" step="0.05" value="1"
+      style="width:52px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
+      oninput="applyResizeBar()">
+  </div>
+  <!-- L × H si calibré -->
+  <div id="rb-dims-group" style="display:none;align-items:center;gap:4px;">
+    <div class="sep"></div>
+    <span style="font-size:10px;color:var(--text2);">L</span>
+    <input type="number" id="rb-w" min="1" step="5"
+      style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:3px 5px;text-align:center;outline:none;"
+      oninput="applyResizeBarDims()">
+    <span style="font-size:10px;color:var(--text2);">× H</span>
+    <input type="number" id="rb-h" min="1" step="5"
+      style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:3px 5px;text-align:center;outline:none;"
+      oninput="applyResizeBarDims()">
+    <span style="font-size:10px;color:var(--text2);">mm</span>
+  </div>
+  <!-- Rotation -->
+  <div class="sep"></div>
+  <div style="display:flex;align-items:center;gap:4px;">
+    <button onclick="rotateSelected(-45)" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:3px 8px;cursor:pointer;" title="−45°">↺</button>
+    <button onclick="rotateSelected(45)"  style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:13px;padding:3px 8px;cursor:pointer;" title="+45°">↻</button>
+  </div>
+  <div class="sep"></div>
+  <button onclick="duplicateSelected()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 8px;cursor:pointer;" title="Dupliquer">⧉</button>
+  <button onclick="deleteSelected()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:#ef4444;font-size:11px;padding:4px 8px;cursor:pointer;" title="Supprimer">🗑</button>
+  <button onclick="deselectAll()" style="margin-left:auto;background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:2px 6px;" title="Fermer">✕</button>
+</div>
+
 <!-- TRAVERSÉE POPUP -->
 <div id="traversee-popup" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:340px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,.7);">
@@ -2356,7 +2392,30 @@ function updateReseauColor(i,color){reseauTypes[i].color=color;renderReseauxConf
 // ══════════════════════════════════════════════════════════════
 function openLinkEditPopup(){document.getElementById('contextMenu').style.display='none';if(!_selectedLinkObj)return;const l=_selectedLinkObj;syncReseauSelect();document.getElementById('le-reseau').value=l.reseau||'';onLeReseauChange();document.getElementById('le-mat').innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${m===l.mat?'selected':''}>${m}</option>`).join('');document.getElementById('le-dia').innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${d===l.dia?'selected':''}>${d}</option>`).join('');document.getElementById('le-length').value=l.lengthM!=null?l.lengthM:'';document.getElementById('le-tension').value=String(l.tension??0.35);const leDiaMm=document.getElementById('le-dia-mm');if(leDiaMm)leDiaMm.value=l.diaMm||extractDiaMm(l.dia)||'';const popup=document.getElementById('link-edit-popup');popup.style.left='50%';popup.style.top='50%';popup.style.transform='translate(-50%,-50%)';popup.classList.add('open');}
 function closeLinkEditPopup(){document.getElementById('link-edit-popup').classList.remove('open');}
-function confirmLinkEdit(){if(!_selectedLinkObj){closeLinkEditPopup();return;}const l=_selectedLinkObj;pushHistory();const reseauLabel=document.getElementById('le-reseau').value;l.reseau=reseauLabel;l.reseauColor=reseauLabel?getReseauColor(reseauLabel):'#94a3b8';l.mat=document.getElementById('le-mat').value;l.dia=document.getElementById('le-dia').value;const lv=parseFloat(document.getElementById('le-length').value);l.lengthM=(!isNaN(lv)&&lv>0)?lv:(scaleRatio?parseFloat((linkTotalLength(l)*scaleRatio).toFixed(2)):null);l.tension=parseFloat(document.getElementById('le-tension').value);l.line.tension(l.tension);const leDiaMmV=parseFloat(document.getElementById('le-dia-mm').value);l.diaMm=isNaN(leDiaMmV)?extractDiaMm(l.dia):leDiaMmV;applyLinkStroke(l);l.line.stroke(l.reseauColor);refreshLinkWaypointDots(l);updateLinks();updateListe();closeLinkEditPopup();}
+function confirmLinkEdit(){
+  if(!_selectedLinkObj){closeLinkEditPopup();return;}
+  const l=_selectedLinkObj;
+  pushHistory();
+  const reseauLabel=document.getElementById('le-reseau').value;
+  const newColor=reseauLabel?getReseauColor(reseauLabel):'#94a3b8';
+  l.reseau=reseauLabel;
+  l.reseauColor=newColor;
+  l.lineColor=newColor; // ← crucial pour resetLinkHighlight
+  l.mat=document.getElementById('le-mat').value;
+  l.dia=document.getElementById('le-dia').value;
+  const lv=parseFloat(document.getElementById('le-length').value);
+  l.lengthM=(!isNaN(lv)&&lv>0)?lv:(scaleRatio?parseFloat((linkTotalLength(l)*scaleRatio).toFixed(2)):null);
+  l.tension=parseFloat(document.getElementById('le-tension').value);
+  l.line.tension(l.tension);
+  const leDiaMmV=parseFloat(document.getElementById('le-dia-mm').value);
+  l.diaMm=isNaN(leDiaMmV)?extractDiaMm(l.dia):leDiaMmV;
+  l.line.stroke(newColor);
+  applyLinkStroke(l);
+  refreshLinkWaypointDots(l);
+  refreshLinkLine(l);
+  updateListe();
+  closeLinkEditPopup();
+}
 
 // ══════════════════════════════════════════════════════════════
 // MOBILE
@@ -2814,7 +2873,12 @@ function hideDeleteBtn(){document.getElementById('delete-btn-overlay').classList
 function deleteFromOverlayBtn(){if(!selectedShape)return;hideDeleteBtn();removeElement(selectedShape);}
 function getTextNode(g){return g.getChildren().find(c=>c.getClassName()==='Text')||null;}
 function refreshAllElementTexts(){/* labels supprimés */}
-function selectElement(g){selectedShape=g;transformer.nodes(g?[g]:[]);if(g)showDeleteBtn(g);else hideDeleteBtn();refreshDeleteBtn();}
+function selectElement(g){
+  selectedShape=g;transformer.nodes(g?[g]:[]);
+  if(g){showDeleteBtn(g);showResizeBar(g);}
+  else{hideDeleteBtn();hideResizeBar();}
+  refreshDeleteBtn();
+}
 
 // ══════════════════════════════════════════════════════════════
 // SLIDERS
@@ -4627,6 +4691,60 @@ function openTraverseePopup(pos){
   document.getElementById('traversee-popup').style.display='flex';
   setTimeout(()=>document.getElementById('tv-length').focus(),100);
 }
+// ── PANNEAU REDIMENSIONNEMENT RAPIDE ─────────────────────────
+function showResizeBar(g){
+  const bar=document.getElementById('resize-bar');
+  if(!g||g.name()!=='element'){bar.style.display='none';return;}
+  bar.style.display='flex';
+  document.getElementById('resize-bar-label').textContent=g.getAttr('toolLabel')||'Élément';
+  document.getElementById('rb-scale').value=g.scaleX().toFixed(2);
+  const dims=g.getAttr('realDims');
+  const dimsGroup=document.getElementById('rb-dims-group');
+  if(dims&&scaleRatio){
+    dimsGroup.style.display='flex';
+    document.getElementById('rb-w').value=dims.w||'';
+    document.getElementById('rb-h').value=dims.h||'';
+  }else{dimsGroup.style.display='none';}
+}
+function hideResizeBar(){const b=document.getElementById('resize-bar');if(b)b.style.display='none';}
+function applyResizeBar(){
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  const s=parseFloat(document.getElementById('rb-scale').value);
+  if(isNaN(s)||s<0.1)return;
+  selectedShape.scale({x:s,y:s});
+  updateLinks();drawLayer.batchDraw();
+}
+function applyResizeBarDims(){
+  if(!selectedShape||selectedShape.name()!=='element'||!scaleRatio)return;
+  const w=parseFloat(document.getElementById('rb-w').value);
+  const h=parseFloat(document.getElementById('rb-h').value);
+  if(isNaN(w)||isNaN(h)||w<1||h<1)return;
+  const scX=(w/1000)/scaleRatio/ICON_BASE_PX;
+  const scY=(h/1000)/scaleRatio/ICON_BASE_PX;
+  selectedShape.scale({x:scX,y:scY});
+  selectedShape.setAttr('realDims',{w,h});
+  document.getElementById('rb-scale').value=scX.toFixed(2);
+  updateLinks();drawLayer.batchDraw();
+}
+function rotateSelected(deg){
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  pushHistory();
+  selectedShape.rotation((selectedShape.rotation()+deg+360)%360);
+  updateLinks();drawLayer.batchDraw();
+}
+function deleteSelected(){
+  if(!selectedShape||selectedShape.name()!=='element')return;
+  pushHistory();
+  const lbl=selectedShape.getAttr('toolLabel')||'';
+  if(lbl&&placedElements[lbl]>0)placedElements[lbl]--;
+  links.filter(l=>l.a===selectedShape||l.b===selectedShape).forEach(l=>{
+    destroyLinkNodes(l);links.splice(links.indexOf(l),1);
+  });
+  selectedShape.destroy();selectedShape=null;
+  hideDeleteBtn();hideResizeBar();drawLayer.batchDraw();updateListe();
+}
+function deselectAll(){selectElement(null);hideResizeBar();}
+
 // ══════════════════════════════════════════════════════════════
 // GRILLE D'ALIGNEMENT
 // ══════════════════════════════════════════════════════════════
