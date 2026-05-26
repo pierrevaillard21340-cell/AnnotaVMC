@@ -221,6 +221,22 @@
   .pk-ok{background:var(--accent);color:#fff;}.pk-ok:hover{background:#2563eb;}
   .pk-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border)!important;}
 
+  /* ── CONFIG TABS ── */
+  .cfg-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer;transition:all .15s;}
+  .cfg-tab:hover{color:var(--text);}
+  .cfg-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  /* ── PRODUCT CARDS ── */
+  .prod-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px;transition:border-color .15s;}
+  .prod-card:hover{border-color:var(--accent);}
+  .prod-logo{height:20px;border-radius:3px;}
+  .prod-info{flex:1;min-width:0;}
+  .prod-name{font-size:12px;font-weight:600;color:var(--text);}
+  .prod-meta{font-size:10px;color:var(--text2);margin-top:2px;line-height:1.5;}
+  .prod-badge{display:inline-block;font-size:9px;background:rgba(59,130,246,.15);color:var(--accent);border-radius:3px;padding:1px 5px;margin-right:4px;}
+  .prod-actions{display:flex;gap:4px;flex-shrink:0;}
+  .prod-btn{background:none;border:1px solid var(--border);border-radius:5px;color:var(--text2);font-size:11px;padding:3px 8px;cursor:pointer;transition:all .15s;}
+  .prod-btn:hover{background:var(--surface);color:var(--text);}
+  .prod-btn.danger:hover{border-color:#ef4444;color:#ef4444;}
   /* ── LEVEL TABS ── */
   #level-bar{display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;padding:0 8px;height:32px;overflow-x:auto;gap:2px;}
   #level-bar::-webkit-scrollbar{height:3px;}
@@ -766,38 +782,131 @@
 
 <!-- CONFIG MODAL -->
 <div id="modal-overlay" onclick="closeConfigIfOutside(event)">
-  <div id="modal-box">
-    <h2>⚙ Configuration des conduits &amp; icônes</h2>
-    <div class="cfg-section">
-      <label>Matériaux</label>
-      <div class="cfg-tags" id="tags-materiaux"></div>
-      <div class="cfg-add">
-        <input type="text" id="input-materiau" placeholder="ex : Galva, PVC, Flex…" onkeydown="if(event.key==='Enter')addItem('materiaux')">
-        <button onclick="addItem('materiaux')">+ Ajouter</button>
+  <div id="modal-box" style="max-width:680px;width:96vw;max-height:88vh;display:flex;flex-direction:column;">
+    <h2 style="margin-bottom:0;">⚙ Configuration</h2>
+
+    <!-- Onglets config -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:12px;margin-top:10px;flex-shrink:0;">
+      <button class="cfg-tab active" onclick="switchCfgTab('conduits',this)">Conduits</button>
+      <button class="cfg-tab" onclick="switchCfgTab('reseaux',this)">Réseaux</button>
+      <button class="cfg-tab" onclick="switchCfgTab('icones',this)">Icônes</button>
+      <button class="cfg-tab" onclick="switchCfgTab('produits',this)">📦 Produits</button>
+    </div>
+
+    <!-- Onglet Conduits -->
+    <div id="cfg-pane-conduits" class="cfg-pane active" style="overflow-y:auto;flex:1;">
+      <div class="cfg-section">
+        <label>Matériaux</label>
+        <div class="cfg-tags" id="tags-materiaux"></div>
+        <div class="cfg-add">
+          <input type="text" id="input-materiau" placeholder="ex : Galva, PVC, Flex…" onkeydown="if(event.key==='Enter')addItem('materiaux')">
+          <button onclick="addItem('materiaux')">+ Ajouter</button>
+        </div>
+      </div>
+      <div class="cfg-section">
+        <label>Diamètres</label>
+        <div class="cfg-tags" id="tags-diametres"></div>
+        <div class="cfg-add">
+          <input type="text" id="input-diametre" placeholder="ex : Ø80, Ø125, Ø160…" onkeydown="if(event.key==='Enter')addItem('diametres')">
+          <button onclick="addItem('diametres')">+ Ajouter</button>
+        </div>
       </div>
     </div>
-    <div class="cfg-section">
-      <label>Diamètres</label>
-      <div class="cfg-tags" id="tags-diametres"></div>
-      <div class="cfg-add">
-        <input type="text" id="input-diametre" placeholder="ex : Ø80, Ø125, Ø160…" onkeydown="if(event.key==='Enter')addItem('diametres')">
-        <button onclick="addItem('diametres')">+ Ajouter</button>
+
+    <!-- Onglet Réseaux -->
+    <div id="cfg-pane-reseaux" class="cfg-pane" style="overflow-y:auto;flex:1;display:none;">
+      <div class="cfg-section">
+        <label>Types de réseau</label>
+        <div id="list-reseaux"></div>
+        <div class="cfg-reseau-add">
+          <input type="text" id="input-reseau-label" placeholder="ex : Recyclage…">
+          <input type="color" id="input-reseau-color" value="#ff8800">
+          <button onclick="addReseau()">+ Ajouter</button>
+        </div>
       </div>
     </div>
-    <div class="cfg-section">
-      <label>Types de réseau</label>
-      <div id="list-reseaux"></div>
-      <div class="cfg-reseau-add">
-        <input type="text" id="input-reseau-label" placeholder="ex : Recyclage…">
-        <input type="color" id="input-reseau-color" value="#ff8800">
-        <button onclick="addReseau()">+ Ajouter</button>
+
+    <!-- Onglet Icônes -->
+    <div id="cfg-pane-icones" class="cfg-pane" style="overflow-y:auto;flex:1;display:none;">
+      <div class="cfg-section">
+        <label>Icônes des éléments</label>
+        <div class="icon-grid" id="icon-grid"></div>
       </div>
     </div>
-    <div class="cfg-section">
-      <label>Icônes des éléments</label>
-      <div class="icon-grid" id="icon-grid"></div>
+
+    <!-- Onglet Produits -->
+    <div id="cfg-pane-produits" class="cfg-pane" style="overflow-y:auto;flex:1;display:none;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0;">
+        <select id="prod-filter-brand" onchange="renderProductLibrary()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 8px;">
+          <option value="">Toutes marques</option>
+          <option>Aldes</option><option>Atlantic</option><option>Zehnder</option><option>Brink</option><option>Autre</option>
+        </select>
+        <select id="prod-filter-type" onchange="renderProductLibrary()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:4px 8px;">
+          <option value="">Tous types</option>
+          ${Object.keys(PRODUCT_TOOL_TYPES).map(t=>`<option>${t}</option>`).join('')}
+        </select>
+        <button onclick="openAddProductPopup()" style="margin-left:auto;padding:5px 12px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">＋ Ajouter</button>
+      </div>
+      <div id="product-list" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
-    <div class="modal-footer"><button onclick="closeConfig()">Fermer</button></div>
+
+    <div class="modal-footer" style="flex-shrink:0;"><button onclick="closeConfig()">Fermer</button></div>
+  </div>
+</div>
+
+<!-- POPUP AJOUT/ÉDITION PRODUIT -->
+<div id="product-popup" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.65);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:400px;max-width:94vw;max-height:88vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.7);">
+    <h3 id="prod-popup-title" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">📦 Nouveau produit</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:10px;color:var(--text2);">Marque</label>
+          <select id="prod-brand" onchange="updateProdLogo()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;">
+            <option>Aldes</option><option>Atlantic</option><option>Zehnder</option><option>Brink</option><option>Autre</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <img id="prod-logo-preview" src="" style="height:24px;border-radius:3px;" alt="">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:10px;color:var(--text2);">Type</label>
+        <select id="prod-type" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;">
+          ${Object.keys(PRODUCT_TOOL_TYPES).map(t=>`<option>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:10px;color:var(--text2);">Nom commercial</label>
+        <input type="text" id="prod-name" placeholder="ex: ComfoAir Q350" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:10px;color:var(--text2);">Référence</label>
+          <input type="text" id="prod-ref" placeholder="ex: Q350-E" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:10px;color:var(--text2);">Débit (m³/h)</label>
+          <input type="number" id="prod-debit" placeholder="ex: 350" min="0" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:10px;color:var(--text2);">Diamètres de raccordement</label>
+        <input type="text" id="prod-diameters" placeholder="ex: Ø125/Ø160" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:10px;color:var(--text2);">Lien fiche technique (URL)</label>
+        <input type="url" id="prod-url" placeholder="https://…" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:10px;color:var(--text2);">Notes</label>
+        <textarea id="prod-notes" rows="2" placeholder="Rendement, options, compatibilité…" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:6px 8px;outline:none;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button onclick="closeAddProductPopup()" style="padding:7px 16px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">Annuler</button>
+      <button onclick="confirmAddProduct()" style="padding:7px 16px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Enregistrer</button>
+    </div>
   </div>
 </div>
 
@@ -856,6 +965,14 @@
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;width:340px;max-width:94vw;box-shadow:0 16px 48px rgba(0,0,0,.7);">
     <h3 id="elem-info-title" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">ℹ Informations élément</h3>
     <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11px;color:var(--text2);min-width:80px;">Référence</label>
+        <select id="elem-info-product" onchange="onElemProductSelect()" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:11px;padding:5px 8px;outline:none;">
+          <option value="">— Choisir dans la bibliothèque —</option>
+        </select>
+        ${''/* bouton fiche technique */}
+        <button id="elem-info-url-btn" onclick="openElemProductUrl()" title="Fiche technique" style="display:none;padding:5px 8px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--accent);cursor:pointer;font-size:13px;">🔗</button>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <label style="font-size:11px;color:var(--text2);min-width:80px;">Nom / Pièce</label>
         <input type="text" id="elem-info-name" placeholder="ex: Chambre parents, Salle de bain…" maxlength="60"
@@ -2273,7 +2390,7 @@ async function saveProject(){
     photoMarkers:lv._photoMarkers||[],
     photoIdCounter:lv._photoIdCounter||1,
   }));
-  const data={version:7,currentLevelIdx:_currentLevelIdx,levels:levelsData,conduitConfig,reseauTypes,customIcons,chantierNotes};
+  const data={version:7,currentLevelIdx:_currentLevelIdx,levels:levelsData,conduitConfig,reseauTypes,customIcons,chantierNotes,productLibrary};
   const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
   const uri='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data));
   Object.assign(document.createElement('a'),{href:uri,download:`projet_vmc_${d}.annotavmc`}).click();
@@ -2290,6 +2407,7 @@ function loadProject(file){
       if(data.reseauTypes){reseauTypes=data.reseauTypes;syncReseauSelect();renderReseauxConfig();}
       if(data.customIcons){customIcons=data.customIcons;refreshToolbarIcons();}
       if(data.chantierNotes)loadNotes(data.chantierNotes);
+      if(data.productLibrary)productLibrary=data.productLibrary;
 
       // ── Format v7 multi-niveaux ──
       if(data.version>=7&&data.levels){
@@ -2793,7 +2911,145 @@ function showHint(msg){const h=document.getElementById('calib-hint');h.textConte
 // ══════════════════════════════════════════════════════════════
 // CONFIG CONDUITS
 // ══════════════════════════════════════════════════════════════
-function openConfig(){renderTags('materiaux');renderTags('diametres');renderReseauxConfig();syncQuickSelects();syncReseauSelect();renderIconGrid();document.getElementById('modal-overlay').classList.add('open');}
+// ── FONCTIONS UI BIBLIOTHÈQUE ─────────────────────────────
+function switchCfgTab(pane,btn){
+  document.querySelectorAll('.cfg-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.cfg-pane').forEach(p=>{p.style.display='none';p.classList.remove('active');});
+  btn.classList.add('active');
+  const el=document.getElementById('cfg-pane-'+pane);
+  if(el){el.style.display='block';el.classList.add('active');}
+  if(pane==='produits')renderProductLibrary();
+}
+
+function openConfig(){
+  renderTags('materiaux');renderTags('diametres');renderReseauxConfig();
+  syncQuickSelects();syncReseauSelect();renderIconGrid();
+  document.getElementById('modal-overlay').classList.add('open');
+  // Réinitialiser sur le premier onglet
+  document.querySelectorAll('.cfg-tab').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('.cfg-pane').forEach((p,i)=>{p.style.display=i===0?'block':'none';p.classList.toggle('active',i===0);});
+}
+
+function renderProductLibrary(){
+  const filterBrand=document.getElementById('prod-filter-brand')?.value||'';
+  const filterType=document.getElementById('prod-filter-type')?.value||'';
+  const list=document.getElementById('product-list');
+  if(!list)return;
+
+  const filtered=productLibrary.filter(p=>
+    (!filterBrand||p.brand===filterBrand)&&
+    (!filterType||p.type===filterType)
+  );
+
+  // Grouper par marque
+  const byBrand={};
+  filtered.forEach(p=>{if(!byBrand[p.brand])byBrand[p.brand]=[];byBrand[p.brand].push(p);});
+
+  if(!filtered.length){list.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:24px;">Aucun produit trouvé</div>';return;}
+
+  list.innerHTML=Object.entries(byBrand).map(([brand,prods])=>`
+    <div style="margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;margin-top:8px;">
+        <img src="${svgLogo(brand)}" class="prod-logo" alt="${brand}">
+        <span style="font-size:11px;font-weight:700;color:var(--text2);">${brand} — ${prods.length} produit${prods.length>1?'s':''}</span>
+      </div>
+      ${prods.map(p=>`
+        <div class="prod-card" style="margin-bottom:5px;">
+          <div class="prod-info">
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-meta">
+              <span class="prod-badge">${p.type}</span>
+              ${p.ref?`<span style="color:var(--text2);">Réf. ${p.ref}</span> · `:''}
+              ${p.debit?`<strong>${p.debit} m³/h</strong> · `:''}
+              ${p.diameters||''}
+              ${p.notes?`<br><em style="opacity:.7;">${p.notes}</em>`:''}
+            </div>
+          </div>
+          <div class="prod-actions">
+            ${p.url?`<button class="prod-btn" onclick="window.open('${p.url}','_blank')" title="Fiche technique">🔗</button>`:''}
+            <button class="prod-btn" onclick="openEditProductPopup('${p.id}')" title="Modifier">✏</button>
+            <button class="prod-btn danger" onclick="deleteProduct('${p.id}')" title="Supprimer">✕</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+let _editingProductId=null;
+
+function openAddProductPopup(){
+  _editingProductId=null;
+  document.getElementById('prod-popup-title').textContent='📦 Nouveau produit';
+  document.getElementById('prod-brand').value='Aldes';
+  document.getElementById('prod-type').value='VMC Double flux';
+  document.getElementById('prod-name').value='';
+  document.getElementById('prod-ref').value='';
+  document.getElementById('prod-debit').value='';
+  document.getElementById('prod-diameters').value='';
+  document.getElementById('prod-url').value='';
+  document.getElementById('prod-notes').value='';
+  updateProdLogo();
+  document.getElementById('product-popup').style.display='flex';
+  setTimeout(()=>document.getElementById('prod-name').focus(),100);
+}
+
+function openEditProductPopup(id){
+  const p=productLibrary.find(x=>x.id===id);if(!p)return;
+  _editingProductId=id;
+  document.getElementById('prod-popup-title').textContent='✏ Modifier produit';
+  document.getElementById('prod-brand').value=p.brand;
+  document.getElementById('prod-type').value=p.type;
+  document.getElementById('prod-name').value=p.name;
+  document.getElementById('prod-ref').value=p.ref||'';
+  document.getElementById('prod-debit').value=p.debit||'';
+  document.getElementById('prod-diameters').value=p.diameters||'';
+  document.getElementById('prod-url').value=p.url||'';
+  document.getElementById('prod-notes').value=p.notes||'';
+  updateProdLogo();
+  document.getElementById('product-popup').style.display='flex';
+}
+
+function updateProdLogo(){
+  const brand=document.getElementById('prod-brand')?.value||'Autre';
+  const img=document.getElementById('prod-logo-preview');
+  if(img)img.src=svgLogo(brand);
+}
+
+function closeAddProductPopup(){
+  document.getElementById('product-popup').style.display='none';
+  _editingProductId=null;
+}
+
+function confirmAddProduct(){
+  const brand=document.getElementById('prod-brand').value;
+  const type=document.getElementById('prod-type').value;
+  const name=document.getElementById('prod-name').value.trim();
+  if(!name){setStatus('Nom du produit requis','err');return;}
+  const p={
+    id:_editingProductId||('p'+(_productNextId++)),
+    brand,type,name,
+    ref:document.getElementById('prod-ref').value.trim(),
+    debit:parseFloat(document.getElementById('prod-debit').value)||null,
+    diameters:document.getElementById('prod-diameters').value.trim(),
+    url:document.getElementById('prod-url').value.trim(),
+    notes:document.getElementById('prod-notes').value.trim(),
+  };
+  if(_editingProductId){
+    const idx=productLibrary.findIndex(x=>x.id===_editingProductId);
+    if(idx>=0)productLibrary[idx]=p;
+  }else{
+    productLibrary.push(p);
+  }
+  closeAddProductPopup();
+  renderProductLibrary();
+  setStatus(`✓ Produit "${name}" enregistré`,'ok');
+}
+
+function deleteProduct(id){
+  const p=productLibrary.find(x=>x.id===id);
+  if(!p||!confirm(`Supprimer "${p.name}" ?`))return;
+  productLibrary=productLibrary.filter(x=>x.id!==id);
+  renderProductLibrary();
+}
 function syncQuickSelects(){const matSel=document.getElementById('quick-mat'),diaSel=document.getElementById('quick-dia');const curMat=matSel.value,curDia=diaSel.value;matSel.innerHTML='<option value="">— Matériau —</option>'+conduitConfig.materiaux.map(m=>`<option value="${m}" ${m===curMat?'selected':''}>${m}</option>`).join('');diaSel.innerHTML='<option value="">— Diamètre —</option>'+conduitConfig.diametres.map(d=>`<option value="${d}" ${d===curDia?'selected':''}>${d}</option>`).join('');}
 function closeConfig(){document.getElementById('modal-overlay').classList.remove('open');}
 function closeConfigIfOutside(e){if(e.target===document.getElementById('modal-overlay'))closeConfig();}
@@ -4721,20 +4977,56 @@ function openElemInfoPopup(){
   document.getElementById('contextMenu').style.display='none';
   if(!selectedShape||selectedShape.name()!=='element')return;
   const info=selectedShape.getAttr('elemInfo')||{};
+  const toolId=selectedShape.getAttr('toolId')||'';
   const toolLabel=selectedShape.getAttr('toolLabel')||'Élément';
   document.getElementById('elem-info-title').textContent=`ℹ ${toolLabel}`;
+
+  // Peupler le select produits compatibles
+  const products=getCompatibleProducts(toolId);
+  const sel=document.getElementById('elem-info-product');
+  sel.innerHTML='<option value="">— Choisir dans la bibliothèque —</option>'+
+    products.map(p=>`<option value="${p.id}" ${p.id===info.productId?'selected':''}>${p.brand} — ${p.name} (${p.ref||'?'})</option>`).join('');
+
   document.getElementById('elem-info-name').value=info.name||'';
   document.getElementById('elem-info-ref').value=info.ref||'';
   document.getElementById('elem-info-debit').value=info.debit||'';
   document.getElementById('elem-info-note').value=info.note||'';
+
+  // Bouton fiche technique
+  const urlBtn=document.getElementById('elem-info-url-btn');
+  if(info.productId){
+    const p=productLibrary.find(x=>x.id===info.productId);
+    if(urlBtn)urlBtn.style.display=p&&p.url?'block':'none';
+  }else{if(urlBtn)urlBtn.style.display='none';}
+
   document.getElementById('elem-info-popup').style.display='flex';
   setTimeout(()=>document.getElementById('elem-info-name').focus(),100);
+}
+
+function onElemProductSelect(){
+  const id=document.getElementById('elem-info-product').value;
+  const urlBtn=document.getElementById('elem-info-url-btn');
+  if(!id){if(urlBtn)urlBtn.style.display='none';return;}
+  const p=productLibrary.find(x=>x.id===id);
+  if(!p)return;
+  // Auto-remplir ref et débit
+  document.getElementById('elem-info-ref').value=p.name+(p.ref?' ('+p.ref+')':'');
+  if(p.debit)document.getElementById('elem-info-debit').value=p.debit;
+  if(urlBtn)urlBtn.style.display=p.url?'block':'none';
+}
+
+function openElemProductUrl(){
+  const id=document.getElementById('elem-info-product').value;
+  if(!id)return;
+  const p=productLibrary.find(x=>x.id===id);
+  if(p&&p.url)window.open(p.url,'_blank');
 }
 function closeElemInfoPopup(){document.getElementById('elem-info-popup').style.display='none';}
 function confirmElemInfo(){
   if(!selectedShape||selectedShape.name()!=='element'){closeElemInfoPopup();return;}
   pushHistory();
   selectedShape.setAttr('elemInfo',{
+    productId:document.getElementById('elem-info-product').value||null,
     name:document.getElementById('elem-info-name').value.trim(),
     ref:document.getElementById('elem-info-ref').value.trim(),
     debit:document.getElementById('elem-info-debit').value,
@@ -4743,6 +5035,69 @@ function confirmElemInfo(){
   closeElemInfoPopup();
   updateListe();
   setStatus('✓ Informations enregistrées','ok');
+}
+
+// ══════════════════════════════════════════════════════════════
+// BIBLIOTHÈQUE PRODUITS
+// ══════════════════════════════════════════════════════════════
+const BRAND_LOGOS={
+  'Aldes':`<svg viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="24" fill="#E30613" rx="3"/><text x="40" y="17" text-anchor="middle" font-size="13" font-weight="bold" fill="white" font-family="Arial">ALDES</text></svg>`,
+  'Atlantic':`<svg viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="24" fill="#003087" rx="3"/><text x="40" y="17" text-anchor="middle" font-size="11" font-weight="bold" fill="white" font-family="Arial">ATLANTIC</text></svg>`,
+  'Zehnder':`<svg viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="24" fill="#009640" rx="3"/><text x="40" y="17" text-anchor="middle" font-size="11" font-weight="bold" fill="white" font-family="Arial">ZEHNDER</text></svg>`,
+  'Brink':`<svg viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="24" fill="#F39200" rx="3"/><text x="40" y="17" text-anchor="middle" font-size="12" font-weight="bold" fill="white" font-family="Arial">BRINK</text></svg>`,
+  'Autre':`<svg viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="24" fill="#64748b" rx="3"/><text x="40" y="17" text-anchor="middle" font-size="11" font-weight="bold" fill="white" font-family="Arial">AUTRE</text></svg>`,
+};
+
+const PRODUCT_TOOL_TYPES={
+  'VMC Double flux':['vmc'],
+  'VMC Simple flux':['vmc-sf'],
+  'VMC Hygroréglable':['vmc-hygro'],
+  'Caisson répartiteur':['caisson'],
+  'Bouche soufflage':['soufflage','soufflage-rect'],
+  'Bouche extraction':['extraction','extraction-rect'],
+  'Prise air neuf':['prise-air-neuf'],
+  'Rejet air vicié':['rejet-air-vicie'],
+  'Conduit rigide':[],
+  'Gaine souple':[],
+  'Accessoire':[],
+};
+
+let productLibrary=[
+  {id:'p1',  brand:'Aldes',   type:'VMC Double flux',    name:'T.ONE® Air Flex',          ref:'11033001', debit:200, diameters:'Ø125/Ø160', url:'https://www.aldes.fr',                   notes:'Avec bypass automatique'},
+  {id:'p2',  brand:'Aldes',   type:'VMC Double flux',    name:'T.ONE® Air 3S Plus',        ref:'11033010', debit:300, diameters:'Ø160',      url:'https://www.aldes.fr',                   notes:'Haute performance'},
+  {id:'p3',  brand:'Aldes',   type:'VMC Simple flux',    name:'C.Box Hygrostat',           ref:'11033100', debit:150, diameters:'Ø125',      url:'https://www.aldes.fr',                   notes:'Hygroréglable type B'},
+  {id:'p4',  brand:'Aldes',   type:'Bouche soufflage',   name:'Bouche SV10',               ref:'11020001', debit:30,  diameters:'Ø80',       url:'https://www.aldes.fr',                   notes:''},
+  {id:'p5',  brand:'Aldes',   type:'Bouche soufflage',   name:'Bouche SVC 125',            ref:'11020010', debit:60,  diameters:'Ø125',      url:'https://www.aldes.fr',                   notes:''},
+  {id:'p6',  brand:'Aldes',   type:'Bouche extraction',  name:'Bouche EV10',               ref:'11020050', debit:45,  diameters:'Ø80',       url:'https://www.aldes.fr',                   notes:''},
+  {id:'p7',  brand:'Aldes',   type:'Bouche extraction',  name:'Bouche EVC 125',            ref:'11020060', debit:75,  diameters:'Ø125',      url:'https://www.aldes.fr',                   notes:''},
+  {id:'p8',  brand:'Atlantic',type:'VMC Double flux',    name:'Naneo PMV/C',               ref:'541028',   debit:200, diameters:'Ø125/Ø160', url:'https://www.atlantic.fr',                notes:'Compact haut rendement'},
+  {id:'p9',  brand:'Atlantic',type:'VMC Double flux',    name:'Naneo PMV/C 400',           ref:'541030',   debit:400, diameters:'Ø160',      url:'https://www.atlantic.fr',                notes:'Grands volumes'},
+  {id:'p10', brand:'Atlantic',type:'VMC Simple flux',    name:'Easyhome Hygro B',          ref:'523082',   debit:180, diameters:'Ø125',      url:'https://www.atlantic.fr',                notes:'Hygroréglable type B'},
+  {id:'p11', brand:'Atlantic',type:'Bouche soufflage',   name:'Bouche soufflage ronde',    ref:'524001',   debit:30,  diameters:'Ø80',       url:'https://www.atlantic.fr',                notes:''},
+  {id:'p12', brand:'Atlantic',type:'Bouche extraction',  name:'Bouche extraction cuisine', ref:'524010',   debit:75,  diameters:'Ø125',      url:'https://www.atlantic.fr',                notes:''},
+  {id:'p13', brand:'Zehnder', type:'VMC Double flux',    name:'ComfoAir Q350',             ref:'Q350-E',   debit:350, diameters:'Ø180',      url:'https://www.zehnder.fr',                 notes:'Rendement >90%'},
+  {id:'p14', brand:'Zehnder', type:'VMC Double flux',    name:'ComfoAir Q160',             ref:'Q160-E',   debit:160, diameters:'Ø160',      url:'https://www.zehnder.fr',                 notes:'Logement ≤120m²'},
+  {id:'p15', brand:'Zehnder', type:'VMC Double flux',    name:'ComfoAir Q450',             ref:'Q450-E',   debit:450, diameters:'Ø200',      url:'https://www.zehnder.fr',                 notes:'Grande maison'},
+  {id:'p16', brand:'Zehnder', type:'Bouche soufflage',   name:'ComfoValve Luna S',         ref:'CVL-S',    debit:50,  diameters:'Ø125',      url:'https://www.zehnder.fr',                 notes:'Design épuré'},
+  {id:'p17', brand:'Zehnder', type:'Bouche extraction',  name:'ComfoValve Luna E',         ref:'CVL-E',    debit:50,  diameters:'Ø125',      url:'https://www.zehnder.fr',                 notes:'Design épuré'},
+  {id:'p18', brand:'Brink',   type:'VMC Double flux',    name:'Flair 200',                 ref:'FL200',    debit:200, diameters:'Ø150',      url:'https://www.brinkclimatesystems.com',    notes:'Haut rendement'},
+  {id:'p19', brand:'Brink',   type:'VMC Double flux',    name:'Flair 400',                 ref:'FL400',    debit:400, diameters:'Ø200',      url:'https://www.brinkclimatesystems.com',    notes:'Grande capacité'},
+  {id:'p20', brand:'Brink',   type:'VMC Simple flux',    name:'Renovent Excellent 180',    ref:'RE180',    debit:180, diameters:'Ø125',      url:'https://www.brinkclimatesystems.com',    notes:''},
+  {id:'p21', brand:'Brink',   type:'Caisson répartiteur',name:'Répartiteur Flair',         ref:'RF-125',   debit:null,diameters:'Ø125',      url:'https://www.brinkclimatesystems.com',    notes:'4 piquages'},
+];
+let _productNextId=22;
+
+function getCompatibleProducts(toolId){
+  const out=[];
+  Object.entries(PRODUCT_TOOL_TYPES).forEach(([type,tools])=>{
+    if(tools.includes(toolId))productLibrary.filter(p=>p.type===type).forEach(p=>out.push(p));
+  });
+  return out;
+}
+
+function svgLogo(brand){
+  const svg=BRAND_LOGOS[brand]||BRAND_LOGOS['Autre'];
+  return'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 }
 
 let _hasUnsavedChanges=false;
