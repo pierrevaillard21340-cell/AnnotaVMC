@@ -3568,7 +3568,7 @@ function initEvents(){
     _onStageTransform();
   });
 
-  let lastDist=null;
+  let lastDist=null, _lastPinchCenter=null;
   stage.on('touchstart',function(e){
     const touches=e.evt.touches;
     if(touches.length===2){clearTimeout(_longPressTimer);_longPressTimer=null;isPanning=false;_touchScenePos=null;return;}
@@ -3627,7 +3627,41 @@ function initEvents(){
   });
   stage.on('touchmove',function(e){
     const touches=e.evt.touches;
-    if(touches.length===2){e.evt.preventDefault();const dx=touches[0].clientX-touches[1].clientX,dy=touches[0].clientY-touches[1].clientY,dist=Math.sqrt(dx*dx+dy*dy);if(lastDist===null){lastDist=dist;return;}const scale=stage.scaleX(),newScale=Math.max(.15,Math.min(10,scale*(dist/lastDist)));const cx=(touches[0].clientX+touches[1].clientX)/2,cy=(touches[0].clientY+touches[1].clientY)/2;const sp=stage.container().getBoundingClientRect();const ptr={x:cx-sp.left,y:cy-sp.top};const mp={x:(ptr.x-stage.x())/scale,y:(ptr.y-stage.y())/scale};stage.scale({x:newScale,y:newScale});stage.position({x:ptr.x-mp.x*newScale,y:ptr.y-mp.y*newScale});stage.batchDraw();lastDist=dist;return;}
+    if(touches.length===2){
+      e.evt.preventDefault();
+      const dx=touches[0].clientX-touches[1].clientX,dy=touches[0].clientY-touches[1].clientY;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      const cx=(touches[0].clientX+touches[1].clientX)/2,cy=(touches[0].clientY+touches[1].clientY)/2;
+      const sp=stage.container().getBoundingClientRect();
+      const ptr={x:cx-sp.left,y:cy-sp.top};
+
+      if(lastDist===null||_lastPinchCenter===null){
+        lastDist=dist;_lastPinchCenter=ptr;return;
+      }
+
+      const scale=stage.scaleX();
+      // Zoom
+      const newScale=Math.max(.15,Math.min(10,scale*(dist/lastDist)));
+      const mp={x:(ptr.x-stage.x())/scale,y:(ptr.y-stage.y())/scale};
+      // Pan (déplacement du centre du pinch)
+      const panX=ptr.x-_lastPinchCenter.x;
+      const panY=ptr.y-_lastPinchCenter.y;
+      stage.scale({x:newScale,y:newScale});
+      stage.position({x:ptr.x-mp.x*newScale+panX,y:ptr.y-mp.y*newScale+panY});
+      stage.batchDraw();
+
+      lastDist=dist;_lastPinchCenter=ptr;
+      _touchMoved=true;clearTimeout(_longPressTimer);_longPressTimer=null;
+
+      // Mettre à jour le preview de liaison si tracé en cours
+      if(_linkDrawing){
+        const sc=stage.scaleX();
+        const scenePos={x:(ptr.x-stage.x())/sc,y:(ptr.y-stage.y())/sc};
+        updateLinkPreview(scenePos);
+      }
+      _onStageTransform();
+      return;
+    }
     if(touches.length!==1)return;
 
     const isWaypoint=_longPressTarget&&_longPressTarget.getAttr&&_longPressTarget.getAttr('customType')==='waypoint';
@@ -3652,7 +3686,7 @@ function initEvents(){
   });
   stage.on('touchend',function(e){
     const touches=e.evt.touches;
-    if(touches.length<2)lastDist=null;
+    if(touches.length<2){lastDist=null;_lastPinchCenter=null;}
     if(touches.length===0){isPanning=false;lastPointer=null;document.getElementById('canvas-wrap').classList.remove('panning');}
     clearTimeout(_longPressTimer);_longPressTimer=null;
     if(e.evt.changedTouches.length===1&&e.evt.touches.length===0){
