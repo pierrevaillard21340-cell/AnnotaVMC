@@ -1071,17 +1071,18 @@
       style="width:52px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent);font-size:12px;font-weight:700;padding:3px 5px;text-align:center;outline:none;"
       oninput="applyResizeBar()">
   </div>
-  <!-- L × H si calibré -->
   <div id="rb-dims-group" style="display:none;align-items:center;gap:4px;">
     <div class="sep"></div>
-    <span style="font-size:10px;color:var(--text2);">L</span>
+    <span id="rb-dims-label" style="font-size:10px;color:var(--text2);">L</span>
     <input type="number" id="rb-w" min="1" step="5"
       style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:3px 5px;text-align:center;outline:none;"
       oninput="applyResizeBarDims()">
-    <span style="font-size:10px;color:var(--text2);">× H</span>
-    <input type="number" id="rb-h" min="1" step="5"
-      style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:3px 5px;text-align:center;outline:none;"
-      oninput="applyResizeBarDims()">
+    <span id="rb-h-group" style="display:flex;align-items:center;gap:4px;">
+      <span style="font-size:10px;color:var(--text2);">× H</span>
+      <input type="number" id="rb-h" min="1" step="5"
+        style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:3px 5px;text-align:center;outline:none;"
+        oninput="applyResizeBarDims()">
+    </span>
     <span style="font-size:10px;color:var(--text2);">mm</span>
   </div>
   <!-- Rotation -->
@@ -1361,6 +1362,24 @@ let _editingAnnotId=null;        // pour édition existante
 let currentTool='none', selectedShape=null;
 let stage, bgLayer, annotLayer, drawLayer, transformer;
 let isPanning=false, lastPointer=null;
+let _wasPanning=false;
+
+
+// Espace = pan temporaire (desktop)
+document.addEventListener('keydown',function(e){
+  if(e.code==='Space'&&!e.repeat&&
+     !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){
+    _spaceDown=true;
+    document.getElementById('canvas-wrap').style.cursor='grab';
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup',function(e){
+  if(e.code==='Space'){
+    _spaceDown=false;
+    document.getElementById('canvas-wrap').style.cursor='';
+  }
+});
 
 // ══════════════════════════════════════════════════════════════
 // SYSTÈME MULTI-NIVEAUX
@@ -3258,20 +3277,23 @@ function anchorFromPoint(el,pt){return{dx:pt.x-el.x(),dy:pt.y-el.y()};}
 function anchorToPoint(el,anchor){return{x:el.x()+anchor.dx,y:el.y()+anchor.dy};}
 
 // Calcule l'intersection entre la ligne (centre→curseur) et le périmètre du rectangle
+// Éléments à connexion centrale (bouches rondes)
+const CENTER_CONN_TOOLS=['soufflage','extraction','prise-air-neuf','rejet-air-vicie',
+  'traversee-soufflage','traversee-extraction','traversee-air-neuf','traversee-rejet'];
+
 function perimeterIntersection(el,cursorPos){
+  // Bouches rondes — connexion au centre
+  if(CENTER_CONN_TOOLS.includes(el.getAttr('toolId'))){
+    return{x:el.x(),y:el.y()};
+  }
   const cx=el.x(), cy=el.y();
   const hw=(ICON_BASE_PX/2)*el.scaleX();
   const hh=(ICON_BASE_PX/2)*el.scaleY();
   const dx=cursorPos.x-cx, dy=cursorPos.y-cy;
-  if(Math.abs(dx)<0.01&&Math.abs(dy)<0.01)return{x:cx,y:cy+hh}; // fallback bas
-  // Intersection avec les 4 bords du rectangle ±hw, ±hh
+  if(Math.abs(dx)<0.01&&Math.abs(dy)<0.01)return{x:cx,y:cy+hh};
   let t=Infinity;
-  if(Math.abs(dx)>0.01){
-    t=Math.min(t,Math.abs(hw/dx));
-  }
-  if(Math.abs(dy)>0.01){
-    t=Math.min(t,Math.abs(hh/dy));
-  }
+  if(Math.abs(dx)>0.01)t=Math.min(t,Math.abs(hw/dx));
+  if(Math.abs(dy)>0.01)t=Math.min(t,Math.abs(hh/dy));
   return{x:cx+dx*t, y:cy+dy*t};
 }
 
@@ -3487,8 +3509,9 @@ function initEvents(){
     if(e.evt.button===0&&currentTool==='none'){
       if(e.target&&e.target.getAttr&&e.target.getAttr('customType')==='waypoint')return;
       isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
-    }else if(e.evt.button===1){
-      // Molette — panning universel quelle que soit l'outil
+    }else if(e.evt.button===1||e.evt.button===2||_spaceDown){
+      // Molette, clic droit, ou Espace — pan universel quelle que soit l'outil
+      e.evt.preventDefault();
       isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
     }
   });
@@ -3537,7 +3560,13 @@ function initEvents(){
       window._measurePreview=[pl,pb,pt];window._measurePreview.forEach(n=>drawLayer.add(n));drawLayer.batchDraw();
     }
   });
-  stage.on('mouseup',()=>{isPanning=false;lastPointer=null;document.getElementById('canvas-wrap').classList.remove('panning');_onStageTransform();});
+  stage.on('mouseup',function(e){
+    if(isPanning&&e.evt.button===2)_wasPanning=true;
+    else _wasPanning=false;
+    isPanning=false;lastPointer=null;
+    document.getElementById('canvas-wrap').classList.remove('panning');
+    _onStageTransform();
+  });
 
   let lastDist=null;
   stage.on('touchstart',function(e){
@@ -3575,7 +3604,13 @@ function initEvents(){
     }
 
     if(currentTool==='none'&&!_linkDrawing){isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');}
-    if(currentTool==='liaison'||currentTool==='annot-zone'||currentTool==='annot-arrow')isPanning=false;
+    // En mode liaison/zone/flèche : pan à 1 doigt autorisé SEULEMENT si on n'a pas encore commencé à tracer
+    // (le pinch à 2 doigts reste toujours actif)
+    if((currentTool==='liaison'||currentTool==='annot-zone'||currentTool==='annot-arrow')&&!_linkDrawing&&!_annotDrawing){
+      isPanning=true;lastPointer=stage.getPointerPosition();
+    }else if(currentTool==='liaison'&&_linkDrawing){
+      isPanning=false; // pendant le tracé actif, 1 doigt = pose un waypoint
+    }
 
     // Long press : sur un élément VMC, délai plus long (800ms) car Konva peut déclencher un drag
     // Sur du vide/lien/annotation, délai standard (600ms)
@@ -3631,7 +3666,12 @@ function initEvents(){
   stage.on('dblclick dbltap',function(){
     if(_annotDrawing&&_annotZonePoints.length>=3){finishZoneDrawing();}
   });
-  stage.on('contextmenu',function(e){e.evt.preventDefault();handleContextMenu(e);});
+  stage.on('contextmenu',function(e){
+    e.evt.preventDefault();
+    // Si on vient de panner avec clic droit, ignorer le menu contextuel
+    if(_wasPanning){_wasPanning=false;return;}
+    handleContextMenu(e);
+  });
   window.addEventListener('click',(e)=>{
     if(e.target.id==='delete-btn-overlay')return;
     const m=document.getElementById('contextMenu');if(m.dataset.justOpened)return;m.style.display='none';
@@ -4696,25 +4736,32 @@ function showResizeBar(g){
   const bar=document.getElementById('resize-bar');
   if(!g||g.name()!=='element'){bar.style.display='none';return;}
   bar.style.display='flex';
+  const toolId=g.getAttr('toolId')||'';
   document.getElementById('resize-bar-label').textContent=g.getAttr('toolLabel')||'Élément';
   document.getElementById('rb-scale').value=g.scaleX().toFixed(2);
   const dimsGroup=document.getElementById('rb-dims-group');
+  const isCircular=CENTER_CONN_TOOLS.includes(toolId);
   if(scaleRatio){
     dimsGroup.style.display='flex';
-    const stored=g.getAttr('realDims');
-    if(stored){
-      document.getElementById('rb-w').value=Math.round(stored.w)||'';
-      document.getElementById('rb-h').value=Math.round(stored.h)||'';
+    const lbl=document.getElementById('rb-dims-label');
+    const hGrp=document.getElementById('rb-h-group');
+    if(isCircular){
+      if(lbl)lbl.textContent='Ø';
+      if(hGrp)hGrp.style.display='none';
+      document.getElementById('rb-w').value=Math.round(g.scaleX()*ICON_BASE_PX*scaleRatio*1000);
     }else{
-      // Calculer depuis le scale courant
-      const wMm=Math.round(g.scaleX()*ICON_BASE_PX*scaleRatio*1000);
-      const hMm=Math.round(g.scaleY()*ICON_BASE_PX*scaleRatio*1000);
-      document.getElementById('rb-w').value=wMm;
-      document.getElementById('rb-h').value=hMm;
+      if(lbl)lbl.textContent='L';
+      if(hGrp)hGrp.style.display='flex';
+      const stored=g.getAttr('realDims');
+      if(stored){
+        document.getElementById('rb-w').value=Math.round(stored.w)||'';
+        document.getElementById('rb-h').value=Math.round(stored.h)||'';
+      }else{
+        document.getElementById('rb-w').value=Math.round(g.scaleX()*ICON_BASE_PX*scaleRatio*1000);
+        document.getElementById('rb-h').value=Math.round(g.scaleY()*ICON_BASE_PX*scaleRatio*1000);
+      }
     }
-  }else{
-    dimsGroup.style.display='none';
-  }
+  }else{dimsGroup.style.display='none';}
 }
 function hideResizeBar(){const b=document.getElementById('resize-bar');if(b)b.style.display='none';}
 function applyResizeBar(){
@@ -4726,14 +4773,25 @@ function applyResizeBar(){
 }
 function applyResizeBarDims(){
   if(!selectedShape||selectedShape.name()!=='element'||!scaleRatio)return;
-  const w=parseFloat(document.getElementById('rb-w').value);
-  const h=parseFloat(document.getElementById('rb-h').value);
-  if(isNaN(w)||isNaN(h)||w<1||h<1)return;
-  const scX=(w/1000)/scaleRatio/ICON_BASE_PX;
-  const scY=(h/1000)/scaleRatio/ICON_BASE_PX;
-  selectedShape.scale({x:scX,y:scY});
-  selectedShape.setAttr('realDims',{w,h});
-  document.getElementById('rb-scale').value=scX.toFixed(2);
+  const isCircular=CENTER_CONN_TOOLS.includes(selectedShape.getAttr('toolId')||'');
+  if(isCircular){
+    // Diamètre → scale uniforme
+    const d=parseFloat(document.getElementById('rb-w').value);
+    if(isNaN(d)||d<1)return;
+    const sc=(d/1000)/scaleRatio/ICON_BASE_PX;
+    selectedShape.scale({x:sc,y:sc});
+    document.getElementById('rb-scale').value=sc.toFixed(2);
+    selectedShape.setAttr('realDims',{w:d,h:d});
+  }else{
+    const w=parseFloat(document.getElementById('rb-w').value);
+    const h=parseFloat(document.getElementById('rb-h').value);
+    if(isNaN(w)||isNaN(h)||w<1||h<1)return;
+    const scX=(w/1000)/scaleRatio/ICON_BASE_PX;
+    const scY=(h/1000)/scaleRatio/ICON_BASE_PX;
+    selectedShape.scale({x:scX,y:scY});
+    selectedShape.setAttr('realDims',{w,h});
+    document.getElementById('rb-scale').value=scX.toFixed(2);
+  }
   updateLinks();drawLayer.batchDraw();
 }
 function rotateSelected(deg){
