@@ -2571,42 +2571,88 @@ function _loadLevelBgAndElements(idx){
 }
 
 // ── EXPORT PNG ──
-// Retourne la bounding box à exporter (fond de plan ou tous éléments)
-function _getExportRect(){
+// Retourne la bounding box en coordonnées SCÈNE (indépendante du zoom/pan)
+function _getExportRectScene(){
   if(_bgKonva){
-    // Bounding box du fond de plan en coordonnées scène
-    const cr=_bgKonva.getClientRect({relativeTo:stage});
-    return{x:cr.x,y:cr.y,w:cr.width,h:cr.height};
+    // Bounding box du fond de plan en coordonnées scène absolues
+    const pos=_bgKonva.position();
+    const sc={x:_bgKonva.scaleX()||1,y:_bgKonva.scaleY()||1};
+    const w=_bgKonva.width()*Math.abs(sc.x);
+    const h=_bgKonva.height()*Math.abs(sc.y);
+    // Tenir compte de la rotation éventuelle du fond
+    if(_bgRotation===90||_bgRotation===270){
+      return{x:pos.x,y:pos.y,w:h,h:w};
+    }
+    return{x:pos.x,y:pos.y,w,h};
   }
-  // Fallback : bounding box de tous les noeuds visibles
-  const all=[...drawLayer.getChildren(),...annotLayer.getChildren()].filter(n=>n.visible()&&n.name()!=='photo-marker');
-  if(!all.length){const sw=stage.width(),sh=stage.height();return{x:0,y:0,w:sw,h:sh};}
+  // Fallback : bounding box de tous les nœuds visibles en coordonnées scène
+  const all=[...drawLayer.getChildren(),...annotLayer.getChildren()]
+    .filter(n=>n.visible()&&n.name()!=='photo-marker');
+  if(!all.length)return{x:0,y:0,w:800,h:600};
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   all.forEach(n=>{
-    const r=n.getClientRect({relativeTo:stage});
+    const r=n.getClientRect({relativeTo:drawLayer}); // coordonnées scène
     minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
     maxX=Math.max(maxX,r.x+r.width);maxY=Math.max(maxY,r.y+r.height);
   });
-  const PAD=20;
+  const PAD=30;
   return{x:minX-PAD,y:minY-PAD,w:maxX-minX+PAD*2,h:maxY-minY+PAD*2};
 }
 
-function exportPNG(){
+// Capture le plan dans sa globalité en ignorant le zoom/pan courant.
+// Stratégie : sauvegarder le transform du stage, le réinitialiser à 1:1,
+// capturer, puis restaurer — le résultat est toujours le plan entier.
+function _captureFullPlan(mimeType='image/png',quality=1,pixelRatio=2){
+  return new Promise(resolve=>{
+    // 1. Sauvegarder le transform courant
+    const savedScale=stage.scaleX();
+    const savedX=stage.x();
+    const savedY=stage.y();
+
+    // 2. Calculer la bounding box en coordonnées scène
+    const rect=_getExportRectScene();
+
+    // 3. Appliquer un transform neutre : scale=1, offset=-rect.x/-rect.y
+    //    → le coin haut-gauche du plan se retrouve à (0,0) du canvas
+    stage.scale({x:1,y:1});
+    stage.position({x:-rect.x,y:-rect.y});
+
+    // Forcer le redraw synchrone avant capture
+    stage.batchDraw();
+
+    // 4. Capturer exactement rect.w × rect.h pixels
+    const uri=stage.toDataURL({
+      x:0,y:0,
+      width:rect.w,
+      height:rect.h,
+      pixelRatio,
+      mimeType,
+      quality,
+    });
+
+    // 5. Restaurer le transform original
+    stage.scale({x:savedScale,y:savedScale});
+    stage.position({x:savedX,y:savedY});
+    stage.batchDraw();
+
+    resolve({uri,rect});
+  });
+}
+
+async function exportPNG(){
   if(!_bgKonva&&links.length===0&&drawLayer.getChildren().filter(n=>n.name()==='element').length===0){
     setStatus('Rien à exporter','err');return;
   }
   setStatus('Export PNG en cours…','loading');
-  const rect=_getExportRect();
-  const RATIO=2; // résolution ×2
-  const uri=stage.toDataURL({
-    x:rect.x,y:rect.y,
-    width:rect.w,height:rect.h,
-    pixelRatio:RATIO,
-    mimeType:'image/png',
-  });
-  const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
-  Object.assign(document.createElement('a'),{href:uri,download:`plan_vmc_${d}.png`}).click();
-  setStatus('✓ Export PNG — '+Math.round(rect.w)+'×'+Math.round(rect.h)+' px','ok');
+  try{
+    const {uri,rect}=await _captureFullPlan('image/png',1,2);
+    const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+    Object.assign(document.createElement('a'),{href:uri,download:`plan_vmc_${d}.png`}).click();
+    setStatus('✓ Export PNG — '+Math.round(rect.w*2)+'×'+Math.round(rect.h*2)+' px','ok');
+  }catch(err){
+    console.error(err);
+    setStatus('✗ Erreur export PNG','err');
+  }
 }
 
 // ── EXPORT PDF ──
@@ -2624,21 +2670,11 @@ async function exportPDF(){
       });
     }
 
-    const rect=_getExportRect();
-    const RATIO=2;
-
-    // Capturer uniquement la zone du plan
-    const uri=stage.toDataURL({
-      x:rect.x,y:rect.y,
-      width:rect.w,height:rect.h,
-      pixelRatio:RATIO,
-      mimeType:'image/jpeg',quality:0.92,
-    });
+    const {uri,rect}=await _captureFullPlan('image/jpeg',0.92,2);
 
     const {jsPDF}=window.jspdf;
     const isLandscape=rect.w>rect.h;
 
-    // Format A4 en points (pt) — on ajuste l'image pour remplir la page
     const pdf=new jsPDF({
       orientation:isLandscape?'landscape':'portrait',
       unit:'mm',
