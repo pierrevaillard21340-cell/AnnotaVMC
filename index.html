@@ -3509,7 +3509,8 @@ function initEvents(){
     if(e.evt.button===0&&currentTool==='none'){
       if(e.target&&e.target.getAttr&&e.target.getAttr('customType')==='waypoint')return;
       isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
-    }else if(e.evt.button===1||e.evt.button===2||_spaceDown){
+    }else if(e.evt.button===1||_spaceDown){
+      // Molette enfoncée ou Espace → pan universel
       e.evt.preventDefault();
       isPanning=true;lastPointer=stage.getPointerPosition();
       _panMoved=false;
@@ -3567,8 +3568,7 @@ function initEvents(){
     }
   });
   stage.on('mouseup',function(e){
-    if(e.evt.button===2)_wasPanning=_panMoved; // n'annuler le menu que si on a vraiment bougé
-    else _wasPanning=false;
+    _wasPanning=false;
     _panMoved=false;
     isPanning=false;lastPointer=null;
     document.getElementById('canvas-wrap').classList.remove('panning');
@@ -3709,8 +3709,6 @@ function initEvents(){
   });
   stage.on('contextmenu',function(e){
     e.evt.preventDefault();
-    // Si on vient de panner avec clic droit, ignorer le menu contextuel
-    if(_wasPanning){_wasPanning=false;return;}
     handleContextMenu(e);
   });
   window.addEventListener('click',(e)=>{
