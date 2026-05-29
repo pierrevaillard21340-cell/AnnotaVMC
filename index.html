@@ -3257,7 +3257,7 @@ function addWaypointToDrawing(pos){
 function cancelLinkDrawing(){
   _linkDrawing=false;_linkWaypoints=[];linkStart=null;
   _linkStartAnchor=null;_linkEndAnchor=null;
-  hideConnectionDots();
+  hideConnectionDots();hideSnapCircle();
   if(_linkPreviewLine){_linkPreviewLine.destroy();_linkPreviewLine=null;}
   if(_linkPreviewDot){_linkPreviewDot.destroy();_linkPreviewDot=null;}
   tempMarkers.forEach(m=>m.destroy());tempMarkers=[];
@@ -3318,6 +3318,43 @@ function hideHoverHighlight(){
   drawLayer&&drawLayer.batchDraw();
 }
 
+// ── SÉLECTION D'ÉLÉMENT PAR DISTANCE EUCLIDIENNE ──────────────
+// Remplace stage.getIntersection() qui retourne le 1er nœud en z-order
+// et échoue quand les hitStrokeWidth des liaisons se superposent.
+// Le rayon de snap est adaptatif au zoom (px écran constants).
+function findNearestElement(scenePos,snapScreenPx=28){
+  const maxDist=snapScreenPx/stage.scaleX();
+  let best=null,bestDist=maxDist;
+  drawLayer.getChildren().filter(n=>n.name()==='element'&&n.visible()&&!n.getAttr('locked')).forEach(g=>{
+    const dx=g.x()-scenePos.x,dy=g.y()-scenePos.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<bestDist){bestDist=dist;best=g;}
+  });
+  return best;
+}
+
+// ── CERCLE DE SNAP VISUEL (feedback pendant le tracé) ─────────
+let _snapCircle=null;
+function updateSnapCircle(scenePos,targetEl){
+  if(!targetEl){
+    if(_snapCircle){_snapCircle.destroy();_snapCircle=null;drawLayer&&drawLayer.batchDraw();}
+    return;
+  }
+  const pt=perimeterIntersection(targetEl,scenePos);
+  const r=8/stage.scaleX();
+  if(!_snapCircle){
+    _snapCircle=new Konva.Circle({radius:r,fill:'rgba(59,130,246,0.25)',stroke:'#3b82f6',strokeWidth:1.5/stage.scaleX(),listening:false});
+    drawLayer.add(_snapCircle);
+  }
+  _snapCircle.radius(r);
+  _snapCircle.strokeWidth(1.5/stage.scaleX());
+  _snapCircle.position(pt);
+  drawLayer.batchDraw();
+}
+function hideSnapCircle(){
+  if(_snapCircle){_snapCircle.destroy();_snapCircle=null;}
+}
+
 // Démarre une liaison depuis l'intersection périmètre
 function startLinkDrawingFromPoint(el,pt){
   _linkStartAnchor=anchorFromPoint(el,pt);
@@ -3328,7 +3365,7 @@ function startLinkDrawingFromPoint(el,pt){
   });
   _linkPreviewDot=new Konva.Circle({radius:4,fill:'#94a3b8',opacity:.7,listening:false});
   drawLayer.add(_linkPreviewLine);drawLayer.add(_linkPreviewDot);
-  hideHoverHighlight();
+  hideHoverHighlight();hideSnapCircle();
   drawLayer.batchDraw();
   showHint('Liaison en cours — cliquez dans le vide pour poser un point — clic sur un élément pour terminer — Échap pour annuler',true);
 }
@@ -3346,7 +3383,7 @@ function finishLinkDrawingAtPoint(endEl,pt){
   const aAnchor=_linkStartAnchor;
   const bAnchor=_linkEndAnchor;
   cancelLinkDrawing();
-  hideHoverHighlight();
+  hideHoverHighlight();hideSnapCircle();
   if(activeReseau.locked&&activeReseau.label&&activeConduit.locked&&activeConduit.mat){
     pushHistory();
     createLink(a,b,activeConduit.mat,activeConduit.dia,null,activeReseau.label,activeReseau.color,wps,activeTension,null,aAnchor,bAnchor);
@@ -3565,21 +3602,21 @@ function initEvents(){
       if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);
     }
     if(_linkDrawing){updateLinkPreview(scenePos);}
-    // Survol en mode liaison — surligner l'élément
+    // Survol en mode liaison — surligner l'élément (distance euclidienne, adaptatif au zoom)
     if(currentTool==='liaison'&&!_linkDrawing){
-      const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
-      const hovEl=hovered?findElementGroup(hovered):null;
+      const hovEl=findNearestElement(scenePos);
       if(hovEl!==_hoveredEl){
         if(hovEl)showHoverHighlight(hovEl);
         else hideHoverHighlight();
       }
+      updateSnapCircle(scenePos,hovEl);
     }
     // Survol en mode liaison en cours — surligner la cible potentielle
     if(currentTool==='liaison'&&_linkDrawing){
-      const hovered=stage.getIntersection({x:ptr.x,y:ptr.y});
-      const hovEl=hovered?findElementGroup(hovered):null;
+      const hovEl=findNearestElement(scenePos);
       if(hovEl&&hovEl!==linkStart){showHoverHighlight(hovEl);}
       else if(!hovEl){hideHoverHighlight();}
+      updateSnapCircle(scenePos,hovEl&&hovEl!==linkStart?hovEl:null);
     }
     if(_annotDrawing){updateZonePreviewLine(scenePos);}
     if(_arrowDrawing&&_arrowStart){
@@ -3929,7 +3966,7 @@ function handleTap(e){
 
   // LIAISON
   if(currentTool==='liaison'){
-    const clickedEl=findElementGroup(target);
+    const clickedEl=findNearestElement(pos)||findElementGroup(target);
     if(!_linkDrawing){
       if(clickedEl&&pos){
         const pt=perimeterIntersection(clickedEl,pos);
@@ -4517,29 +4554,32 @@ async function exportXLSX(mode='global'){
     }
 
     // --- Liaisons ---
-    const lkRows=[['N°','Réseau','Matériau','Diamètre','Ø réel (mm)','Longueur (m)','Tracé','Coudes 90°','Coudes 45°']];
+    const lkRows=[['N°','Réseau','Couleur HEX','Matériau','Diamètre','Ø réel (mm)','Longueur (m)','Tracé','Coudes 90°','Coudes 45°']];
     const reseauGroups={};
     (lv._links||[]).forEach((l,i)=>{
-      lkRows.push([i+1,l.reseau||'—',l.mat||'—',l.dia||'—',l.diaMm||'',
+      lkRows.push([i+1,l.reseau||'—',l.reseauColor||'',l.mat||'—',l.dia||'—',l.diaMm||'',
         l.lengthM!=null?l.lengthM:'',l.tension===0?'Linéaire':'Courbe',
         l.bends90||0,l.bends45||0]);
       const k=l.reseau||'—';
-      if(!reseauGroups[k])reseauGroups[k]={count:0,metres:0,bends90:0,bends45:0};
+      if(!reseauGroups[k])reseauGroups[k]={count:0,metres:0,bends90:0,bends45:0,color:l.reseauColor||''};
       reseauGroups[k].count++;
       if(l.lengthM!=null)reseauGroups[k].metres+=l.lengthM;
       reseauGroups[k].bends90+=(l.bends90||0);
       reseauGroups[k].bends45+=(l.bends45||0);
     });
     if(lkRows.length>1){
-      const lastDataRow=lkRows.length-1;
+      // Formules SUM dynamiques calculées depuis le vrai nombre de lignes de données
+      const firstDataRow=2; // ligne 1 = en-tête
+      const lastDataRow=lkRows.length; // index 1-based de la dernière ligne de données
       lkRows.push([]);
-      lkRows.push(['TOTAL','','','','',
-        `=SUM(F2:F${lastDataRow})`,'',
-        `=SUM(H2:H${lastDataRow})`,`=SUM(I2:I${lastDataRow})`]);
+      lkRows.push(['TOTAL','','','','','',
+        {f:`SUM(G${firstDataRow}:G${lastDataRow})`},'',
+        {f:`SUM(I${firstDataRow}:I${lastDataRow})`},
+        {f:`SUM(J${firstDataRow}:J${lastDataRow})`}]);
       lkRows.push([]);
-      lkRows.push(['Sous-totaux par réseau','Liaisons','Longueur (m)','','Coudes 90°','Coudes 45°']);
+      lkRows.push(['Sous-totaux par réseau','Liaisons','Longueur (m)','Couleur HEX','Coudes 90°','Coudes 45°']);
       Object.entries(reseauGroups).forEach(([res,v])=>{
-        lkRows.push([res,v.count,v.metres.toFixed(2),'',v.bends90,v.bends45]);
+        lkRows.push([res,v.count,parseFloat(v.metres.toFixed(2)),v.color,v.bends90,v.bends45]);
       });
     }
 
@@ -4568,7 +4608,7 @@ async function exportXLSX(mode='global'){
     }
 
     const ws=XLSX.utils.aoa_to_sheet(sheetRows);
-    ws['!cols']=[{wch:6},{wch:20},{wch:14},{wch:12},{wch:14},{wch:14},{wch:12},{wch:10},{wch:10}];
+    ws['!cols']=[{wch:6},{wch:20},{wch:12},{wch:14},{wch:12},{wch:14},{wch:14},{wch:12},{wch:10},{wch:10}];
     XLSX.utils.book_append_sheet(wb,ws,lvName);
   });
 
@@ -4588,12 +4628,12 @@ async function exportXLSX(mode='global'){
 
     globalRows.push([]);
     globalRows.push(['── LIAISONS (tous niveaux) ──']);
-    globalRows.push(['Réseau','Liaisons','Longueur totale (m)','Coudes 90°','Coudes 45°']);
+    globalRows.push(['Réseau','Liaisons','Longueur totale (m)','Couleur HEX','Coudes 90°','Coudes 45°']);
     const globalReseau={};
     lvToExport.forEach(lv=>{
       (lv._links||[]).forEach(l=>{
         const k=l.reseau||'—';
-        if(!globalReseau[k])globalReseau[k]={count:0,metres:0,bends90:0,bends45:0};
+        if(!globalReseau[k])globalReseau[k]={count:0,metres:0,bends90:0,bends45:0,color:l.reseauColor||''};
         globalReseau[k].count++;
         if(l.lengthM)globalReseau[k].metres+=l.lengthM;
         globalReseau[k].bends90+=(l.bends90||0);
@@ -4601,7 +4641,7 @@ async function exportXLSX(mode='global'){
       });
     });
     Object.entries(globalReseau).forEach(([res,v])=>{
-      globalRows.push([res,v.count,v.metres.toFixed(2),v.bends90,v.bends45]);
+      globalRows.push([res,v.count,parseFloat(v.metres.toFixed(2)),v.color,v.bends90,v.bends45]);
     });
 
     // Traversées globales
@@ -4622,7 +4662,7 @@ async function exportXLSX(mode='global'){
     }
 
     const wsGlobal=XLSX.utils.aoa_to_sheet(globalRows);
-    wsGlobal['!cols']=[{wch:24},{wch:14},{wch:18},{wch:12},{wch:12}];
+    wsGlobal['!cols']=[{wch:24},{wch:14},{wch:20},{wch:14},{wch:12},{wch:12}];
     XLSX.utils.book_append_sheet(wb,wsGlobal,'Global');
   }
 
