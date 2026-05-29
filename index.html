@@ -3503,20 +3503,56 @@ function initEvents(){
     _onStageTransform();
   });
   stage.on('mousedown',function(e){
-    // Toujours capturer la position scène au mousedown (disponible dans le click suivant)
     const ptr=stage.getPointerPosition();
     if(ptr){const sc=stage.scaleX();_lastScenePos={x:(ptr.x-stage.x())/sc,y:(ptr.y-stage.y())/sc};}
     if(e.evt.button===0&&currentTool==='none'){
       if(e.target&&e.target.getAttr&&e.target.getAttr('customType')==='waypoint')return;
       isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
     }else if(e.evt.button===1||_spaceDown){
-      // Molette enfoncée ou Espace → pan universel
       e.evt.preventDefault();
       isPanning=true;lastPointer=stage.getPointerPosition();
       _panMoved=false;
       document.getElementById('canvas-wrap').classList.add('panning');
     }
   });
+
+  // Listener natif sur le canvas pour la molette enfoncée (button=1)
+  // Nécessaire car Konva peut bloquer cet événement selon le navigateur
+  stage.container().addEventListener('mousedown',function(e){
+    if(e.button===1){
+      e.preventDefault();
+      isPanning=true;
+      const pos=stage.getPointerPosition();
+      lastPointer=pos;
+      _panMoved=false;
+      document.getElementById('canvas-wrap').classList.add('panning');
+    }
+  });
+  stage.container().addEventListener('mouseup',function(e){
+    if(e.button===1){
+      isPanning=false;lastPointer=null;
+      document.getElementById('canvas-wrap').classList.remove('panning');
+      _onStageTransform();
+    }
+  });
+  // Empêcher le scroll par défaut sur molette enfoncée
+  stage.container().addEventListener('auxclick',function(e){
+    if(e.button===1)e.preventDefault();
+  });
+  stage.container().addEventListener('mousemove',function(e){
+    if(isPanning&&lastPointer&&e.buttons===4){ // buttons=4 = molette enfoncée
+      const sp=stage.container().getBoundingClientRect();
+      const pos={x:e.clientX-sp.left,y:e.clientY-sp.top};
+      const dx=pos.x-lastPointer.x,dy=pos.y-lastPointer.y;
+      if(Math.abs(dx)>0||Math.abs(dy)>0){
+        _panMoved=true;
+        stage.x(stage.x()+dx);stage.y(stage.y()+dy);
+        stage.batchDraw();lastPointer=pos;
+        if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);
+      }
+    }
+  });
+
   stage.on('mousemove',function(){
     const pos=stage.getPointerPosition();if(!pos)return;
     const sc=stage.scaleX();
