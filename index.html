@@ -1363,7 +1363,7 @@ let currentTool='none', selectedShape=null;
 let stage, bgLayer, annotLayer, drawLayer, transformer;
 let isPanning=false, lastPointer=null;
 let _wasPanning=false;
-
+let _panMoved=false; // true si la souris a bougé pendant le pan clic droit
 
 // Espace = pan temporaire (desktop)
 document.addEventListener('keydown',function(e){
@@ -3510,9 +3510,10 @@ function initEvents(){
       if(e.target&&e.target.getAttr&&e.target.getAttr('customType')==='waypoint')return;
       isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
     }else if(e.evt.button===1||e.evt.button===2||_spaceDown){
-      // Molette, clic droit, ou Espace — pan universel quelle que soit l'outil
       e.evt.preventDefault();
-      isPanning=true;lastPointer=stage.getPointerPosition();document.getElementById('canvas-wrap').classList.add('panning');
+      isPanning=true;lastPointer=stage.getPointerPosition();
+      _panMoved=false;
+      document.getElementById('canvas-wrap').classList.add('panning');
     }
   });
   stage.on('mousemove',function(){
@@ -3520,7 +3521,12 @@ function initEvents(){
     const sc=stage.scaleX();
     const scenePos={x:(pos.x-stage.x())/sc,y:(pos.y-stage.y())/sc};
     _lastScenePos=scenePos;
-    if(isPanning&&lastPointer){stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);}
+    if(isPanning&&lastPointer){
+      const moved=Math.abs(pos.x-lastPointer.x)>2||Math.abs(pos.y-lastPointer.y)>2;
+      if(moved)_panMoved=true;
+      stage.x(stage.x()+pos.x-lastPointer.x);stage.y(stage.y()+pos.y-lastPointer.y);stage.batchDraw();lastPointer=pos;
+      if(selectedShape&&selectedShape.name()==='element')showDeleteBtn(selectedShape);
+    }
     if(_linkDrawing){updateLinkPreview(scenePos);}
     // Survol en mode liaison — surligner l'élément
     if(currentTool==='liaison'&&!_linkDrawing){
@@ -3561,8 +3567,9 @@ function initEvents(){
     }
   });
   stage.on('mouseup',function(e){
-    if(isPanning&&e.evt.button===2)_wasPanning=true;
+    if(e.evt.button===2)_wasPanning=_panMoved; // n'annuler le menu que si on a vraiment bougé
     else _wasPanning=false;
+    _panMoved=false;
     isPanning=false;lastPointer=null;
     document.getElementById('canvas-wrap').classList.remove('panning');
     _onStageTransform();
