@@ -2656,6 +2656,26 @@ async function exportPNG(){
 }
 
 // ── EXPORT PDF ──
+// Calcule le pixelRatio optimal pour atteindre ~200 DPI sur A4
+// sans dépasser une image trop lourde (plafond 4×).
+function _bestPixelRatio(rectW,rectH){
+  const isLandscape=rectW>rectH;
+  // Dimensions utiles de la page A4 en mm moins marges
+  const pageUtileW=isLandscape?277:190; // mm
+  const pageUtileH=isLandscape?190:270;
+  const TARGET_DPI=220;
+  const MM_PER_INCH=25.4;
+  // Nombre de pixels cible sur la plus grande dimension
+  const targetPxW=pageUtileW/MM_PER_INCH*TARGET_DPI;
+  const targetPxH=pageUtileH/MM_PER_INCH*TARGET_DPI;
+  const ratioW=targetPxW/rectW;
+  const ratioH=targetPxH/rectH;
+  // On prend le ratio qui satisfait les deux dimensions
+  const ratio=Math.min(ratioW,ratioH);
+  // Clamp entre 2 (minimum acceptable) et 4 (évite les images >100 MB)
+  return Math.min(4,Math.max(2,Math.ceil(ratio*10)/10));
+}
+
 async function exportPDF(){
   if(!_bgKonva&&links.length===0&&drawLayer.getChildren().filter(n=>n.name()==='element').length===0){
     setStatus('Rien à exporter','err');return;
@@ -2670,7 +2690,12 @@ async function exportPDF(){
       });
     }
 
-    const {uri,rect}=await _captureFullPlan('image/jpeg',0.92,2);
+    // 1. Récupérer la bbox scène pour calculer le bon pixelRatio
+    const rect=_getExportRectScene();
+    const pr=_bestPixelRatio(rect.w,rect.h);
+
+    // 2. Capturer en PNG (sans perte) — évite la double-compression JPEG
+    const {uri}=await _captureFullPlan('image/png',1,pr);
 
     const {jsPDF}=window.jspdf;
     const isLandscape=rect.w>rect.h;
@@ -2685,7 +2710,7 @@ async function exportPDF(){
     const pageW=pdf.internal.pageSize.getWidth();
     const pageH=pdf.internal.pageSize.getHeight();
 
-    // Entête chantier
+    // 3. Entête chantier
     const HEADER_H=8;
     pdf.setFontSize(8);pdf.setTextColor(80,80,80);
     const cn=chantierNotes;
@@ -2697,18 +2722,18 @@ async function exportPDF(){
     header+=`  |  Niveau : ${lvName}`;
     pdf.text(header,5,6);
 
-    // Image plein page sous l'entête — respecte le ratio
-    const imgW=pageW-10;
-    const imgH=(rect.h/rect.w)*imgW;
-    const availH=pageH-HEADER_H-4;
-    let finalW=imgW,finalH=imgH;
-    if(imgH>availH){finalH=availH;finalW=(rect.w/rect.h)*finalH;}
+    // 4. Image plein page sous l'entête — respecte le ratio, sans re-compression
+    const availW=pageW-10;
+    const availH=pageH-HEADER_H-6;
+    let finalW=availW,finalH=(rect.h/rect.w)*availW;
+    if(finalH>availH){finalH=availH;finalW=(rect.w/rect.h)*finalH;}
 
-    pdf.addImage(uri,'JPEG',5,HEADER_H+2,finalW,finalH,undefined,'FAST');
+    // 'NONE' = pas de re-compression côté jsPDF → qualité maximale
+    pdf.addImage(uri,'PNG',5,HEADER_H+4,finalW,finalH,undefined,'NONE');
 
     const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
     pdf.save(`plan_vmc_${d}_${lvName.replace(/\s/g,'_')}.pdf`);
-    setStatus('✓ Export PDF A4','ok');
+    setStatus(`✓ Export PDF A4 — ${Math.round(pr*rect.w)}×${Math.round(pr*rect.h)} px (×${pr})`,'ok');
   }catch(err){
     console.error(err);
     setStatus('✗ Erreur export PDF','err');
