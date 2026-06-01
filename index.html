@@ -41,8 +41,6 @@
   .hgroup-label{font-size:8px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:0 2px;opacity:.55;text-align:center;}
   .hgroup-body{display:flex;align-items:center;gap:2px;}
   #logo{font-weight:700;font-size:13px;color:var(--accent);white-space:nowrap;}
-  #size-wrap{display:flex;align-items:center;gap:4px;padding:2px 5px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);}
-  #reseau-wrap{display:flex;align-items:center;gap:3px;}
   .sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
   .tool-btn{display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:var(--radius);border:1.5px solid transparent;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
   .tool-btn:hover{background:var(--border);color:var(--text);}
@@ -81,6 +79,25 @@
   #sdot.ok{background:#22c55e;}#sdot.err{background:#ef4444;}#sdot.loading{background:#f59e0b;animation:blink .7s infinite;}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
+
+  /* ── SAVE SYSTEM ── */
+  #save-indicator{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);padding:2px 6px;border-radius:var(--radius);transition:all .3s;white-space:nowrap;}
+  #save-indicator.unsaved{color:#f59e0b;}
+  #save-indicator.saved{color:#22c55e;}
+  #save-indicator.autosaved{color:#3b82f6;}
+  #save-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  #btn-save-file{position:relative;}
+  .save-split{display:flex;align-items:center;border-radius:var(--radius);overflow:hidden;border:1.5px solid #22c55e;}
+  .save-split .save-main{display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(34,197,94,.1);color:#22c55e;font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+  .save-split .save-main:hover{background:rgba(34,197,94,.22);}
+  .save-split .save-arrow{padding:4px 6px;background:rgba(34,197,94,.1);color:#22c55e;font-size:11px;cursor:pointer;border:none;border-left:1px solid rgba(34,197,94,.3);transition:all .15s;}
+  .save-split .save-arrow:hover{background:rgba(34,197,94,.22);}
+  #save-menu{display:none;position:absolute;top:100%;left:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:220px;margin-top:3px;}
+  #save-menu.open{display:block;}
+  #save-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;background:none;border:none;color:var(--text);font-size:12px;cursor:pointer;text-align:left;transition:background .1s;}
+  #save-menu button:hover{background:var(--surface2);}
+  #save-menu button .sm-hint{font-size:10px;color:var(--text2);margin-left:auto;}
+  #save-menu .sm-sep{height:1px;background:var(--border);margin:3px 0;}
   /* ── PANEL ── */
   #panel{width:260px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;z-index:10;}
   #panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -362,8 +379,23 @@
       <div class="hgroup-label">Documents</div>
       <div class="hgroup-body">
         <label class="action-btn" for="upload" title="Importer image / PDF / projet">📥 Importer</label>
-        <label class="action-btn save" for="upload-save" title="Ouvrir un projet" style="cursor:pointer;">📂 Ouvrir</label>
-        <button class="action-btn save" onclick="saveProject()" title="Sauvegarder (Ctrl+S)">💾 Sauver</button>
+        <button class="action-btn save" onclick="openProjectFromFilePicker()" title="Ouvrir un projet">📂 Ouvrir</button>
+        <div id="btn-save-file" style="position:relative;">
+          <div class="save-split">
+            <button class="save-main" onclick="saveProject()" title="Ctrl+S">💾 Sauver</button>
+            <button class="save-arrow" onclick="toggleSaveMenu(event)" title="Options de sauvegarde">▾</button>
+          </div>
+          <div id="save-menu">
+            <button onclick="saveToFileSystem();closeSaveMenu()">💾 Enregistrer (écrase le fichier) <span class="sm-hint">Chrome/Edge</span></button>
+            <button onclick="saveProjectDownload();closeSaveMenu()">⬇ Télécharger .annotavmc</button>
+            <div class="sm-sep"></div>
+            <button onclick="saveToLocalStorage();closeSaveMenu()">📌 Sauvegarder en local (navigateur)</button>
+            <button onclick="loadFromLocalStorage();closeSaveMenu()">📂 Restaurer depuis local</button>
+            <div class="sm-sep"></div>
+            <button onclick="clearLocalStorage();closeSaveMenu()" style="color:#ef4444;">🗑 Effacer la sauvegarde locale</button>
+          </div>
+        </div>
+        <div id="save-indicator"><span id="save-dot"></span><span id="save-msg">—</span></div>
         <div id="bg-orient" style="display:none;align-items:center;gap:3px;">
           <div class="sep"></div>
           <span style="font-size:10px;color:var(--text2);font-weight:600;">Plan</span>
@@ -1487,11 +1519,6 @@ function loadLevelState(idx){
 }
 
 // ── RENDU DES ONGLETS ──
-function renderLevelTabs(){
-  const bar=document.getElementById('level-tabs');
-  if(!bar)return;
-  bar.innerHTML=levels.map((lv,i)=>`
-    <div class="level-tab${i===_currentLevelIdx?' active':''}" onclick="switchLevel(${i})">
       <span class="level-tab-name" ondblclick="renameLevelPrompt(${i},event)">${lv.name}</span>
       ${levels.length>1?`<button class="level-tab-del" onclick="deleteLevel(${i},event)" title="Supprimer ce niveau">✕</button>`:''}
     </div>`).join('')+
@@ -1545,25 +1572,6 @@ function _deserializeLevelKonva(idx){
   updateListe();updateAnnotList();
 }
 
-function addLevel(){
-  saveLevelState();
-  _serializeLevelKonva();
-  const names=['RDC','R+1','R+2','Combles','Sous-sol','Cave'];
-  const used=levels.map(l=>l.name);
-  const name=names.find(n=>!used.includes(n))||`Niveau ${levels.length+1}`;
-  levels.push(createLevelData(name));
-  const newIdx=levels.length-1;
-  _currentLevelIdx=newIdx;
-  clearAllSilent();
-  placedElements={};links=[];measures=[];annotations=[];scaleRatio=null;_annotIdCounter=0;
-  _bgImg=null;_bgKonva=null;_bgRotation=0;_bgFlipH=false;_bgFlipV=false;
-  bgLayer.destroyChildren();bgLayer.batchDraw();
-  document.getElementById('bg-orient').style.display='none';
-  document.getElementById('empty-screen').classList.remove('hidden');
-  renderLevelTabs();
-  updateListe();updateAnnotList();
-  setStatus(`Niveau "${name}" ajouté`,'ok');
-}
 
 function deleteLevel(idx,evt){
   evt&&evt.stopPropagation();
@@ -2457,90 +2465,19 @@ function _bgToBase64(quality=0.82){
   return c.toDataURL('image/jpeg',quality);
 }
 
-async function saveProject(){
-  saveNotes();
-  _serializeLevelKonva();
-  setStatus('Sauvegarde en cours…','loading');
-  const levelsData=levels.map(lv=>({
-    name:lv.name,
-    placedElements:lv.placedElements||{},
-    scaleRatio:lv.scaleRatio,
-    annotIdCounter:lv.annotIdCounter||0,
-    bgImage:lv.bgImage||null,
-    bgRotation:lv.bgRotation||0,bgFlipH:lv.bgFlipH||false,bgFlipV:lv.bgFlipV||false,
-    elements:lv._elements||[],
-    links:lv._links||[],
-    measures:lv._measures||[],
-    annotations:lv._annotations||[],
-    photoMarkers:lv._photoMarkers||[],
-    photoIdCounter:lv._photoIdCounter||1,
-  }));
-  const data={version:7,currentLevelIdx:_currentLevelIdx,levels:levelsData,conduitConfig,reseauTypes,customIcons,chantierNotes,productLibrary};
-  const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
-  const uri='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data));
-  Object.assign(document.createElement('a'),{href:uri,download:`projet_vmc_${d}.annotavmc`}).click();
-  _hasUnsavedChanges=false;
-  setStatus('✓ Projet sauvegardé','ok');
-}
+// saveProject() est défini dans le bloc SYSTÈME DE SAUVEGARDE ci-dessus
 
 function loadProject(file){
   const reader=new FileReader();
   reader.onload=function(e){
     try{
       const data=JSON.parse(e.target.result);
-      if(data.conduitConfig){conduitConfig=data.conduitConfig;syncQuickSelects();}
-      if(data.reseauTypes){reseauTypes=data.reseauTypes;syncReseauSelect();renderReseauxConfig();}
-      if(data.customIcons){customIcons=data.customIcons;refreshToolbarIcons();}
-      if(data.chantierNotes)loadNotes(data.chantierNotes);
-      if(data.productLibrary)productLibrary=data.productLibrary;
-
-      // ── Format v7 multi-niveaux ──
-      if(data.version>=7&&data.levels){
-        levels=data.levels.map(lv=>({
-          name:lv.name||'Niveau',
-          placedElements:lv.placedElements||{},
-          scaleRatio:lv.scaleRatio||null,
-          annotIdCounter:lv.annotIdCounter||0,
-          bgImage:lv.bgImage||null,
-          bgRotation:lv.bgRotation||0,bgFlipH:lv.bgFlipH||false,bgFlipV:lv.bgFlipV||false,
-          _elements:lv.elements||[],
-          _links:lv.links||[],
-          _measures:lv.measures||[],
-          _annotations:lv.annotations||[],
-          _photoMarkers:lv.photoMarkers||[],
-          _photoIdCounter:lv.photoIdCounter||1,
-        }));
-        _currentLevelIdx=data.currentLevelIdx||0;
-        clearAllSilent();
-        placedElements={};links=[];measures=[];annotations=[];
-        _bgImg=null;_bgKonva=null;_bgRotation=0;_bgFlipH=false;_bgFlipV=false;
-        bgLayer.destroyChildren();bgLayer.batchDraw();
-        _loadLevelBgAndElements(_currentLevelIdx);
-        renderLevelTabs();
-        setStatus('✓ Projet chargé','ok');
-      }
-      // ── Format v6 et antérieur (un seul niveau) — rétrocompatibilité ──
-      else{
-        levels=[createLevelData('RDC')];
-        _currentLevelIdx=0;
-        const lv=levels[0];
-        lv.scaleRatio=data.scaleRatio||null;
-        lv.annotIdCounter=data.annotIdCounter||0;
-        lv.placedElements=data.placedElements||{};
-        lv._elements=data.elements||[];
-        lv._links=data.links||[];
-        lv._measures=data.measures||[];
-        lv._annotations=data.annotations||[];
-        lv.bgImage=data.bgImage||null;
-        if(data.bgTransform){lv.bgRotation=data.bgTransform.rotation||0;lv.bgFlipH=data.bgTransform.flipH||false;lv.bgFlipV=data.bgTransform.flipV||false;}
-        clearAllSilent();
-        placedElements={};links=[];measures=[];annotations=[];
-        _bgImg=null;_bgKonva=null;
-        bgLayer.destroyChildren();bgLayer.batchDraw();
-        _loadLevelBgAndElements(0);
-        renderLevelTabs();
-        setStatus('✓ Projet chargé (format ancien)','ok');
-      }
+      _applyProjectData(data);
+      const fmt=data.version>=7?'':'(format ancien)';
+      setStatus('✓ Projet chargé '+fmt,'ok');
+      _markSaved('✓ Projet chargé');
+      // Sauvegarder immédiatement en local après chargement
+      saveToLocalStorage();
     }catch(err){console.error(err);setStatus('✗ Fichier invalide','err');}
   };reader.readAsText(file);
 }
@@ -2843,7 +2780,7 @@ function pushHistory(){
   if(h.length>MAX_HISTORY)h.shift();
   // Toute nouvelle action efface le futur (redo)
   getLevelFuture().length=0;
-  _hasUnsavedChanges=true;
+  _markUnsaved();
 }
 
 function _restoreSnapshot(snap){
@@ -3333,9 +3270,7 @@ let _hoveredEl=null;       // élément survolé — pour surlignage visuel
 let _hoverRect=null;       // rectangle de surlignage Konva
 
 // Offset relatif au centre de l'élément
-function anchorFromPoint(el,pt){return{dx:pt.x-el.x(),dy:pt.y-el.y()};}
 // Position absolue depuis ancre
-function anchorToPoint(el,anchor){return{x:el.x()+anchor.dx,y:el.y()+anchor.dy};}
 
 // Calcule l'intersection entre la ligne (centre→curseur) et le périmètre du rectangle
 // Éléments à connexion centrale (bouches rondes)
@@ -3565,9 +3500,41 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('azp-opacity').addEventListener('input',updateZonePreview);
   document.getElementById('azp-label').addEventListener('input',updateZonePreview);
   document.getElementById('azp-stroke-style').addEventListener('input',updateZonePreview);
-  syncQuickSelects();syncReseauSelect();renderReseauxConfig();refreshToolbarIcons();initEvents();
+  // pdf page preview
+  const pdfPageInp=document.getElementById('pdf-page-input');
+  if(pdfPageInp)pdfPageInp.addEventListener('change',function(){
+    const v=parseInt(this.value);
+    if(_pdfDoc&&v>=1&&v<=_pdfDoc.numPages)renderPdfPreview(v);
+  });
+  // photo capture
+  const photoCap=document.getElementById('photo-capture');
+  if(photoCap)photoCap.addEventListener('change',async function(e){
+    const file=e.target.files[0];if(!file)return;
+    this.value='';
+    setStatus('Compression de la photo…','loading');
+    _pendingPhotoBase64=await _compressPhotoImg(file);
+    const img=document.getElementById('photo-preview-img');
+    img.src=_pendingPhotoBase64;img.style.display='block';
+    document.getElementById('photo-preview-hint').style.display='none';
+    setStatus('Photo prête','ok');
+  });
+    syncQuickSelects();syncReseauSelect();renderReseauxConfig();refreshToolbarIcons();initEvents();
   renderLevelTabs();
+  // Démarrer l'auto-save toutes les 2 minutes
+  _startAutoSave();
+  // Proposer la restauration si une sauvegarde locale récente existe
+  _checkAutoRestore();
+  // Ctrl+S global
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveProject();}
+  });
+  // Fermer le menu save au clic extérieur
+  document.addEventListener('click',e=>{
+    if(!document.getElementById('btn-save-file')?.contains(e.target))closeSaveMenu();
+  });
   setStatus('Prêt','ok');
+  // Indicateur initial
+  _setSaveIndicator('','—');
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -4556,24 +4523,6 @@ function _buildTraverseeRows(traversees,showLevel){
 // EXPORTS
 // ══════════════════════════════════════════════════════════════
 function buildLiaisonStats(){const byReseau={};links.forEach(l=>{const key=`${l.reseau||'—'} / ${[l.mat||'',l.dia||''].filter(Boolean).join(' ')||'—'}`;if(!byReseau[key])byReseau[key]={count:0,metres:0,hasLen:false};byReseau[key].count++;if(l.lengthM!=null){byReseau[key].metres+=l.lengthM;byReseau[key].hasLen=true;}});return byReseau;}
-function exportListe(){
-  const entries=Object.entries(placedElements).filter(([,v])=>v>0);const byMat=buildLiaisonStats();if(!entries.length&&!links.length){alert('Aucun élément à exporter.');return;}
-  const d=new Date().toLocaleDateString('fr-FR');
-  const cn=chantierNotes;
-  let txt=`LISTE MATÉRIEL VMC — ${d}\n`;
-  if(cn.client)txt+=`Chantier : ${cn.client}\n`;
-  if(cn.tel)txt+=`Tél.     : ${cn.tel}\n`;
-  if(cn.email)txt+=`Email    : ${cn.email}\n`;
-  if(cn.adresse)txt+=`Adresse  : ${cn.adresse}\n`;
-  if(cn.intervenant)txt+=`Tech.    : ${cn.intervenant}\n`;
-  txt+=`${'─'.repeat(40)}\n`;
-  entries.forEach(([l,q])=>txt+=`${l.padEnd(30)} × ${q}\n`);
-  Object.entries(byMat).forEach(([key,v])=>txt+=`${key.padEnd(40)} × ${v.count}${v.hasLen?' ('+v.metres.toFixed(1)+' m)':''}\n`);
-  txt+=`${'─'.repeat(40)}\nTOTAL : ${entries.reduce((s,[,v])=>s+v,0)+links.length} éléments`;
-  if(annotations.length)txt+=`\n${'─'.repeat(40)}\nAnnotations : ${annotations.length}`;
-  if(cn.remarques)txt+=`\n\nRemarques :\n${cn.remarques}`;
-  navigator.clipboard.writeText(txt).then(()=>alert('Liste copiée !')).catch(()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('Liste copiée !');});
-}
 // ── EXPORT EXCEL ──
 async function exportXLSX(mode='global'){
   setStatus('Préparation export Excel…','loading');
@@ -4895,13 +4844,6 @@ function closePdfPopup(){
   document.getElementById('pdf-popup').style.display='none';
 }
 
-// Mise à jour preview au changement de page
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('pdf-page-input').addEventListener('change',function(){
-    const v=parseInt(this.value);
-    if(_pdfDoc&&v>=1&&v<=_pdfDoc.numPages)renderPdfPreview(v);
-  });
-});
 
 // ══════════════════════════════════════════════════════════════
 // TRAVERSÉE DE DALLE / REMONTÉE
@@ -5006,13 +4948,7 @@ function applyResizeBarDims(){
   }
   updateLinks();drawLayer.batchDraw();
 }
-function rotateSelected(deg){
-  if(!selectedShape||selectedShape.name()!=='element')return;
-  pushHistory();
-  selectedShape.rotation((selectedShape.rotation()+deg+360)%360);
-  updateLinks();drawLayer.batchDraw();
-}
-// deleteSelected() est définie plus haut — doublon supprimé
+
 function deselectAll(){selectElement(null);hideResizeBar();}
 
 // ══════════════════════════════════════════════════════════════
@@ -5309,20 +5245,6 @@ function triggerPhotoCapture(){
   document.getElementById('photo-capture').click();
 }
 
-// Listener sur l'input caméra
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('photo-capture').addEventListener('change',async function(e){
-    const file=e.target.files[0];if(!file)return;
-    this.value='';
-    setStatus('Compression de la photo…','loading');
-    _pendingPhotoBase64=await _compressPhotoImg(file);
-    const img=document.getElementById('photo-preview-img');
-    img.src=_pendingPhotoBase64;
-    img.style.display='block';
-    document.getElementById('photo-preview-hint').style.display='none';
-    setStatus('Photo prête','ok');
-  });
-});
 
 function confirmPhotoMarker(){
   const title=document.getElementById('photo-title').value.trim()||('Photo P'+_photoIdCounter);
@@ -5470,7 +5392,6 @@ function _deserializePhotoMarkers(data){
   annotLayer.batchDraw();
 }
 
-// ── RÉANCRAGE DE LIAISON ──
 // ══════════════════════════════════════════════════════════════
 // RÉANCRAGE — POIGNÉES DRAGGABLES AUX EXTRÉMITÉS
 // ══════════════════════════════════════════════════════════════
@@ -5705,6 +5626,261 @@ function svgLogo(brand){
 }
 
 let _hasUnsavedChanges=false;
+
+// ══════════════════════════════════════════════════════════════
+// SYSTÈME DE SAUVEGARDE
+// ══════════════════════════════════════════════════════════════
+const LS_KEY='annotavmc_autosave';
+let _fsFileHandle=null;       // File System Access API handle
+let _autoSaveTimer=null;
+let _saveIndicatorTimer=null;
+
+// ── Indicateur d'état ────────────────────────────────────────
+function _setSaveIndicator(state,msg){
+  const el=document.getElementById('save-indicator');
+  const msgEl=document.getElementById('save-msg');
+  if(!el||!msgEl)return;
+  el.className='';
+  el.classList.add(state);
+  msgEl.textContent=msg;
+  clearTimeout(_saveIndicatorTimer);
+  if(state==='saved'||state==='autosaved'){
+    _saveIndicatorTimer=setTimeout(()=>{
+      el.className='';
+      msgEl.textContent=_hasUnsavedChanges?'● Non sauvegardé':'✓ Sauvegardé';
+      if(_hasUnsavedChanges)el.classList.add('unsaved');
+    },3000);
+  }
+}
+function _markUnsaved(){
+  _hasUnsavedChanges=true;
+  const el=document.getElementById('save-indicator');
+  const msgEl=document.getElementById('save-msg');
+  if(el&&msgEl){el.className='unsaved';msgEl.textContent='● Non sauvegardé';}
+}
+function _markSaved(msg='✓ Sauvegardé'){
+  _hasUnsavedChanges=false;
+  _setSaveIndicator('saved',msg);
+}
+
+// ── Construire les données du projet ─────────────────────────
+function _buildProjectData(){
+  saveNotes();
+  _serializeLevelKonva();
+  const levelsData=levels.map(lv=>({
+    name:lv.name,
+    placedElements:lv.placedElements||{},
+    scaleRatio:lv.scaleRatio,
+    annotIdCounter:lv.annotIdCounter||0,
+    bgImage:lv.bgImage||null,
+    bgRotation:lv.bgRotation||0,bgFlipH:lv.bgFlipH||false,bgFlipV:lv.bgFlipV||false,
+    elements:lv._elements||[],
+    links:lv._links||[],
+    measures:lv._measures||[],
+    annotations:lv._annotations||[],
+    photoMarkers:lv._photoMarkers||[],
+    photoIdCounter:lv._photoIdCounter||1,
+  }));
+  return{version:7,currentLevelIdx:_currentLevelIdx,levels:levelsData,
+    conduitConfig,reseauTypes,customIcons,chantierNotes,productLibrary};
+}
+
+// ── localStorage ─────────────────────────────────────────────
+function saveToLocalStorage(){
+  try{
+    const data=_buildProjectData();
+    const json=JSON.stringify(data);
+    // Vérifier la taille (~5 MB limite selon navigateur)
+    if(json.length>4_500_000){
+      setStatus('⚠ Projet trop lourd pour le stockage local (photos ?)','err');
+      return false;
+    }
+    localStorage.setItem(LS_KEY,json);
+    localStorage.setItem(LS_KEY+'_date',new Date().toISOString());
+    return true;
+  }catch(e){
+    console.warn('localStorage save failed:',e);
+    return false;
+  }
+}
+function loadFromLocalStorage(){
+  const json=localStorage.getItem(LS_KEY);
+  if(!json){setStatus('Aucune sauvegarde locale trouvée','err');return;}
+  const dateStr=localStorage.getItem(LS_KEY+'_date');
+  const dateLabel=dateStr?new Date(dateStr).toLocaleString('fr-FR'):'date inconnue';
+  if(!confirm(`Restaurer la sauvegarde locale du ${dateLabel} ?\nLes modifications non sauvegardées seront perdues.`))return;
+  try{
+    const data=JSON.parse(json);
+    _applyProjectData(data);
+    _markSaved('✓ Restauré depuis local');
+    setStatus(`✓ Restauré depuis la sauvegarde locale (${dateLabel})`,'ok');
+  }catch(e){
+    setStatus('✗ Sauvegarde locale corrompue','err');
+  }
+}
+function clearLocalStorage(){
+  if(!confirm('Effacer la sauvegarde locale du navigateur ?'))return;
+  localStorage.removeItem(LS_KEY);
+  localStorage.removeItem(LS_KEY+'_date');
+  setStatus('Sauvegarde locale effacée','ok');
+}
+
+// ── Auto-save toutes les 2 minutes ───────────────────────────
+function _startAutoSave(){
+  clearInterval(_autoSaveTimer);
+  _autoSaveTimer=setInterval(()=>{
+    if(!_hasUnsavedChanges)return;
+    const ok=saveToLocalStorage();
+    if(ok){
+      _setSaveIndicator('autosaved','💾 Auto-sauvegardé');
+      console.log('[AnnotaVMC] Auto-save localStorage OK',new Date().toLocaleTimeString('fr-FR'));
+    }
+  },2*60*1000); // 2 minutes
+}
+
+// ── File System Access API ────────────────────────────────────
+const _fsSupported=('showSaveFilePicker' in window);
+
+async function saveToFileSystem(){
+  if(!_fsSupported){
+    setStatus('⚠ Non supporté sur ce navigateur — utilisez Chrome ou Edge','err');
+    saveProjectDownload();
+    return;
+  }
+  try{
+    // Si on a déjà un handle (fichier déjà ouvert ou sauvegardé une fois), réutiliser
+    if(!_fsFileHandle){
+      const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+      _fsFileHandle=await window.showSaveFilePicker({
+        suggestedName:`projet_vmc_${d}.annotavmc`,
+        types:[{description:'Projet AnnotaVMC',accept:{'application/json':['.annotavmc']}}],
+      });
+    }
+    const data=_buildProjectData();
+    const writable=await _fsFileHandle.createWritable();
+    await writable.write(JSON.stringify(data));
+    await writable.close();
+    _markSaved('✓ Fichier enregistré');
+    setStatus('✓ Fichier enregistré — '+_fsFileHandle.name,'ok');
+  }catch(e){
+    if(e.name==='AbortError')return; // annulé par l'utilisateur
+    console.error(e);
+    setStatus('✗ Erreur enregistrement fichier','err');
+  }
+}
+
+// Quand on ouvre un fichier via File System API — capturer le handle
+async function openProjectFromFilePicker(){
+  if(!_fsSupported){
+    document.getElementById('upload-save').click();
+    return;
+  }
+  try{
+    const [handle]=await window.showOpenFilePicker({
+      types:[{description:'Projet AnnotaVMC',accept:{'application/json':['.annotavmc']}}],
+    });
+    _fsFileHandle=handle; // mémoriser pour la prochaine sauvegarde
+    const file=await handle.getFile();
+    loadProject(file);
+  }catch(e){
+    if(e.name==='AbortError')return;
+    setStatus('✗ Erreur ouverture fichier','err');
+  }
+}
+
+// ── saveProject — point d'entrée principal (Ctrl+S / bouton) ─
+async function saveProject(){
+  // Priorité : File System handle si disponible
+  if(_fsFileHandle){
+    await saveToFileSystem();
+  }else{
+    // Sinon téléchargement classique
+    saveProjectDownload();
+  }
+  // Sauvegarder aussi en localStorage
+  saveToLocalStorage();
+}
+
+// ── Téléchargement classique (ancien comportement) ───────────
+function saveProjectDownload(){
+  const data=_buildProjectData();
+  const d=new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+  const uri='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data));
+  Object.assign(document.createElement('a'),{href:uri,download:`projet_vmc_${d}.annotavmc`}).click();
+  _markSaved('✓ Téléchargé');
+  setStatus('✓ Projet téléchargé','ok');
+}
+
+// ── Appliquer des données de projet (partagé load + restore) ─
+function _applyProjectData(data){
+  if(data.conduitConfig){conduitConfig=data.conduitConfig;syncQuickSelects();}
+  if(data.reseauTypes){reseauTypes=data.reseauTypes;syncReseauSelect();renderReseauxConfig();}
+  if(data.customIcons){customIcons=data.customIcons;refreshToolbarIcons();}
+  if(data.chantierNotes)loadNotes(data.chantierNotes);
+  if(data.productLibrary)productLibrary=data.productLibrary;
+  if(data.version>=7&&data.levels){
+    levels=data.levels.map(lv=>({
+      name:lv.name||'Niveau',
+      placedElements:lv.placedElements||{},
+      scaleRatio:lv.scaleRatio||null,
+      annotIdCounter:lv.annotIdCounter||0,
+      bgImage:lv.bgImage||null,
+      bgRotation:lv.bgRotation||0,bgFlipH:lv.bgFlipH||false,bgFlipV:lv.bgFlipV||false,
+      _elements:lv.elements||[],
+      _links:lv.links||[],
+      _measures:lv.measures||[],
+      _annotations:lv.annotations||[],
+      _photoMarkers:lv.photoMarkers||[],
+      _photoIdCounter:lv.photoIdCounter||1,
+    }));
+    _currentLevelIdx=data.currentLevelIdx||0;
+  }else{
+    levels=[createLevelData('RDC')];
+    _currentLevelIdx=0;
+    const lv=levels[0];
+    lv.scaleRatio=data.scaleRatio||null;
+    lv.annotIdCounter=data.annotIdCounter||0;
+    lv.placedElements=data.placedElements||{};
+    lv._elements=data.elements||[];
+    lv._links=data.links||[];
+    lv._measures=data.measures||[];
+    lv._annotations=data.annotations||[];
+    lv.bgImage=data.bgImage||null;
+    if(data.bgTransform){lv.bgRotation=data.bgTransform.rotation||0;lv.bgFlipH=data.bgTransform.flipH||false;lv.bgFlipV=data.bgTransform.flipV||false;}
+  }
+  clearAllSilent();
+  placedElements={};links=[];measures=[];annotations=[];
+  _bgImg=null;_bgKonva=null;_bgRotation=0;_bgFlipH=false;_bgFlipV=false;
+  bgLayer.destroyChildren();bgLayer.batchDraw();
+  _loadLevelBgAndElements(_currentLevelIdx);
+  renderLevelTabs();
+  _hasUnsavedChanges=false;
+}
+
+// ── Menu déroulant ────────────────────────────────────────────
+function toggleSaveMenu(e){
+  e.stopPropagation();
+  const m=document.getElementById('save-menu');
+  m.classList.toggle('open');
+}
+function closeSaveMenu(){
+  document.getElementById('save-menu')?.classList.remove('open');
+}
+
+// ── Vérification auto-restore au démarrage ───────────────────
+function _checkAutoRestore(){
+  const json=localStorage.getItem(LS_KEY);
+  if(!json)return;
+  const dateStr=localStorage.getItem(LS_KEY+'_date');
+  const dateLabel=dateStr?new Date(dateStr).toLocaleString('fr-FR'):'date inconnue';
+  // Proposer uniquement si la sauvegarde a moins de 7 jours
+  const age=dateStr?(Date.now()-new Date(dateStr).getTime()):Infinity;
+  if(age>7*24*3600*1000)return;
+  const el=document.getElementById('save-indicator');
+  const msgEl=document.getElementById('save-msg');
+  if(el&&msgEl){el.className='autosaved';msgEl.textContent='💾 Sauvegarde locale disponible';}
+  setStatus(`💾 Sauvegarde locale du ${dateLabel} disponible — cliquez sur ▾ > Restaurer depuis local`,'ok');
+}
 window.addEventListener('beforeunload',function(e){
   if(_hasUnsavedChanges){e.preventDefault();e.returnValue='';}
 });

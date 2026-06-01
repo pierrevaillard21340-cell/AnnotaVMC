@@ -1,4 +1,4 @@
-const CACHE_NAME = 'annotavmc-v47';
+const CACHE_NAME = 'annotavmc-v48';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -13,7 +13,6 @@ const ASSETS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      // On cache ce qu'on peut, on ignore les erreurs réseau
       return Promise.allSettled(
         ASSETS.map(url => cache.add(url).catch(() => {}))
       );
@@ -38,7 +37,6 @@ self.addEventListener('activate', event => {
 
 // Fetch — cache first, réseau en fallback
 self.addEventListener('fetch', event => {
-  // On ignore les requêtes non-GET et les extensions chrome
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
 
@@ -46,15 +44,14 @@ self.addEventListener('fetch', event => {
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        // On met en cache les réponses valides
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
       }).catch(() => {
-        // Offline : on retourne le HTML principal comme fallback
-        return caches.match('./annotavmc_v2.html');
+        // Offline : fallback sur index.html
+        return caches.match('./index.html');
       });
     })
   );
