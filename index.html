@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AnnotaVMC">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png" type="image/png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="AnnotaVMC">
 <style>
@@ -1449,7 +1450,7 @@ function getAnnotations(){return curLevel().annotations;}
 function getPlacedElements(){return curLevel().placedElements;}
 
 // Les variables globales restent mais sont synchronisées au switch de niveau
-let placedElements={}, linkStart=null, links=[], measures=[], annotations=[];
+let placedElements={}, linkStart=null, links=[], measures=[];
 let scaleRatio=null;
 let _showLinkLabels=true;
 
