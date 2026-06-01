@@ -3909,7 +3909,7 @@ function handleLongPress(target){
   const annotNode=findAnnotNode(target);
   if(annotNode!==null){_selectedAnnotId=annotNode;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenuTouch();return;}
   let t=target;while(t&&t.getParent){if(t.getAttr&&t.getAttr('customType')==='link')break;t=t.getParent();}
-  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenuTouch();return;}
+  if(t&&t.getAttr&&t.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===t)||null;selectedShape=t;transformer.nodes([]);t.stroke('#ffcc00');t.strokeWidth(6);if(_selectedLinkObj&&_selectedLinkObj.line!==t)setWaypointVisibility(_selectedLinkObj,false);setWaypointVisibility(links.find(l=>l.line===t)||{waypointDots:[]},true);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenuTouch();return;}
   const elLp=findElementGroup(target);
   if(elLp){selectElement(elLp);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elLp.getAttr('traverseeData')?'block':'none';const lockBtn2=document.getElementById('ctx-lock');lockBtn2.style.display='block';lockBtn2.textContent=elLp.getAttr('locked')?'🔓 Déverrouiller':'🔒 Verrouiller';openContextMenuTouch();}
 }
@@ -4063,12 +4063,13 @@ function handleContextMenu(e){
   const annotId=findAnnotNode(target);
   if(annotId!==null){_selectedAnnotId=annotId;['ctx-resize','ctx-edit-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-annot').style.display='block';openContextMenu(e.evt);return;}
   let g2=target;while(g2&&g2.getParent){if(g2.getAttr&&g2.getAttr('customType')==='link')break;g2=g2.getParent();}
-  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenu(e.evt);return;}
+  if(g2&&g2.getAttr&&g2.getAttr('customType')==='link'){_selectedLinkObj=links.find(l=>l.line===g2)||null;selectedShape=g2;transformer.nodes([]);g2.stroke('#ffcc00');g2.strokeWidth(6);if(_selectedLinkObj&&_selectedLinkObj.line!==g2)setWaypointVisibility(_selectedLinkObj,false);setWaypointVisibility(links.find(l=>l.line===g2)||{waypointDots:[]},true);drawLayer.batchDraw();hideDeleteBtn();refreshDeleteBtn();['ctx-resize','ctx-reanchor-link','ctx-rot-ccw','ctx-rot-cw','ctx-del-waypoint','ctx-dims','ctx-edit-annot','ctx-edit-traversee'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ctx-edit-link').style.display='block';document.getElementById('ctx-reanchor-link').style.display='block';openContextMenu(e.evt);return;}
   const elCtx=findElementGroup(e.target);
   if(elCtx){selectElement(elCtx);['ctx-edit-link','ctx-del-waypoint','ctx-edit-annot'].forEach(id=>document.getElementById(id).style.display='none');['ctx-resize','ctx-rot-ccw','ctx-rot-cw','ctx-dims','ctx-elem-info'].forEach(id=>document.getElementById(id).style.display='block');document.getElementById('ctx-edit-traversee').style.display=elCtx.getAttr('traverseeData')?'block':'none';const lockBtn1=document.getElementById('ctx-lock');lockBtn1.style.display='block';lockBtn1.textContent=elCtx.getAttr('locked')?'🔓 Déverrouiller':'🔒 Verrouiller';openContextMenu(e.evt);}
 }
 function resetLinkHighlight(){
   if(_selectedLinkObj&&_selectedLinkObj.line){
+    setWaypointVisibility(_selectedLinkObj,false);
     _selectedLinkObj.line.stroke(_selectedLinkObj.lineColor||_selectedLinkObj.reseauColor||'#94a3b8');
     applyLinkStroke(_selectedLinkObj);
     drawLayer.batchDraw();
@@ -4233,22 +4234,40 @@ function buildLinkPoints(l){
 }
 function createWaypointDot(linkObj,index){
   const wp=linkObj.waypoints[index];
-  const dot=new Konva.Circle({
+  const color=linkObj.reseauColor||linkObj.lineColor||'#94a3b8';
+  // Losange (Rect pivoté 45°) invisible au repos — s'affiche uniquement
+  // au survol ou à la sélection de la liaison parent.
+  const DOT_R=3.5;
+  const dot=new Konva.Rect({
     x:wp._x,y:wp._y,
-    radius:2,
-    fill:'rgba(148,163,184,0.85)',
-    stroke:'#fff',strokeWidth:1,
-    draggable:true,name:'waypoint-dot'
+    width:DOT_R*2,height:DOT_R*2,
+    offsetX:DOT_R,offsetY:DOT_R,
+    rotation:45,
+    fill:color,
+    stroke:'rgba(255,255,255,0.6)',strokeWidth:0.8,
+    opacity:0,          // invisible par défaut
+    draggable:true,
+    name:'waypoint-dot',
+    perfectDrawEnabled:false,
   });
   dot.setAttr('customType','waypoint');
   dot.setAttr('waypointInfo',{linkObj,index});
-  dot.hitStrokeWidth(6); // zone de clic serrée — évite les faux positifs sur liaisons denses
+  // Zone de hit généreuse mais invisible
+  dot.hitStrokeWidth(6);
   dot.on('dragstart',()=>{
     clearTimeout(_longPressTimer);_longPressTimer=null;_touchMoved=true;
     isPanning=false;
+    // S'assurer que le point reste visible pendant le drag
+    dot.opacity(1);
   });
   dot.on('dragmove',()=>{wp._x=dot.x();wp._y=dot.y();refreshLinkLine(linkObj);});
-  dot.on('dragend',()=>{updateListe();});
+  dot.on('dragend',()=>{
+    // Revenir à l'état visuel selon la sélection courante
+    const sel=_selectedLinkObj===linkObj;
+    dot.opacity(sel?1:0);
+    drawLayer.batchDraw();
+    updateListe();
+  });
   dot.on('click tap',e=>{e.cancelBubble=true;_selectedWaypoint={linkObj,index};});
   dot.on('contextmenu',e=>{
     e.evt.preventDefault();
@@ -4258,6 +4277,12 @@ function createWaypointDot(linkObj,index){
     openContextMenu(e.evt);
   });
   drawLayer.add(dot);return dot;
+}
+
+// Affiche ou masque les waypoints d'une liaison
+function setWaypointVisibility(linkObj,visible){
+  linkObj.waypointDots.forEach(d=>d.opacity(visible?1:0));
+  drawLayer.batchDraw();
 }
 
 // Trouve le waypoint le plus proche d'une position scène — évite les faux positifs
@@ -4281,6 +4306,16 @@ function createLink(a,b,mat,dia,forcedLength=null,reseau='',reseauColorParam='',
   const sw=diaToStroke(resolvedDiaMm)||4;
   const line=new Konva.Line({points:pts,stroke:lineColor,strokeWidth:sw,lineCap:'round',lineJoin:'round',tension});
   line.setAttr('customType','link');line.hitStrokeWidth(Math.max(14,sw+8));
+  line.on('mouseenter',()=>{
+    if(_selectedLinkObj!==null)return; // une liaison déjà sélectionnée — ne pas parasiter
+    // Chercher linkObj correspondant à cette line (créé juste après ce bloc)
+    const lo=links.find(l=>l.line===line);
+    if(lo)setWaypointVisibility(lo,true);
+  });
+  line.on('mouseleave',()=>{
+    const lo=links.find(l=>l.line===line);
+    if(lo&&_selectedLinkObj!==lo)setWaypointVisibility(lo,false);
+  });
   const doCreate=(lengthM)=>{
     const mid=getPathMidpoint(pts);const txt=buildLinkLabel(lengthM);const cw=3.5,tw=txt.length*cw;
     const labelBg=new Konva.Rect({x:mid.x-tw/2-2,y:mid.y-5,width:tw+4,height:7,fill:'rgba(15,17,23,.8)',cornerRadius:2,visible:txt!==''&&_showLinkLabels});
@@ -4301,7 +4336,8 @@ function insertWaypointOnLink(linkObj,pos){const pts=buildLinkPoints(linkObj);le
 function distToSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y;if(dx===0&&dy===0)return Math.hypot(p.x-a.x,p.y-a.y);const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function getPathMidpoint(pts){let maxLen=0,mx=pts[0],my=pts[1];for(let i=0;i<pts.length-2;i+=2){const dx=pts[i+2]-pts[i],dy=pts[i+3]-pts[i+1];const len=Math.sqrt(dx*dx+dy*dy);if(len>maxLen){maxLen=len;mx=(pts[i]+pts[i+2])/2;my=(pts[i+1]+pts[i+3])/2;}}return{x:mx,y:my};}
 function deleteSelectedWaypoint(){document.getElementById('contextMenu').style.display='none';if(!_selectedWaypoint)return;const{linkObj,index}=_selectedWaypoint;pushHistory();linkObj.waypoints.splice(index,1);linkObj.waypointDots.forEach(d=>d.destroy());linkObj.waypointDots=[];linkObj.waypoints.forEach((_,i)=>linkObj.waypointDots.push(createWaypointDot(linkObj,i)));refreshLinkLine(linkObj);_selectedWaypoint=null;}
-function refreshLinkWaypointDots(l){l.waypointDots.forEach(d=>d.destroy());l.waypointDots=[];l.line.stroke(l.reseauColor||l.lineColor||'#94a3b8');l.label.fill(l.reseauColor||l.lineColor||'#94a3b8');l.waypoints.forEach((_,i)=>l.waypointDots.push(createWaypointDot(l,i)));drawLayer.batchDraw();}
+function refreshLinkWaypointDots(l){l.waypointDots.forEach(d=>d.destroy());l.waypointDots=[];l.line.stroke(l.reseauColor||l.lineColor||'#94a3b8');l.label.fill(l.reseauColor||l.lineColor||'#94a3b8');l.waypoints.forEach((_,i)=>l.waypointDots.push(createWaypointDot(l,i)));// Préserver la visibilité si la liaison est actuellement sélectionnée
+if(_selectedLinkObj===l)setWaypointVisibility(l,true);drawLayer.batchDraw();}
 function destroyLinkNodes(l){l.line.destroy();l.label?.destroy();l.labelBg?.destroy();l.waypointDots.forEach(d=>d.destroy());}
 function buildLinkLabel(lengthM){return lengthM!=null?lengthM+' m':'';}
 
