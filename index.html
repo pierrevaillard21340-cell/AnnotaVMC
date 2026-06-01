@@ -1519,12 +1519,7 @@ function loadLevelState(idx){
   setStatus(`Niveau : ${lv.name}`,'ok');
 }
 
-// ── RENDU DES ONGLETS ──
-      <span class="level-tab-name" ondblclick="renameLevelPrompt(${i},event)">${lv.name}</span>
-      ${levels.length>1?`<button class="level-tab-del" onclick="deleteLevel(${i},event)" title="Supprimer ce niveau">✕</button>`:''}
-    </div>`).join('')+
-    `<button class="level-add-btn" onclick="addLevel()" title="Ajouter un niveau">＋</button>`;
-}
+
 
 function switchLevel(idx){
   if(idx===_currentLevelIdx)return;
