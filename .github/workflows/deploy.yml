@@ -5,13 +5,11 @@ on:
     branches:
       - main
 
-# Permissions nécessaires pour écrire sur GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Un seul déploiement à la fois — annule le précédent si un nouveau push arrive
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -26,8 +24,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: gh-pages
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -35,7 +31,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'   # racine du repo gh-pages = index.html, sw.js, etc.
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
