@@ -3,7 +3,7 @@ name: Deploy AnnotaVMC
 on:
   push:
     branches:
-      - gh-pages   # se déclenche à chaque push sur gh-pages
+      - main
 
 # Permissions nécessaires pour écrire sur GitHub Pages
 permissions:
