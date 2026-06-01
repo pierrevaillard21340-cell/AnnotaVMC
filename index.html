@@ -1396,6 +1396,7 @@ let stage, bgLayer, annotLayer, drawLayer, transformer;
 let isPanning=false, lastPointer=null;
 let _wasPanning=false;
 let _panMoved=false; // true si la souris a bougé pendant le pan clic droit
+let _spaceDown=false;
 
 // Espace = pan temporaire (desktop)
 document.addEventListener('keydown',function(e){
@@ -1448,7 +1449,7 @@ function getAnnotations(){return curLevel().annotations;}
 function getPlacedElements(){return curLevel().placedElements;}
 
 // Les variables globales restent mais sont synchronisées au switch de niveau
-let placedElements={}, linkStart=null, links=[], measures=[];
+let placedElements={}, linkStart=null, links=[], measures=[], annotations=[];
 let scaleRatio=null;
 let _showLinkLabels=true;
 
