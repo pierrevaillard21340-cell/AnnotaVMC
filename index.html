@@ -6325,7 +6325,8 @@ function _simFaireRapport() {
     doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...gray);
     doc.text(row[0], M+3, y+5);
     const isVerdict=row[0]==='Taux de couverture';
-    doc.setTextColor(isVerdict?(ratio>=100?...[5,150,105]:...[220,38,38]):...[...dark]);
+    if(isVerdict) doc.setTextColor(ratio>=100?5:220, ratio>=100?150:38, ratio>=100?105:38);
+    else doc.setTextColor(dark[0],dark[1],dark[2]);
     doc.setFont('helvetica',isVerdict?'bold':'normal');
     doc.text(row[1], W-M-3, y+5, {align:'right'}); y+=8;
   });
