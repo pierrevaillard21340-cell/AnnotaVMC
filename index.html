@@ -477,6 +477,7 @@
           <div class="tool-submenu" id="sub-soufflage">
             <button onclick="setTool('soufflage');closeDropdowns()">⊙ Rond</button>
             <button onclick="setTool('soufflage-rect');closeDropdowns()">▭ Rectangulaire</button>
+            <button onclick="setTool('soufflage-longflow');closeDropdowns()"><span style="color:#ff0101">→</span> Longflow (longue portée)</button>
           </div>
         </div>
         <button class="tool-btn" id="btn-soufflage-rect" style="--tool-color:var(--soufflage);display:none" onclick="setTool('soufflage-rect')"></button>
@@ -682,6 +683,7 @@
       <div class="panel-tab active" onclick="switchTab('materiel')">Matériel</div>
       <div class="panel-tab" onclick="switchTab('annotations')">Annotations</div>
       <div class="panel-tab" onclick="switchTab('notes')">Infos client</div>
+      <div class="panel-tab" onclick="switchTab('simulation')" style="color:#ff6b35;">🌡 Sim.</div>
     </div>
 
     <!-- TAB MATERIEL -->
@@ -735,6 +737,71 @@
         <button class="save-notes-btn" onclick="saveNotes()">✓ Enregistrer les notes</button>
       </div>
     </div>
+
+    <!-- TAB SIMULATION -->
+    <div class="panel-pane" id="tab-simulation">
+      <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+        <div id="sim-verdict" style="margin:8px;padding:10px 12px;border-radius:8px;border:0.5px solid #2e334d;background:#1a1d26;flex-shrink:0;">
+          <div id="sim-verdict-title" style="font-size:12px;font-weight:600;color:#e8eaf2;">—</div>
+          <div id="sim-verdict-sub" style="font-size:10px;color:#8891aa;margin-top:2px;">—</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 8px 8px;flex-shrink:0;">
+          <div style="background:#22263a;border-radius:7px;padding:7px;text-align:center;">
+            <div style="font-size:15px;font-weight:600;color:#e8eaf2;" id="sim-m-couv">—</div>
+            <div style="font-size:10px;color:#8891aa;margin-top:1px;">Couverture</div>
+          </div>
+          <div style="background:#22263a;border-radius:7px;padding:7px;text-align:center;">
+            <div style="font-size:15px;font-weight:600;color:#e8eaf2;" id="sim-m-puiss">—</div>
+            <div style="font-size:10px;color:#8891aa;margin-top:1px;">Puissance W</div>
+          </div>
+          <div style="background:#22263a;border-radius:7px;padding:7px;text-align:center;">
+            <div style="font-size:15px;font-weight:600;color:#e8eaf2;" id="sim-m-nb">—</div>
+            <div style="font-size:10px;color:#8891aa;margin-top:1px;">Bouches</div>
+          </div>
+          <div style="background:#22263a;border-radius:7px;padding:7px;text-align:center;">
+            <div style="font-size:15px;font-weight:600;color:#e8eaf2;" id="sim-m-qtot">—</div>
+            <div style="font-size:10px;color:#8891aa;margin-top:1px;">m³/h total</div>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:0 8px 8px;">
+          <div style="font-size:10px;font-weight:700;color:#8891aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Soufflage</div>
+          <div style="background:#22263a;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
+            <label style="font-size:11px;color:#8891aa;display:flex;justify-content:space-between;margin-bottom:4px;">Débit/bouche m³/h <span style="color:#e8eaf2;font-weight:600;" id="sim-q-val">30</span></label>
+            <input type="range" id="sim-q" min="10" max="45" step="1" value="30" style="width:100%;accent-color:#ff0101;" oninput="document.getElementById('sim-q-val').textContent=this.value;simCompute()">
+          </div>
+          <div style="background:#22263a;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
+            <label style="font-size:11px;color:#8891aa;display:flex;justify-content:space-between;margin-bottom:4px;">ΔT soufflage °C <span style="color:#e8eaf2;font-weight:600;" id="sim-dt-val">6</span></label>
+            <input type="range" id="sim-dt" min="1" max="12" step="1" value="6" style="width:100%;accent-color:#ff6b35;" oninput="document.getElementById('sim-dt-val').textContent=this.value;simCompute()">
+          </div>
+          <div style="background:#22263a;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
+            <label style="font-size:11px;color:#8891aa;margin-bottom:4px;display:block;">Mode</label>
+            <select id="sim-mode" style="width:100%;background:#1a1d26;border:1px solid #2e334d;border-radius:6px;color:#e8eaf2;font-size:12px;padding:5px 7px;" onchange="simCompute()">
+              <option value="chaud">Chauffage</option>
+              <option value="froid">Rafraîchissement</option>
+            </select>
+          </div>
+          <div style="font-size:10px;font-weight:700;color:#8891aa;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px;">Déperditions</div>
+          <div style="background:#22263a;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
+            <label style="font-size:11px;color:#8891aa;display:flex;justify-content:space-between;margin-bottom:4px;">Total (W) <span style="color:#e8eaf2;font-weight:600;" id="sim-dep-val">3000</span></label>
+            <input type="range" id="sim-dep" min="200" max="20000" step="100" value="3000" style="width:100%;accent-color:#8891aa;" oninput="document.getElementById('sim-dep-val').textContent=this.value;simCompute()">
+          </div>
+          <div style="font-size:10px;font-weight:700;color:#8891aa;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px;">Overlay plan</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#22263a;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
+            <span style="font-size:11px;color:#8891aa;">Heatmap de portée</span>
+            <button id="sim-toggle-btn" onclick="simToggleOverlay()" style="padding:4px 12px;border-radius:6px;border:1px solid #2e334d;background:#1a1d26;color:#8891aa;font-size:11px;cursor:pointer;transition:all .15s;">OFF</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#22263a;border-radius:7px;padding:8px 10px;margin-bottom:10px;">
+            <span style="font-size:11px;color:#8891aa;">Opacité</span>
+            <input type="range" id="sim-opacity" min="10" max="90" step="5" value="55" style="width:90px;accent-color:#ff0101;" oninput="simUpdateOpacity(this.value)">
+          </div>
+          <div style="font-size:10px;font-weight:700;color:#8891aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Bouches détectées</div>
+          <div id="sim-bouches-list" style="font-size:11px;color:#8891aa;margin-bottom:10px;line-height:1.6;"></div>
+          <button onclick="simGenererRapport()" style="width:100%;padding:8px;border-radius:7px;background:rgba(255,107,53,0.12);border:1px solid #ff6b35;color:#ff6b35;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">📄 Rapport PDF simulation</button>
+          <button onclick="simCompute()" style="width:100%;padding:8px;border-radius:7px;background:rgba(59,130,246,0.12);border:1px solid #3b82f6;color:#3b82f6;font-size:12px;cursor:pointer;">↺ Recalculer</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1325,6 +1392,23 @@ const SVG_ICONS = {
   'traversee-rejet': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><circle cx="20" cy="20" r="9" fill="none" stroke="#ff8c00" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="20" y1="8" x2="20" y2="32" stroke="#ff8c00" stroke-width="2"/><polygon points="20,32 16,24 24,24" fill="#ff8c00"/><line x1="12" y1="20" x2="28" y2="20" stroke="#ff8c00" stroke-width="1.5"/></svg>`,
   'rejet-air-vicie': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="38" height="38" rx="2" fill="#1a0d00" stroke="#ff8c00" stroke-width="2"/><line x1="8" y1="5" x2="8" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="14" y1="5" x2="14" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="20" y1="5" x2="20" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="26" y1="5" x2="26" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="32" y1="5" x2="32" y2="35" stroke="#ff8c00" stroke-width="1.5"/><line x1="1" y1="5" x2="39" y2="5" stroke="#ff8c00" stroke-width="2"/><line x1="1" y1="35" x2="39" y2="35" stroke="#ff8c00" stroke-width="2"/><polygon points="20,39 16,32 24,32" fill="#ff8c00"/></svg>`,
   'piquage': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><line x1="1" y1="20" x2="39" y2="20" stroke="#06b6d4" stroke-width="5" stroke-linecap="round"/><line x1="1" y1="20" x2="39" y2="20" stroke="#001a2a" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="20" x2="20" y2="4" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/><circle cx="20" cy="20" r="5" fill="#001a2a" stroke="#06b6d4" stroke-width="2"/><circle cx="20" cy="4" r="3.5" fill="#06b6d4"/><circle cx="1" cy="20" r="3.5" fill="#06b6d4"/><circle cx="39" cy="20" r="3.5" fill="#06b6d4"/></svg>`,
+  'soufflage-longflow': `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+    <!-- Corps de la bouche Longflow — rectangle mural -->
+    <rect x="1" y="12" width="10" height="16" rx="2" fill="#2a0000" stroke="#ff0101" stroke-width="1.8"/>
+    <!-- Lamelles internes -->
+    <line x1="3" y1="16" x2="9" y2="16" stroke="#ff0101" stroke-width="1" opacity=".7"/>
+    <line x1="3" y1="20" x2="9" y2="20" stroke="#ff0101" stroke-width="1" opacity=".7"/>
+    <line x1="3" y1="24" x2="9" y2="24" stroke="#ff0101" stroke-width="1" opacity=".7"/>
+    <!-- Jet directionnel — trait principal -->
+    <line x1="11" y1="20" x2="36" y2="20" stroke="#ff0101" stroke-width="2" stroke-linecap="round"/>
+    <!-- Flèche de direction -->
+    <polygon points="36,20 28,16 28,24" fill="#ff0101"/>
+    <!-- Diffusion du jet (lignes en éventail) -->
+    <line x1="14" y1="20" x2="30" y2="14" stroke="#ff0101" stroke-width="1" stroke-dasharray="2,2" opacity=".5"/>
+    <line x1="14" y1="20" x2="30" y2="26" stroke="#ff0101" stroke-width="1" stroke-dasharray="2,2" opacity=".5"/>
+    <!-- Label LF -->
+    <text x="6" y="9" text-anchor="middle" font-size="6" fill="#ff0101" font-family="monospace" font-weight="bold">LF</text>
+  </svg>`,
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1349,6 +1433,7 @@ const ICON_BASE_PX=28;
 const TOOLS={
   'soufflage':         {label:'Soufflage ⊙',   color:'#ff0101',shape:'circle'},
   'soufflage-rect':    {label:'Soufflage ▭',   color:'#ff0101',shape:'rect'},
+  'soufflage-longflow':{label:'Longflow →',     color:'#ff0101',shape:'rect'},
   'extraction':        {label:'Extraction ⊙',  color:'#0008fa',shape:'circle'},
   'extraction-rect':   {label:'Extraction ▭',  color:'#0008fa',shape:'rect'},
   'prise-air-neuf':    {label:'PriseAN',        color:'#00e1ff',shape:'rect'},
@@ -1731,11 +1816,12 @@ let _selectedWaypoint=null;
 // ══════════════════════════════════════════════════════════════
 function switchTab(name){
   document.querySelectorAll('.panel-tab').forEach((t,i)=>{
-    const names=['materiel','annotations','notes'];
+    const names=['materiel','annotations','notes','simulation'];
     t.classList.toggle('active',names[i]===name);
   });
   document.querySelectorAll('.panel-pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
+  if(name==='simulation') setTimeout(simCompute, 50);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3204,7 +3290,7 @@ function setTool(tool){
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
   // Pour les variantes rect, activer le bouton parent dropdown
   const btnId=
-    tool==='soufflage-rect'?'btn-soufflage':
+    tool==='soufflage-rect'||tool==='soufflage-longflow'?'btn-soufflage':
     tool==='extraction-rect'?'btn-extraction':
     tool==='vmc-sf'||tool==='vmc-hygro'?'btn-vmc':
     (tool.startsWith('traversee-'))?'btn-traversee':
@@ -5576,6 +5662,7 @@ const PRODUCT_TOOL_TYPES={
   'VMC Hygroréglable':['vmc-hygro'],
   'Caisson répartiteur':['caisson'],
   'Bouche soufflage':['soufflage','soufflage-rect'],
+  'Bouche longue portée':['soufflage-longflow'],
   'Bouche extraction':['extraction','extraction-rect'],
   'Prise air neuf':['prise-air-neuf'],
   'Rejet air vicié':['rejet-air-vicie'],
@@ -5602,6 +5689,7 @@ let productLibrary=[
   {id:'p15', brand:'Zehnder', type:'VMC Double flux',    name:'ComfoAir Q450',             ref:'Q450-E',   debit:450, diameters:'Ø200',      url:'https://www.zehnder.fr',                 notes:'Grande maison'},
   {id:'p16', brand:'Zehnder', type:'Bouche soufflage',   name:'ComfoValve Luna S',         ref:'CVL-S',    debit:50,  diameters:'Ø125',      url:'https://www.zehnder.fr',                 notes:'Design épuré'},
   {id:'p17', brand:'Zehnder', type:'Bouche extraction',  name:'ComfoValve Luna E',         ref:'CVL-E',    debit:50,  diameters:'Ø125',      url:'https://www.zehnder.fr',                 notes:'Design épuré'},
+  {id:'p18', brand:'Zehnder', type:'Bouche longue portée',name:'ComfoSpot Longflow',       ref:'LF-90',    debit:45,  diameters:'Ø90',       url:'https://www.zehnder.fr',                 notes:'Portée 2.6m@19m³/h · 5.3m@30m³/h · 9.3m@43m³/h · Montage mural'},
   {id:'p18', brand:'Brink',   type:'VMC Double flux',    name:'Flair 200',                 ref:'FL200',    debit:200, diameters:'Ø150',      url:'https://www.brinkclimatesystems.com',    notes:'Haut rendement'},
   {id:'p19', brand:'Brink',   type:'VMC Double flux',    name:'Flair 400',                 ref:'FL400',    debit:400, diameters:'Ø200',      url:'https://www.brinkclimatesystems.com',    notes:'Grande capacité'},
   {id:'p20', brand:'Brink',   type:'VMC Simple flux',    name:'Renovent Excellent 180',    ref:'RE180',    debit:180, diameters:'Ø125',      url:'https://www.brinkclimatesystems.com',    notes:''},
@@ -5891,6 +5979,411 @@ if('serviceWorker' in navigator && !location.hostname.includes('claudeuserconten
       .catch(e=>console.warn('SW non enregistré:',e));
   });
 }
+
+// ══════════════════════════════════════════════════════════════
+// SIMULATION DE DÉPLACEMENT D'AIR — Module AnnotaVMC
+// ══════════════════════════════════════════════════════════════
+const SIM_S_LF  = Math.PI * 0.045 * 0.045; // Section Longflow Ø90mm
+const SIM_S_RD  = Math.PI * 0.0625 * 0.0625; // Section ronde Ø125mm
+const SIM_K_RD  = 0.6; // Coefficient radial bouche ronde
+const SIM_DATA_K = [{Q:19/3600,p:2.6},{Q:30/3600,p:5.3},{Q:43/3600,p:9.3}];
+
+let _simLayer = null;       // Konva.Layer dédié simulation
+let _simOverlayOn = false;  // Overlay actif ?
+let _simBouches = [];       // Bouches lues depuis le canvas
+
+// Calcul du coefficient K interpolé (Longflow)
+function _simGetKlf(Qms) {
+  const pts = SIM_DATA_K.map(d => ({q:d.Q, K:0.2*d.p/(d.Q/SIM_S_LF)}));
+  if(Qms <= SIM_DATA_K[0].Q) return pts[0].K;
+  if(Qms >= SIM_DATA_K[2].Q) return pts[2].K;
+  for(let i=0;i<2;i++){
+    if(Qms>=SIM_DATA_K[i].Q && Qms<=SIM_DATA_K[i+1].Q){
+      const t=(Qms-SIM_DATA_K[i].Q)/(SIM_DATA_K[i+1].Q-SIM_DATA_K[i].Q);
+      return pts[i].K + t*(pts[i+1].K-pts[i].K);
+    }
+  }
+  return pts[1].K;
+}
+
+// Vitesse au point (wx,wy) en coordonnées scène Konva depuis une bouche
+function _simVelAt(bx, by, rot, type, Qms, px, py) {
+  if(type === 'longflow') {
+    const V0 = Qms / SIM_S_LF;
+    const K  = _simGetKlf(Qms);
+    // Rotation de la bouche → direction du jet en radians
+    const ang = (rot || 0) * Math.PI / 180;
+    const dx  = (px - bx) * Math.cos(ang) + (py - by) * Math.sin(ang);
+    const dy  = -(px - bx) * Math.sin(ang) + (py - by) * Math.cos(ang);
+    if(dx <= 0) return 0;
+    const sigma = 0.12 * dx + 0.05;
+    return V0 * K / (dx + 0.05) * Math.exp(-(dy*dy)/(2*sigma*sigma));
+  } else {
+    // Bouche ronde — diffusion radiale
+    const V0 = Qms / SIM_S_RD;
+    const r  = Math.sqrt((px-bx)**2 + (py-by)**2);
+    return r < 1 ? V0 : V0 * SIM_K_RD / r;
+  }
+}
+
+// Lire les bouches soufflage depuis le canvas Konva
+function _simLireBouches() {
+  if(!drawLayer) return [];
+  const Q   = +document.getElementById('sim-q').value;
+  const Qms = Q / 3600;
+  const boucheTools = ['soufflage','soufflage-rect','soufflage-longflow'];
+  return drawLayer.getChildren()
+    .filter(n => n.name()==='element' && boucheTools.includes(n.getAttr('toolId')))
+    .map(g => {
+      const toolId = g.getAttr('toolId');
+      // Récupérer débit depuis elemInfo si dispo
+      const ei = g.getAttr('elemInfo');
+      const debit = (ei && ei.debit) ? ei.debit : Q;
+      return {
+        x:    g.x(),
+        y:    g.y(),
+        rot:  g.rotation(),
+        type: toolId === 'soufflage-longflow' ? 'longflow' : 'ronde',
+        Qms:  debit / 3600,
+        label: g.getAttr('toolLabel') || toolId,
+        info: ei,
+      };
+    });
+}
+
+// Vitesse totale au point (px,py) en coordonnées scène
+function _simTotalVel(px, py, bouches) {
+  return bouches.reduce((s, b) => s + _simVelAt(b.x, b.y, b.rot, b.type, b.Qms, px, py), 0);
+}
+
+// Couleur heatmap px → [r,g,b,a]
+function _simColor(v, vmax) {
+  const t = Math.min(v / (vmax || 1), 1);
+  if(t < 0.02) return [0,0,0,0];
+  const stops = [
+    [8,48,107],[33,113,181],[107,174,214],[198,219,239],
+    [255,237,160],[254,178,76],[240,59,32],[189,0,38]
+  ];
+  const idx = t*(stops.length-1), lo=Math.floor(idx), hi=Math.min(Math.ceil(idx),stops.length-1), f=idx-lo;
+  const c = stops[lo].map((v,i)=>Math.round(v+f*(stops[hi][i]-v)));
+  return [...c, Math.min(220, Math.round((t*2.8+0.1)*255))];
+}
+
+// Dessiner la heatmap sur le simLayer
+function _simDessinerHeatmap(bouches) {
+  if(!_simLayer) _simLayer = new Konva.Layer({listening:false});
+  _simLayer.destroyChildren();
+
+  if(!stage || bouches.length === 0) { _simLayer.batchDraw(); return; }
+
+  const sc   = stage.scaleX();
+  const offX = stage.x();
+  const offY = stage.y();
+  const W    = stage.width();
+  const H    = stage.height();
+  const STEP = 8; // px écran par cellule → résolution
+
+  // Canvas offscreen pour la heatmap
+  const oc  = document.createElement('canvas');
+  oc.width  = Math.ceil(W / STEP);
+  oc.height = Math.ceil(H / STEP);
+  const octx = oc.getContext('2d');
+  const imgD = octx.createImageData(oc.width, oc.height);
+
+  // Calculer la grille en coordonnées scène
+  let vmax = 0;
+  const field = new Float32Array(oc.width * oc.height);
+  for(let gy=0; gy<oc.height; gy++) {
+    for(let gx=0; gx<oc.width; gx++) {
+      // Coordonnées scène Konva correspondant au pixel écran (gx*STEP, gy*STEP)
+      const sceneX = (gx*STEP - offX) / sc;
+      const sceneY = (gy*STEP - offY) / sc;
+      // Convertir en mètres si scaleRatio disponible
+      // scaleRatio = mètres/pixel_scène
+      const wx = scaleRatio ? sceneX * scaleRatio : sceneX / 50;
+      const wy = scaleRatio ? sceneY * scaleRatio : sceneY / 50;
+      // Bouches en coordonnées scène → convertir aussi
+      const v = bouches.reduce((s, b) => {
+        const bwx = scaleRatio ? b.x * scaleRatio : b.x / 50;
+        const bwy = scaleRatio ? b.y * scaleRatio : b.y / 50;
+        return s + _simVelAt(bwx, bwy, b.rot, b.type, b.Qms, wx, wy);
+      }, 0);
+      field[gy*oc.width+gx] = v;
+      if(v > vmax) vmax = v;
+    }
+  }
+
+  // Remplir l'image
+  for(let gy=0; gy<oc.height; gy++) {
+    for(let gx=0; gx<oc.width; gx++) {
+      const [r,g,b,a] = _simColor(field[gy*oc.width+gx], vmax);
+      const idx = (gy*oc.width+gx)*4;
+      imgD.data[idx]=r; imgD.data[idx+1]=g; imgD.data[idx+2]=b; imgD.data[idx+3]=a;
+    }
+  }
+  octx.putImageData(imgD, 0, 0);
+
+  // Ajouter comme image Konva full-écran
+  const url = oc.toDataURL();
+  const img = new Image();
+  img.onload = () => {
+    const ki = new Konva.Image({
+      image: img,
+      x: 0, y: 0,
+      width: W, height: H,
+      listening: false,
+      opacity: (+document.getElementById('sim-opacity').value) / 100,
+    });
+    _simLayer.add(ki);
+    _simLayer.batchDraw();
+
+    // Couverture : % pixels avec v entre 0.05 et 0.5 m/s
+    let cov=0, tot=0;
+    for(let i=0;i<field.length;i++){if(field[i]>0.001){tot++;if(field[i]>=0.05&&field[i]<=0.5)cov++;}}
+    const covPct = tot ? Math.round(cov/tot*100) : 0;
+    document.getElementById('sim-m-couv').textContent = covPct+'%';
+  };
+  img.src = url;
+}
+
+// Calcul principal
+function simCompute() {
+  _simBouches = _simLireBouches();
+  const nb  = _simBouches.length;
+  const Q   = +document.getElementById('sim-q').value;
+  const dt  = +document.getElementById('sim-dt').value;
+  const dep = +document.getElementById('sim-dep').value;
+  const mode= document.getElementById('sim-mode').value;
+  const qtot= _simBouches.reduce((s,b)=>s+b.Qms*3600,0) || Q*nb;
+  const puiss= Math.round(qtot/3600*1.2*1006*dt);
+  const ratio= dep>0 ? Math.round(puiss/dep*100) : 0;
+
+  document.getElementById('sim-m-nb').textContent   = nb;
+  document.getElementById('sim-m-qtot').textContent = Math.round(qtot)+' m³/h';
+  document.getElementById('sim-m-puiss').textContent= puiss+' W';
+
+  // Verdict
+  const vd  = document.getElementById('sim-verdict');
+  const vdt = document.getElementById('sim-verdict-title');
+  const vds = document.getElementById('sim-verdict-sub');
+  if(nb === 0){
+    vd.style.borderColor='#2e334d'; vd.style.background='#1a1d26';
+    vdt.textContent='Aucune bouche de soufflage détectée';
+    vds.textContent='Placez des bouches soufflage sur le plan.';
+  } else if(ratio>=100){
+    vd.style.borderColor='#22c55e'; vd.style.background='rgba(34,197,94,.08)';
+    vdt.style.color='#22c55e'; vdt.textContent='✓ Couverture thermique assurée — '+ratio+'%';
+    vds.textContent=puiss+' W soufflés / '+dep+' W déperditions · '+nb+' bouche'+(nb>1?'s':'');
+  } else if(ratio>=80){
+    vd.style.borderColor='#f59e0b'; vd.style.background='rgba(245,158,11,.08)';
+    vdt.style.color='#f59e0b'; vdt.textContent='⚠ Couverture partielle — '+ratio+'%';
+    vds.textContent='Appoints possibles par conditions extrêmes.';
+  } else {
+    vd.style.borderColor='#ef4444'; vd.style.background='rgba(239,68,68,.08)';
+    vdt.style.color='#ef4444'; vdt.textContent='✕ Couverture insuffisante — '+ratio+'%';
+    vds.textContent='Revoir le nombre de bouches ou le débit.';
+  }
+
+  // Liste bouches détectées
+  const listEl = document.getElementById('sim-bouches-list');
+  if(nb===0){
+    listEl.textContent = 'Aucune bouche soufflage sur ce niveau.';
+  } else {
+    listEl.innerHTML = _simBouches.map((b,i)=>`
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #2e334d;">
+        <span>B${i+1} — ${b.type==='longflow'?'Longflow →':'Ronde ⊙'}</span>
+        <span style="color:#e8eaf2;">${Math.round(b.Qms*3600)} m³/h</span>
+      </div>`).join('');
+  }
+
+  // Mettre à jour l'overlay si actif
+  if(_simOverlayOn && nb>0) _simDessinerHeatmap(_simBouches);
+}
+
+// Activer/désactiver l'overlay heatmap
+function simToggleOverlay() {
+  _simOverlayOn = !_simOverlayOn;
+  const btn = document.getElementById('sim-toggle-btn');
+  if(_simOverlayOn){
+    btn.textContent = 'ON';
+    btn.style.borderColor = '#ff0101';
+    btn.style.color = '#ff0101';
+    btn.style.background = 'rgba(255,1,1,0.1)';
+    // Créer et insérer le layer de simulation au-dessus de bgLayer
+    if(!_simLayer){
+      _simLayer = new Konva.Layer({listening:false});
+      stage.add(_simLayer);
+      // Placer sous drawLayer
+      _simLayer.moveToBottom();
+      _simLayer.moveUp();
+    }
+    _simDessinerHeatmap(_simBouches.length ? _simBouches : _simLireBouches());
+  } else {
+    btn.textContent = 'OFF';
+    btn.style.borderColor = '#2e334d';
+    btn.style.color = '#8891aa';
+    btn.style.background = '#1a1d26';
+    if(_simLayer){ _simLayer.destroyChildren(); _simLayer.batchDraw(); }
+  }
+}
+
+// Mettre à jour l'opacité sans recalculer
+function simUpdateOpacity(val) {
+  if(!_simLayer) return;
+  _simLayer.getChildren().forEach(n => n.opacity(val/100));
+  _simLayer.batchDraw();
+}
+
+// Génération du rapport PDF (utilise jsPDF via CDN)
+function simGenererRapport() {
+  const nb = _simBouches.length;
+  if(nb === 0){ alert('Aucune bouche détectée. Placez des bouches soufflage sur le plan d\'abord.'); return; }
+
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  script.onload = _simFaireRapport;
+  if(window.jspdf){ _simFaireRapport(); return; }
+  document.head.appendChild(script);
+}
+
+function _simFaireRapport() {
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210, M=15;
+  const blue=[37,99,235], dark=[17,24,39], gray=[107,114,128], light=[243,244,246];
+  const d = new Date();
+
+  // Récupérer infos client depuis les notes chantier
+  const client      = document.getElementById('note-client')?.value || '—';
+  const adresse     = document.getElementById('note-adresse')?.value || '—';
+  const intervenant = document.getElementById('note-intervenant')?.value || '—';
+  const Q   = +document.getElementById('sim-q').value;
+  const dt  = +document.getElementById('sim-dt').value;
+  const dep = +document.getElementById('sim-dep').value;
+  const mode= document.getElementById('sim-mode').value;
+  const nb  = _simBouches.length;
+  const qtot= Math.round(_simBouches.reduce((s,b)=>s+b.Qms*3600,0));
+  const puiss= Math.round(qtot/3600*1.2*1006*dt);
+  const ratio= dep>0?Math.round(puiss/dep*100):0;
+  const covTxt = document.getElementById('sim-m-couv').textContent;
+
+  // En-tête
+  doc.setFillColor(...blue); doc.rect(0,0,W,40,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.text('Simulation de distribution d\'air', M, 15);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('VMC Double Flux · Bouches Zehnder — AnnotaVMC', M, 23);
+  doc.setFontSize(8);
+  doc.text(d.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), M, 33);
+  doc.text('Intervenant : '+intervenant, W-M, 33, {align:'right'});
+
+  // Infos client
+  let y=50;
+  doc.setFillColor(...light); doc.roundedRect(M,y,W-2*M,22,3,3,'F');
+  doc.setTextColor(...dark); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('CLIENT', M+4, y+7); doc.text('CHANTIER', W/2, y+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...blue);
+  doc.text(client, M+4, y+15);
+  doc.setTextColor(...dark); doc.setFontSize(9);
+  doc.text(adresse, W/2, y+15);
+
+  // Métriques
+  y+=30;
+  const mw=(W-2*M-9)/4;
+  const mets=[
+    {v:ratio+'%',l:'Couverture thermique',ok:ratio>=100},
+    {v:puiss+' W',l:'Puissance soufflée',ok:true},
+    {v:covTxt,l:'Couverture spatiale',ok:parseInt(covTxt)>=75},
+    {v:nb+'',l:'Bouches installées',ok:true},
+  ];
+  mets.forEach((m,i)=>{
+    const mx=M+i*(mw+3);
+    doc.setFillColor(...(m.ok?[236,253,245]:[254,242,242]));
+    doc.roundedRect(mx,y,mw,18,2,2,'F');
+    doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.setTextColor(...(m.ok?[5,150,105]:[220,38,38]));
+    doc.text(m.v, mx+mw/2, y+11, {align:'center'});
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(...gray);
+    doc.text(m.l, mx+mw/2, y+16, {align:'center'});
+  });
+
+  // Paramètres
+  y+=26;
+  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...dark);
+  doc.text('Paramètres de simulation', M, y); y+=6;
+  const params=[
+    ['Mode',mode==='chaud'?'Chauffage':'Rafraîchissement'],
+    ['ΔT soufflage',dt+' °C'],
+    ['Débit par bouche',Q+' m³/h'],
+    ['Débit total soufflé',qtot+' m³/h'],
+    ['Déperditions estimées',dep+' W'],
+    ['Taux de couverture',ratio+'%'],
+  ];
+  params.forEach((row,i)=>{
+    if(i%2===0){doc.setFillColor(...light);doc.rect(M,y-1,W-2*M,8,'F');}
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...gray);
+    doc.text(row[0], M+3, y+5);
+    const isVerdict=row[0]==='Taux de couverture';
+    doc.setTextColor(isVerdict?(ratio>=100?...[5,150,105]:...[220,38,38]):...[...dark]);
+    doc.setFont('helvetica',isVerdict?'bold':'normal');
+    doc.text(row[1], W-M-3, y+5, {align:'right'}); y+=8;
+  });
+
+  // Tableau bouches
+  y+=8;
+  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...dark);
+  doc.text('Bouches installées (niveau courant)', M, y); y+=5;
+  doc.setFillColor(...blue); doc.rect(M,y,W-2*M,7,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  doc.text('N°',M+3,y+5); doc.text('Type',M+14,y+5); doc.text('X scène',M+60,y+5);
+  doc.text('Y scène',M+85,y+5); doc.text('Débit m³/h',M+110,y+5); doc.text('Rotation',M+140,y+5);
+  y+=7;
+  _simBouches.forEach((b,i)=>{
+    if(i%2===0){doc.setFillColor(...light);doc.rect(M,y,W-2*M,7,'F');}
+    doc.setTextColor(...dark); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.text('B'+(i+1),M+3,y+5);
+    doc.text(b.type==='longflow'?'Longflow (directionnel)':'Ronde (radiale 360°)',M+14,y+5);
+    doc.text(Math.round(b.x)+'px',M+60,y+5);
+    doc.text(Math.round(b.y)+'px',M+85,y+5);
+    doc.text(Math.round(b.Qms*3600)+'',M+110,y+5);
+    doc.text(Math.round(b.rot)+'°',M+140,y+5);
+    y+=7;
+  });
+
+  // Verdict final
+  y+=8;
+  const vc=ratio>=100?[236,253,245]:ratio>=80?[255,251,235]:[254,242,242];
+  const vb=ratio>=100?[110,231,183]:ratio>=80?[252,211,77]:[252,165,165];
+  doc.setFillColor(...vc); doc.roundedRect(M,y,W-2*M,20,3,3,'F');
+  doc.setDrawColor(...vb); doc.setLineWidth(0.5); doc.roundedRect(M,y,W-2*M,20,3,3,'S');
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.setTextColor(...(ratio>=100?[5,150,105]:ratio>=80?[217,119,6]:[220,38,38]));
+  const vstr=ratio>=100?'Couverture thermique assurée — installation correctement dimensionnée.':
+             ratio>=80?'Couverture partielle — appoints ponctuels possibles par conditions extrêmes.':
+             'Couverture insuffisante — redimensionnement recommandé.';
+  doc.text(vstr, M+4, y+8);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark);
+  doc.text('Simulation analytique · Modèle jet libre gaussien calibré données Zehnder Longflow · AnnotaVMC', M+4, y+16);
+
+  // Footer
+  doc.setFontSize(7); doc.setTextColor(...gray);
+  doc.text('Généré par AnnotaVMC — simulation de déplacement d\'air VMC double flux', M, 287);
+  doc.text(d.toLocaleString('fr-FR'), W-M, 287, {align:'right'});
+
+  const fn='Simulation_VMC_'+(client||'rapport').replace(/\s/g,'_')+'_'+d.toISOString().slice(0,10)+'.pdf';
+  doc.save(fn);
+}
+
+// Écouter les changements du plan pour recalculer si simulation active
+// (léger debounce pour ne pas recalculer à chaque drag)
+let _simDebounce = null;
+function _simOnPlanChange(){
+  if(!_simOverlayOn) return;
+  clearTimeout(_simDebounce);
+  _simDebounce = setTimeout(()=>{ simCompute(); }, 600);
+}
+
 </script>
 </body>
 </html>
